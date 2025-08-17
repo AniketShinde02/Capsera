@@ -259,10 +259,10 @@ export const authOptions: NextAuthOptions = {
       // Session event logging disabled for cleaner console
     }
   },
-  // Add configuration to allow public routes
-  pages: {
-    signIn: '/',
-  },
+  // Remove auto-redirect configuration to prevent auto-login loops
+  // pages: {
+  //   signIn: '/',  // ← This was causing auto-redirect to homepage
+  // },
   // Disable debug mode to reduce console noise
   debug: false,
 };

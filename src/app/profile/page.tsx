@@ -17,17 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { InlineMessage } from '@/components/ui/inline-message';
 import ProfileDeletion from '@/components/ProfileDeletion';
 
-// Force dynamic rendering for session-dependent content
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Note: Client components cannot use server-side exports like dynamic/revalidate
+// The component will be dynamic by default since it uses useSession
 
 export default function ProfilePage() {
     const { data: session, status } = useSession({
-        required: true,
-        onUnauthenticated() {
-            // Redirect to 401 page when user is not authenticated
-            window.location.href = '/401';
-        },
+        required: false, // Don't force authentication
     });
 
     const sessionStatus = status || 'loading';

@@ -12,7 +12,7 @@ import { User, Bell, Settings, Zap, AlertCircle, CheckCircle } from 'lucide-reac
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function SettingsPage() {
-  const { status } = useSession({ required: true });
+  const { status, data: session } = useSession({ required: false });
   
   // Account states
   const [username, setUsername] = useState('');
@@ -102,7 +102,32 @@ export default function SettingsPage() {
     }
   };
 
-  if (status === 'loading') return null;
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 animate-spin mx-auto mb-4 border-4 border-primary border-t-transparent rounded-full"></div>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is authenticated
+  if (!session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md mx-auto p-8 bg-card rounded-2xl shadow-xl border">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2 text-foreground">Authentication Required</h2>
+          <p className="text-muted-foreground mb-6">Please sign in to access your settings.</p>
+          <Link href="/" className="text-primary font-medium">
+            Go back to home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const sidebarItems = [
     { id: 'Account', label: 'Account', icon: User },

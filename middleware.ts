@@ -23,13 +23,13 @@ export default withAuth(
           return true;
         }
         
-        // For admin routes, require authentication
+        // ONLY protect admin routes - allow all other routes to pass through
         if (pathname.startsWith('/admin')) {
           return !!token;
         }
         
-        // For other protected routes, require authentication
-        return !!token;
+        // Allow all other routes without authentication requirement
+        return true;
       },
     },
     pages: { 
@@ -41,12 +41,9 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/admin/dashboard',
-    '/profile',
-    '/settings',
-    '/api/admin/dashboard-stats',
-    '/api/user/:path*',
-    '/api/posts/:path*'
+    // ONLY protect admin routes - remove profile, settings, etc.
+    '/admin/:path*',
+    '/api/admin/:path*'
   ]
 };
 

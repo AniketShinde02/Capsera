@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { sign, verify } from 'jsonwebtoken';
+import { sign } from 'jsonwebtoken';
 import AdminUser from '@/models/AdminUser';
+import { otpDbService } from '@/lib/otp-db-service';
 
 // Track used tokens in database for persistence across server restarts
 async function isTokenUsed(token: string) {
@@ -43,14 +44,15 @@ export async function GET() {
     const { db } = await connectToDatabase();
     const rolesCollection = db.collection('roles');
     
-    // Check admin_users collection specifically for admin users
-    const adminExists = await AdminUser.countDocuments({ isAdmin: true }) > 0;
+    // Check admin_users collection specifically for admin users using direct database connection
+    const adminUsersCollection = db.collection('adminusers');
+    const adminExists = await adminUsersCollection.countDocuments({ isAdmin: true }) > 0;
     const rolesExist = await rolesCollection.countDocuments() > 0;
     
     // Get admin email if exists
     let adminEmail = null;
     if (adminExists) {
-      const adminUser = await AdminUser.findOne({ isAdmin: true }).select('email');
+      const adminUser = await adminUsersCollection.findOne({ isAdmin: true }, { projection: { email: 1 } });
       adminEmail = adminUser?.email;
     }
     
@@ -73,7 +75,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { action, token, email, password, username } = await request.json();
+    const { action, token, email, password, username, pin } = await request.json();
     
     // JWT verification for production setup
     const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secure-jwt-secret-key-change-this-in-production';
@@ -85,92 +87,238 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only verify JWT for actions that need it
-    let decoded: any = null;
-    if (action === 'verify-token' || action === 'create-admin') {
-      if (!token) {
+    // PIN verification for setup access
+    let pinVerified = false;
+    if (action === 'verify-pin') {
+      if (!pin) {
         return NextResponse.json(
-          { success: false, message: 'Token is required for this action' },
+          { success: false, message: 'PIN is required for this action' },
+          { status: 400 }
+        );
+      }
+
+      if (!email) {
+        return NextResponse.json(
+          { success: false, message: 'Email is required for PIN verification' },
           { status: 400 }
         );
       }
 
       try {
-        // Verify JWT token
-        console.log('🔐 Attempting JWT verification with token length:', token.length);
-        decoded = verify(token, JWT_SECRET) as any;
-        
-        console.log('✅ JWT decoded successfully:', {
-          type: decoded.type,
-          purpose: decoded.purpose,
-          exp: decoded.exp,
-          jti: decoded.jti
+        // Check if system lock is enabled
+        const { db } = await connectToDatabase();
+        const lockDoc = await db.collection('systemsettings').findOne({ 
+          key: 'system_lock_pin' 
         });
-        
-        // Check token type and purpose
-        if (decoded.type !== 'admin-setup' || decoded.purpose !== 'initial-admin-creation') {
-          console.log('❌ Invalid token type or purpose:', { type: decoded.type, purpose: decoded.purpose });
+
+        if (!lockDoc || !lockDoc.isActive) {
           return NextResponse.json(
-            { success: false, message: 'Invalid token type or purpose' },
-            { status: 401 }
-          );
-        }
-        
-        // Check if token has expired
-        if (decoded.exp < Math.floor(Date.now() / 1000)) {
-          console.log('❌ Token expired:', { 
-            tokenExp: decoded.exp, 
-            currentTime: Math.floor(Date.now() / 1000),
-            expiresAt: new Date(decoded.exp * 1000)
-          });
-          return NextResponse.json(
-            { success: false, message: 'Setup token has expired. Generate a new one.' },
-            { status: 401 }
-          );
-        }
-        
-        console.log('✅ JWT token verified successfully:', { 
-          type: decoded.type, 
-          purpose: decoded.purpose, 
-          expiresAt: new Date(decoded.exp * 1000) 
-        });
-        
-        // Check if JWT token has already been used (by JTI)
-        if (await isTokenUsed(decoded.jti)) {
-          console.log('❌ Token already used:', decoded.jti);
-          return NextResponse.json(
-            { success: false, message: 'Setup token has already been used. Generate a new token.' },
+            { success: false, message: 'System lock not configured. Please set up PIN protection first.' },
             { status: 400 }
           );
         }
+
+        // Verify the PIN against the stored hashed PIN
+        const isValid = await bcrypt.compare(pin, lockDoc.value);
         
-      } catch (jwtError) {
-        console.error('JWT verification failed:', jwtError);
-        console.error('Token that failed:', token.substring(0, 50) + '...');
+        if (!isValid) {
+          return NextResponse.json(
+            { success: false, message: 'Invalid PIN' },
+            { status: 400 }
+          );
+        }
+
+        pinVerified = true;
+        console.log('✅ PIN verified successfully for:', email);
+        
+        return NextResponse.json({
+          success: true,
+          message: 'PIN verified successfully'
+        });
+        
+      } catch (pinError) {
+        console.error('PIN verification failed:', pinError);
         return NextResponse.json(
-          { success: false, message: 'Invalid or malformed setup token' },
+          { success: false, message: 'PIN verification failed' },
           { status: 500 }
         );
       }
     }
+
+    // Only verify OTP for actions that need it
+    let otpVerified = false;
+    if (action === 'verify-token') {
+      if (!token) {
+        return NextResponse.json(
+          { success: false, message: 'OTP is required for this action' },
+          { status: 400 }
+        );
+      }
+
+      if (!email) {
+        return NextResponse.json(
+          { success: false, message: 'Email is required for OTP verification' },
+          { status: 400 }
+        );
+      }
+
+      // Check if PIN was verified first (for security)
+      if (token && token.length === 6 && /^\d{6}$/.test(token)) {
+        // This might be a PIN token, check if it's valid
+        try {
+          const { db } = await connectToDatabase();
+          const tempPinDoc = await db.collection('temp_pins').findOne({ 
+            email: email.toLowerCase(),
+            pin: token,
+            expiresAt: { $gt: new Date() } // Not expired
+          });
+
+          if (tempPinDoc) {
+            // This is a valid PIN, mark it as used and proceed
+            await db.collection('temp_pins').deleteOne({ _id: tempPinDoc._id });
+            pinVerified = true;
+            console.log('✅ PIN verified via token for:', email);
+          }
+        } catch (error) {
+          console.error('PIN check failed:', error);
+        }
+      }
+
+      try {
+        // Verify OTP - Check both unverified and verified OTPs
+        console.log('🔐 Attempting OTP verification for email:', email);
+        
+        // First try to verify as unverified OTP
+        let otpResult = await otpDbService.verifyOTP(email, token);
+        
+        // If that fails, check if OTP is already verified
+        if (!otpResult.success) {
+          console.log('🔍 OTP not found as unverified, checking if already verified...');
+          otpResult = await otpDbService.checkVerifiedOTP(email, token);
+        }
+        
+        if (!otpResult.success && !pinVerified) {
+          console.log('❌ OTP verification failed:', otpResult.message);
+          return NextResponse.json(
+            { success: false, message: otpResult.message },
+            { status: 400 }
+          );
+        }
+        
+        otpVerified = true;
+        console.log('✅ OTP verified successfully for:', email);
+        
+      } catch (otpError) {
+        console.error('OTP verification failed:', otpError);
+        if (!pinVerified) {
+          return NextResponse.json(
+            { success: false, message: 'Invalid or expired OTP' },
+            { status: 500 }
+          );
+        }
+      }
+    }
+    
+          // For admin actions, check if user has been verified before (OTP or existing admin)
+      if (action === 'create-admin' || action === 'debug-admin') {
+        // Check if admin already exists for this email
+        const { db } = await connectToDatabase();
+        const adminUsersCollection = db.collection('adminusers');
+        const existingAdmin = await adminUsersCollection.findOne({ 
+          email: email.toLowerCase(),
+          isAdmin: true 
+        });
+        
+        if (existingAdmin) {
+          console.log('✅ Admin already exists for:', email);
+          otpVerified = true; // Allow access since admin exists
+        } else if (token === 'EXISTING_ADMIN') {
+          // Special case: Frontend indicates admin exists but we need to verify
+          console.log('🔍 Frontend indicates existing admin, verifying...');
+          const adminExists = await adminUsersCollection.findOne({ 
+            email: email.toLowerCase(),
+            isAdmin: true 
+          });
+          
+          if (adminExists) {
+            console.log('✅ Admin verified to exist for:', email);
+            otpVerified = true;
+          } else {
+            return NextResponse.json(
+              { success: false, message: 'No admin found for this email. Please verify OTP first.' },
+              { status: 400 }
+            );
+          }
+        } else {
+          // SIMPLE LOGIC: If OTP was verified for ANY email, you're trusted
+          // Check if there's a verified OTP in the system (any email)
+          try {
+            console.log('🔍 Checking if user is trusted via OTP verification...');
+            
+            // Check if this token was used to verify OTP for ANY email
+            const otpCollection = db.collection('otps');
+            const verifiedOTP = await otpCollection.findOne({ 
+              otp: token,
+              verified: true,
+              expiresAt: { $gt: new Date() } // Not expired
+            });
+            
+            if (verifiedOTP) {
+              console.log('✅ User is trusted via verified OTP, allowing admin creation');
+              otpVerified = true;
+            } else {
+              // Fallback: try to verify OTP for this specific email
+              let otpResult = await otpDbService.verifyOTP(email, token);
+              if (!otpResult.success) {
+                otpResult = await otpDbService.checkVerifiedOTP(email, token);
+              }
+              
+              if (!otpResult.success) {
+                return NextResponse.json(
+                  { success: false, message: 'OTP verification required. Please verify OTP first.' },
+                  { status: 400 }
+                );
+              }
+              
+              otpVerified = true;
+            }
+          } catch (otpError) {
+            return NextResponse.json(
+              { success: false, message: 'OTP verification failed' },
+              { status: 500 }
+            );
+          }
+        }
+      }
     
     // Handle different actions
     switch (action) {
       case 'verify-token':
-        // Check admin_users collection specifically
-        const adminExists = await AdminUser.countDocuments({ isAdmin: true }) > 0;
+        // Check admin_users collection specifically using direct database connection
+        const { db } = await connectToDatabase();
+        const adminUsersCollection = db.collection('adminusers');
+        const adminExists = await adminUsersCollection.countDocuments({ isAdmin: true }) > 0;
         
-        return NextResponse.json({ success: true, adminExists: adminExists, message: 'Token verified successfully' });
+        return NextResponse.json({ success: true, adminExists: adminExists, message: 'OTP verified successfully' });
         
       case 'initialize':
         return await handleInitialize();
         
       case 'create-admin':
-        // Mark JWT token as used for admin creation
-        if (decoded) {
-          await markTokenAsUsed(decoded.jti);
+        // OTP is already verified and consumed, proceed with admin creation
+        if (!otpVerified) {
+          return NextResponse.json(
+            { success: false, message: 'OTP verification required' },
+            { status: 400 }
+          );
         }
         return await handleCreateAdmin(email, password, username);
+        
+      case 'debug-admin':
+        return await handleDebugAdmin(email);
+        
+      case 'test-db':
+        return await handleTestDatabase();
         
       case 'reset':
         return await handleReset();
@@ -254,8 +402,9 @@ async function handleCreateAdmin(email: string, password: string, username?: str
     const { db } = await connectToDatabase();
     const rolesCollection = db.collection('roles');
     
-    // Check if admin already exists in AdminUser collection
-    const existingAdmin = await AdminUser.findOne({ isAdmin: true });
+    // Check if admin already exists in AdminUser collection using direct database connection
+    const adminUsersCollection = db.collection('adminusers');
+    const existingAdmin = await adminUsersCollection.findOne({ isAdmin: true });
     if (existingAdmin) {
       console.log('❌ Admin already exists in AdminUser collection:', existingAdmin.email);
       return NextResponse.json(
@@ -265,7 +414,7 @@ async function handleCreateAdmin(email: string, password: string, username?: str
     }
     
     // Check if email already exists in AdminUser collection
-    const existingAdminUser = await AdminUser.findOne({ email: email.toLowerCase() });
+    const existingAdminUser = await adminUsersCollection.findOne({ email: email.toLowerCase() });
     if (existingAdminUser) {
       console.log('❌ Admin with email already exists:', existingAdminUser.email);
       return NextResponse.json(
@@ -306,11 +455,13 @@ async function handleCreateAdmin(email: string, password: string, username?: str
       console.log('✅ Admin role found:', adminRole._id);
     }
     
-    // Create admin user using AdminUser model
-    const adminUser = new AdminUser({
+    // Create admin user using direct database connection
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    const adminUserData = {
       email: email.toLowerCase(),
       username: username || email.split('@')[0],
-      password: password, // Will be hashed by pre-save middleware
+      password: hashedPassword,
       role: {
         _id: adminRole._id,
         name: adminRole.name,
@@ -318,22 +469,34 @@ async function handleCreateAdmin(email: string, password: string, username?: str
       },
       isAdmin: true,
       isVerified: true,
-      status: 'active'
-    });
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     
-    console.log('📝 Saving admin user to AdminUser collection:', { email: adminUser.email, role: adminUser.role });
+    console.log('📝 Saving admin user to AdminUser collection:', { email: adminUserData.email, role: adminUserData.role });
     
-    await adminUser.save();
+    const result = await adminUsersCollection.insertOne(adminUserData);
     
-    console.log('✅ Admin user created successfully in AdminUser collection:', adminUser._id);
+    console.log('✅ Admin user created successfully in AdminUser collection:', result.insertedId);
+    
+    // Consume the OTP after successful admin creation
+    try {
+      await otpDbService.consumeOTP(email);
+      console.log('✅ OTP consumed successfully after admin creation');
+    } catch (otpError) {
+      console.warn('⚠️ Warning: Failed to consume OTP after admin creation:', otpError);
+      // Don't fail the admin creation if OTP consumption fails
+    }
+    
     return NextResponse.json({
       success: true,
       message: 'Admin user created successfully',
       adminUser: {
-        id: adminUser._id,
-        email: adminUser.email,
-        username: adminUser.username,
-        role: adminUser.role
+        id: result.insertedId,
+        email: adminUserData.email,
+        username: adminUserData.username,
+        role: adminUserData.role
       }
     });
     
@@ -346,12 +509,126 @@ async function handleCreateAdmin(email: string, password: string, username?: str
   }
 }
 
+async function handleDebugAdmin(email: string) {
+  try {
+    await connectToDatabase();
+    const { db } = await connectToDatabase();
+    const adminUsersCollection = db.collection('adminusers');
+    
+    console.log('🔍 Debug: Looking for admin user with email:', email);
+    
+    // Find admin user
+    const adminUser = await adminUsersCollection.findOne({ 
+      email: email.toLowerCase(),
+      isAdmin: true 
+    });
+    
+    if (!adminUser) {
+      console.log('❌ Debug: No admin user found');
+      return NextResponse.json({
+        success: false,
+        exists: false,
+        message: 'No admin user found with this email'
+      });
+    }
+    
+    console.log('✅ Debug: Admin user found:', {
+      id: adminUser._id,
+      email: adminUser.email,
+      username: adminUser.username,
+      role: adminUser.role,
+      status: adminUser.status,
+      isAdmin: adminUser.isAdmin,
+      hasPassword: !!adminUser.password
+    });
+    
+    return NextResponse.json({
+      success: true,
+      exists: true,
+      id: adminUser._id,
+      email: adminUser.email,
+      username: adminUser.username,
+      role: adminUser.role?.name || 'unknown',
+      status: adminUser.status || 'unknown',
+      isAdmin: adminUser.isAdmin,
+      hasPassword: !!adminUser.password,
+      message: 'Admin user found and details retrieved'
+    });
+    
+  } catch (error) {
+    console.error('❌ Admin debug failed:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        exists: false,
+        message: `Debug failed: ${error}` 
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleTestDatabase() {
+  try {
+    console.log('🧪 Testing database connection...');
+    const startTime = Date.now();
+    
+    const { db } = await connectToDatabase();
+    
+    const endTime = Date.now();
+    const connectionTime = endTime - startTime;
+    
+    // Test a simple query
+    const collections = await db.listCollections().toArray();
+    
+    // Test admin users collection specifically
+    const adminUsersCollection = db.collection('adminusers');
+    const adminCount = await adminUsersCollection.countDocuments();
+    
+    // Test OTP collection
+    const otpCollection = db.collection('otps');
+    const otpCount = await otpCollection.countDocuments();
+    
+    // Test a simple find operation to check for parsing issues
+    const sampleAdmin = await adminUsersCollection.findOne({}, { projection: { email: 1, username: 1, role: 1 } });
+    
+    console.log('✅ Database connection test successful');
+    
+    return NextResponse.json({
+      success: true,
+      connectionTime: `${connectionTime}ms`,
+      collections: collections.length,
+      adminUsersCount: adminCount,
+      otpCount: otpCount,
+      sampleAdmin: sampleAdmin ? {
+        id: sampleAdmin._id,
+        email: sampleAdmin.email,
+        username: sampleAdmin.username,
+        role: sampleAdmin.role
+      } : null,
+      message: 'Database connection test successful'
+    });
+    
+  } catch (error) {
+    console.error('❌ Database connection test failed:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: `Database test failed: ${error}` 
+      },
+      { status: 500 }
+    );
+  }
+}
+
 async function handleReset() {
   try {
     await connectToDatabase();
+    const { db } = await connectToDatabase();
+    const adminUsersCollection = db.collection('adminusers');
     
     // Delete all admin users from AdminUser collection
-    const result = await AdminUser.deleteMany({ isAdmin: true });
+    const result = await adminUsersCollection.deleteMany({ isAdmin: true });
     
     if (result.acknowledged) {
       return NextResponse.json({

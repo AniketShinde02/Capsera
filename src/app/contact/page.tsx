@@ -13,14 +13,14 @@ import { Card, CardContent } from '@/components/ui/card';
 interface FormData {
   name: string;
   email: string;
-  subject: string;
+  category: string;
   message: string;
 }
 
 interface FormErrors {
   name?: string;
   email?: string;
-  subject?: string;
+  category?: string;
   message?: string;
 }
 
@@ -28,7 +28,7 @@ export default function ContactPage() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
-    subject: '',
+    category: 'General Inquiry',
     message: ''
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -52,10 +52,8 @@ export default function ContactPage() {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (!formData.subject.trim()) {
-      newErrors.subject = 'Subject is required';
-    } else if (formData.subject.trim().length < 5) {
-      newErrors.subject = 'Subject must be at least 5 characters long';
+    if (!formData.category.trim()) {
+      newErrors.category = 'Category is required';
     }
 
     if (!formData.message.trim()) {
@@ -68,7 +66,7 @@ export default function ContactPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, [field]: value }));
     
@@ -118,13 +116,10 @@ export default function ContactPage() {
       setSubmitSuccess(result.message || "Thanks for reaching out! We'll get back to you within 24 hours.");
       
       // Reset form after successful submission
-      setFormData({ name: '', email: '', subject: '', message: '' });
+      setFormData({ name: '', email: '', category: 'General Inquiry', message: '' });
       setErrors({});
       
-      console.log('✅ Contact form submitted successfully:', {
-        submissionId: result.data?.id,
-        submittedAt: result.data?.submittedAt
-      });
+      // Contact form submitted successfully
       
     } catch (error: any) {
       console.error('❌ Contact form submission failed:', error);
@@ -150,9 +145,9 @@ export default function ContactPage() {
           
           {/* Left Column: Information */}
           <div className="space-y-4 sm:space-y-6 text-center md:text-left">
-            <h2 className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-transparent">
-              Let's Connect
-            </h2>
+                         <h2 className="bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 dark:from-purple-400 dark:via-pink-400 dark:to-indigo-400 bg-clip-text text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-transparent" style={{ fontFamily: 'Satoshi, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+               Let's Connect
+             </h2>
             <p className="text-base sm:text-lg md:text-xl leading-relaxed text-muted-foreground px-2">
               Have a question, feedback, or a partnership idea? We're all ears. Reach out and our team will get back to you as soon as possible.
             </p>
@@ -180,63 +175,116 @@ export default function ContactPage() {
           </div>
 
           {/* Right Column: Contact Form */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8">
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Name *
                   </label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Your full name"
-                    className="h-11"
-                    required
-                  />
+                                     <Input
+                     id="name"
+                     type="text"
+                     placeholder="Your full name"
+                     className="h-11 !bg-gray-50 dark:!bg-gray-800 border-gray-200 dark:border-gray-700 !text-gray-900 dark:!text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                     style={{ fontFamily: 'var(--font-poppins)' }}
+                     value={formData.name}
+                     onChange={handleInputChange('name')}
+                     required
+                   />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm">{errors.name}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Email *
                   </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your.email@example.com"
-                    className="h-11"
-                    required
-                  />
+                                     <Input
+                     id="email"
+                     type="email"
+                                           placeholder="Your Email"
+                     className="h-11 !bg-gray-50 dark:!bg-gray-800 border-gray-200 dark:border-gray-700 !text-gray-900 dark:!text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                     style={{ fontFamily: 'var(--font-poppins)' }}
+                     value={formData.email}
+                     onChange={handleInputChange('email')}
+                     required
+                   />
+                  {errors.email && (
+                    <p className="text-red-500 text-sm">{errors.email}</p>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
-                <label htmlFor="subject" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Subject *
+                <label htmlFor="category" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Category *
                 </label>
-                <Input
-                  id="subject"
-                  type="text"
-                  placeholder="What's this about?"
-                  className="h-11"
-                  required
-                />
+                                 <select
+                   id="category"
+                   value={formData.category}
+                   onChange={handleInputChange('category')}
+                   className="w-full h-11 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 !text-gray-900 dark:!text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                   style={{ fontFamily: 'var(--font-poppins)' }}
+                   required
+                 >
+                  <option value="General Inquiry">General Inquiry</option>
+                  <option value="Feedback & Suggestions">Feedback & Suggestions</option>
+                  <option value="Technical Support">Technical Support</option>
+                  <option value="Partnership & Business">Partnership & Business</option>
+                  <option value="Bug Report">Bug Report</option>
+                  <option value="Feature Request">Feature Request</option>
+                  <option value="Other">Other</option>
+                </select>
+                {errors.category && (
+                  <p className="text-red-500 text-sm">{errors.category}</p>
+                )}
               </div>
+              
               <div className="space-y-2">
-                <label htmlFor="message" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="message" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Message *
                 </label>
                 <Textarea
                   id="message"
                   placeholder="Tell us more about your inquiry..."
                   rows={5}
-                  className="resize-none"
+                  className="resize-none !bg-gray-50 dark:!bg-gray-800 border-gray-200 dark:border-gray-700 !text-gray-900 dark:!text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  style={{ fontFamily: 'var(--font-poppins)' }}
+                  value={formData.message}
+                  onChange={handleInputChange('message')}
                   required
                 />
+                {errors.message && (
+                  <p className="text-red-500 text-sm">{errors.message}</p>
+                )}
               </div>
-              <Button type="submit" className="w-full h-11 text-base font-medium">
-                Send Message
+              <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Message'
+                )}
               </Button>
+              
+              {/* Error and Success Messages */}
+              {submitError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <p className="text-red-700 dark:text-red-300 text-sm">{submitError}</p>
+                </div>
+              )}
+              
+              {submitSuccess && (
+                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <p className="text-green-700 dark:text-green-300 text-sm">{submitSuccess}</p>
+                </div>
+              )}
             </div>
-          </div>
+          </form>
 
         </div>
       </main>

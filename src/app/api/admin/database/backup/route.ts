@@ -27,7 +27,12 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       createdBy: session.user.email,
       status: 'completed',
-      collections: []
+      collections: [] as Array<{
+        name: string;
+        documentCount: number;
+        sampleSize: number;
+        backupTime: Date;
+      }>
     };
 
     // Get list of collections to backup

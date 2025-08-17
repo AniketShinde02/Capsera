@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Zap, LogOut, User, Settings, Menu } from 'lucide-react';
+import AdminModeToggle from './AdminModeToggle';
+import { Zap, LogOut, User, Settings, Menu, Globe } from 'lucide-react';
 import { useState } from 'react';
 
 interface AdminHeaderProps {
@@ -17,6 +18,7 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ user }: AdminHeaderProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -25,35 +27,55 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
   };
 
   const handleProfileClick = () => {
-    // For admin users, redirect to profile page but they need to logout first
-    // This prevents direct access to /profile from admin panel
-    alert('Please logout first to access your profile as a regular user.');
+    // Always allow access to profile
+    router.push('/profile');
+  };
+
+  const handleBrowseSite = () => {
+    // Always allow browsing the site
+    router.push('/');
   };
 
   return (
     <header className="bg-background border-b border-border shadow-sm h-16 flex items-center px-4 sm:px-6 relative">
-      {/* Left side - CaptionCraft Logo */}
+      {/* Left side - Welcome Message */}
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary rounded-lg flex items-center justify-center">
           <Zap className="w-3 h-3 sm:w-5 sm:h-5 text-primary-foreground" />
         </div>
-        <span className="text-lg sm:text-xl font-bold text-foreground">CaptionCraft</span>
+        <span className="text-lg sm:text-xl font-bold text-foreground">
+          Welcome, {user.username || user.email}
+        </span>
+      </div>
+      
+      {/* Center - Admin Mode Toggle */}
+      <div className="hidden md:flex items-center mx-auto">
+        <AdminModeToggle />
       </div>
       
       {/* Right side - User actions - Desktop */}
       <div className="ml-auto hidden md:flex items-center space-x-4">
-        <span className="text-sm text-muted-foreground">
-          Welcome, {user.username || user.email}
-        </span>
         
         <div className="flex items-center space-x-2">
+          {/* Browse Site Button */}
+          <Button
+            onClick={handleBrowseSite}
+            variant="ghost"
+            size="sm"
+            className="flex items-center space-x-2"
+            title="Browse the site as a regular user"
+          >
+            <Globe className="h-4 w-4" />
+            <span>Browse Site</span>
+          </Button>
+          
           {/* Profile Button */}
           <Button
             onClick={handleProfileClick}
             variant="ghost"
             size="sm"
             className="flex items-center space-x-2"
-            title="Logout first to access profile as regular user"
+            title={session?.mode === 'user' ? 'Access your profile' : 'Switch to User Mode first'}
           >
             <User className="h-4 w-4" />
             <span>Profile</span>
@@ -105,6 +127,11 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-background border-b border-border shadow-lg z-50">
           <div className="p-4 space-y-4">
+            {/* Admin Mode Toggle - Mobile */}
+            <div className="p-3">
+              <AdminModeToggle />
+            </div>
+            
             {/* User Info */}
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
               <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-medium text-sm">
@@ -121,10 +148,20 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
             {/* Mobile Actions */}
             <div className="space-y-2">
               <Button
+                onClick={handleBrowseSite}
+                variant="ghost"
+                className="w-full justify-start h-11"
+                title="Browse the site as a regular user"
+              >
+                <Globe className="h-4 w-4 mr-3" />
+                Browse Site
+              </Button>
+              
+              <Button
                 onClick={handleProfileClick}
                 variant="ghost"
                 className="w-full justify-start h-11"
-                title="Logout first to access profile as regular user"
+                title={session?.mode === 'user' ? 'Access your profile' : 'Switch to User Mode first'}
               >
                 <User className="h-4 w-4 mr-3" />
                 Profile

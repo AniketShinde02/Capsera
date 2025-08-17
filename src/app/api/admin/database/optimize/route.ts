@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         const coll = db.collection(collection.name);
         
         // Get collection stats
-        const collStats = await coll.stats();
+        const collStats = await db.command({ collStats: collection.name });
         
         // Create indexes if they don't exist (basic optimization)
         if (collection.name === 'users') {
@@ -58,13 +58,13 @@ export async function POST(request: NextRequest) {
           collection: collection.name,
           status: 'optimized',
           indexesBefore: collStats.nindexes || 0,
-          indexesAfter: (await coll.stats()).nindexes || 0
+          indexesAfter: (await db.command({ collStats: collection.name })).nindexes || 0
         });
       } catch (error) {
         optimizationResults.push({
           collection: collection.name,
           status: 'failed',
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }

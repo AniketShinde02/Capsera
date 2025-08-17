@@ -10,7 +10,7 @@ This folder contains all the screenshots for the CaptionCraft application. Each 
 |------------|----------|-------------|----------|
 | **Homepage & Main Interface** | `01-homepage-main.png` | Main caption generation interface with image upload | 🔴 High |
 | **Image Upload & Preview** | `02-image-upload.png` | Drag & drop image upload with preview functionality | 🔴 High |
-| **Mood Selection** | `03-mood-selection.png` | 21 different mood options dropdown | 🔴 High |
+| **Mood Selection** | `03-mood-selection.png` | 41 different mood options dropdown | 🔴 High |
 | **Caption Generation** | `04-caption-generation.png` | AI-generated captions display with variety | 🔴 High |
 | **Regenerate for Variety** | `05-regenerate-variety.png` | "Regenerate for More Variety" button and functionality | 🔴 High |
 

@@ -161,11 +161,22 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
       }
 
       // If not blocked, proceed with sign-in
-      const result = await signIn("credentials", {
+      // Try admin credentials first, then regular credentials
+      let result = await signIn("admin-credentials", {
         redirect: false,
         email: values.email,
         password: values.password,
       });
+
+      // If admin login fails, try regular user login
+      if (result?.error) {
+        console.log('🔐 Admin login failed, trying regular user login...');
+        result = await signIn("credentials", {
+          redirect: false,
+          email: values.email,
+          password: values.password,
+        });
+      }
 
       if (result?.error) {
         throw new Error("Invalid email or password. Please try again.");
@@ -241,6 +252,13 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
       {/* Sign In Tab - Compact Design with Rich Whites */}
       <TabsContent value="sign-in" className="mt-3 sm:mt-4">
         <div className="space-y-3 sm:space-y-4">
+          {/* Admin Login Note */}
+          <div className="text-center p-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+            <p className="text-xs text-purple-700 dark:text-purple-300">
+              👑 <strong>Admin users:</strong> Use your admin credentials to access unlimited features
+            </p>
+          </div>
+          
           <Form {...signInForm}>
             <form
               onSubmit={signInForm.handleSubmit(onSignIn)}

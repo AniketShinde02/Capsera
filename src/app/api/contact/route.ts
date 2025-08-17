@@ -10,10 +10,10 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { name, email, subject, message } = body;
+    const { name, email, category, subject, message } = body;
 
     // Validate required fields
-    if (!name || !email || !subject || !message) {
+    if (!name || !email || !category || !subject || !message) {
       return NextResponse.json(
         { success: false, message: 'All fields are required.' },
         { status: 400 }
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     const contact = new Contact({
       name: name.trim(),
       email: email.trim().toLowerCase(),
+      category: category.trim(),
       subject: subject.trim(),
       message: message.trim(),
       status: 'new'

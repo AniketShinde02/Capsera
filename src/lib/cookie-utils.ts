@@ -4,7 +4,7 @@ import { getCookie, setCookie } from 'cookies-next';
 export type CookieConsent = {
   necessary: boolean;
   analytics: boolean;
-  personalization: boolean;
+  functional: boolean;
   marketing: boolean;
 };
 
@@ -20,7 +20,7 @@ export interface CookiePreferences {
 const DEFAULT_CONSENT: CookieConsent = {
   necessary: true,
   analytics: false,
-  personalization: false,
+  functional: false,
   marketing: false
 };
 
@@ -66,7 +66,7 @@ export const initializeFeatures = (consent: CookieConsent) => {
     initializeAnalytics();
   }
   
-  if (consent.personalization) {
+  if (consent.functional) {
     initializePersonalization();
   }
   
@@ -142,7 +142,7 @@ export const trackEngagement = (action: string, data?: any) => {
 
 // Personalization features (only if consent given)
 export const saveUserPreference = (key: string, value: any) => {
-  if (hasConsent('personalization')) {
+  if (hasConsent('functional')) {
     try {
       const preferences = getUserPreferences();
       preferences[key] = value;
@@ -155,7 +155,7 @@ export const saveUserPreference = (key: string, value: any) => {
 };
 
 export const getUserPreference = (key: string, defaultValue?: any) => {
-  if (hasConsent('personalization')) {
+  if (hasConsent('functional')) {
     try {
       const preferences = getUserPreferences();
       return preferences[key] ?? defaultValue;
@@ -255,13 +255,13 @@ const getSessionId = (): string => {
 
 // Check if features should be loaded
 export const shouldLoadAnalytics = (): boolean => hasConsent('analytics');
-export const shouldLoadPersonalization = (): boolean => hasConsent('personalization');
+export const shouldLoadFunctional = (): boolean => hasConsent('functional');
 export const shouldLoadMarketing = (): boolean => hasConsent('marketing');
 export const shouldLoadMarketingPixels = (): boolean => hasConsent('marketing');
 
 // Personalize experience based on user preferences
 export const personalizeExperience = () => {
-  if (hasConsent('personalization')) {
+  if (hasConsent('functional')) {
     const theme = getUserTheme();
     if (theme) {
       applyTheme(theme);
@@ -288,7 +288,7 @@ export const getCookieConsentStatus = () => {
   return {
     necessary: consent.necessary,
     analytics: consent.analytics,
-    personalization: consent.personalization,
+    functional: consent.functional,
     marketing: consent.marketing
   };
 };

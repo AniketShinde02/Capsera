@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { ObjectId } from 'mongodb';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 
@@ -15,7 +16,7 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const profileId = params.id;
+    const profileId = new ObjectId(params.id);
 
     // Find the archived profile
     const archivedProfile = await db.collection('deletedprofiles').findOne({
@@ -35,7 +36,6 @@ export async function POST(
       { 
         $set: { 
           recoveryStatus: 'approved',
-          recoveryRequested: true,
           updatedAt: new Date()
         }
       }
@@ -47,9 +47,9 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Error recovering profile:', error);
+    console.error('Error approving profile recovery:', error);
     return NextResponse.json(
-      { error: 'Failed to recover profile' }, 
+      { error: 'Failed to approve profile recovery' }, 
       { status: 500 }
     );
   }

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if this token has already been used
-    const resetRequest = user.resetPasswordRequests.find(req => req.token === token);
+    const resetRequest = user.resetPasswordRequests.find((req: any) => req.token === token);
     if (!resetRequest) {
       return NextResponse.json({ 
         valid: false, 

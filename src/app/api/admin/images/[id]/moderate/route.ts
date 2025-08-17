@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { ObjectId } from 'mongodb';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 
@@ -15,29 +16,28 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const imageId = params.id;
-    const { action, notes, status } = await request.json();
+    const imageId = new ObjectId(params.id);
+    const { action, reason } = await request.json();
 
-    // Find the image/post
-    const post = await db.collection('posts').findOne({
+    // Find the image
+    const image = await db.collection('images').findOne({
       _id: imageId
     });
 
-    if (!post) {
+    if (!image) {
       return NextResponse.json(
         { error: 'Image not found' }, 
         { status: 404 }
       );
     }
 
-    // Update the post with moderation status
-    await db.collection('posts').updateOne(
+    // Update the image moderation status
+    await db.collection('images').updateOne(
       { _id: imageId },
       { 
         $set: { 
-          moderationStatus: status,
-          moderationAction: action,
-          moderationNotes: notes,
+          moderationStatus: action,
+          moderationReason: reason,
           moderatedAt: new Date(),
           moderatedBy: session.user.email
         }

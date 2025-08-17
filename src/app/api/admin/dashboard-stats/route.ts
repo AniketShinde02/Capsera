@@ -119,6 +119,47 @@ export async function GET(request: NextRequest) {
       .limit(5)
       .toArray();
 
+    // Calculate real-time metrics
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    // Online users (active in last 5 minutes)
+    const onlineUsers = await db.collection('users').countDocuments({
+      lastSeen: { $gte: fiveMinutesAgo },
+      isDeleted: { $ne: true }
+    });
+
+    // Active sessions (logged in within last hour)
+    const activeSessions = await db.collection('users').countDocuments({
+      lastLogin: { $gte: oneHourAgo },
+      isDeleted: { $ne: true }
+    });
+
+    // Pending actions (recovery requests, contact forms, etc.)
+    const pendingActions = await db.collection('datarecoveryrequests').countDocuments({
+      status: { $in: ['pending', 'processing'] }
+    }) + await db.collection('contacts').countDocuments({
+      status: { $in: ['unread', 'processing'] }
+    });
+
+    // Server system load (simulated based on database performance)
+    const dbPerformance = await db.command({ serverStatus: 1 }).catch(() => null);
+    let systemLoad = 0;
+    
+    if (dbPerformance) {
+      // Calculate load based on database connections and operations
+      const connections = dbPerformance.connections || {};
+      const activeConnections = connections.active || 0;
+      const maxConnections = connections.available || 100;
+      systemLoad = Math.min(100, Math.round((activeConnections / maxConnections) * 100));
+    } else {
+      // Fallback: calculate load based on recent activity
+      const recentActivity = await db.collection('posts').countDocuments({
+        createdAt: { $gte: fiveMinutesAgo }
+      });
+      systemLoad = Math.min(100, Math.round((recentActivity / 10) * 20)); // Scale based on recent posts
+    }
+
     const stats = {
       users: {
         total: totalUsers,
@@ -156,6 +197,12 @@ export async function GET(request: NextRequest) {
         documents: totalDocuments,
         size: `${totalSize} MB`,
         avgDocumentSize: `${avgDocumentSize} KB`
+      },
+      realTimeData: {
+        onlineUsers,
+        activeSessions,
+        pendingActions,
+        systemLoad
       },
       recentActivity: {
         users: recentUsers.map(user => ({

@@ -18,19 +18,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
     // Find users eligible for promotional emails (every 3 days)
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     
-    const eligibleUsers = await User.find({
+    const eligibleUsers = await db.collection('users').find({
       'emailPreferences.promotional': true,
       $or: [
         { lastPromotionalEmailDate: { $lt: threeDaysAgo } },
         { lastPromotionalEmailDate: { $exists: false } }
       ],
       status: 'active'
-    }).select('email name username unsubscribeToken');
+    }).project({
+      email: 1, 
+      name: 1, 
+      username: 1, 
+      unsubscribeToken: 1
+    }).toArray();
 
     if (eligibleUsers.length === 0) {
       return NextResponse.json({
@@ -56,13 +61,18 @@ export async function POST(req: NextRequest) {
 
         if (result.queued) {
           // Mark promotional email as sent
-          await User.findByIdAndUpdate(user._id, {
-            $set: {
-              lastPromotionalEmailDate: new Date(),
-              promotionalEmailCount: { $inc: 1 },
-              promotionalEmailSentAt: new Date()
+          await db.collection('users').updateOne(
+            { _id: user._id },
+            {
+              $set: {
+                lastPromotionalEmailDate: new Date(),
+                promotionalEmailSentAt: new Date()
+              },
+              $inc: {
+                promotionalEmailCount: 1
+              }
             }
-          });
+          );
           successCount++;
         } else {
           errorCount++;
@@ -105,7 +115,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -114,12 +124,12 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Get promotional email statistics
-    const totalUsers = await User.countDocuments({ status: 'active' });
-    const promotionalEnabledUsers = await User.countDocuments({
+    const totalUsers = await db.collection('users').countDocuments({ status: 'active' });
+    const promotionalEnabledUsers = await db.collection('users').countDocuments({
       'emailPreferences.promotional': true,
       status: 'active'
     });
-    const eligibleForPromotional = await User.countDocuments({
+    const eligibleForPromotional = await db.collection('users').countDocuments({
       'emailPreferences.promotional': true,
       $or: [
         { lastPromotionalEmailDate: { $lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
@@ -129,13 +139,20 @@ export async function GET(req: NextRequest) {
     });
 
     // Get recent promotional email activity
-    const recentActivity = await User.find({
+    const recentActivity = await db.collection('users').find({
       promotionalEmailSentAt: { $exists: true }
     })
     .sort({ promotionalEmailSentAt: -1 })
     .skip(skip)
     .limit(limit)
-    .select('email name username promotionalEmailSentAt promotionalEmailCount lastPromotionalEmailDate');
+    .project({
+      email: 1, 
+      name: 1, 
+      username: 1, 
+      promotionalEmailSentAt: 1, 
+      promotionalEmailCount: 1, 
+      lastPromotionalEmailDate: 1
+    }).toArray();
 
     return NextResponse.json({
       success: true,

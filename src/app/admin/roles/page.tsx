@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Shield, 
   Plus, 
@@ -20,6 +21,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Role {
   _id: string;
@@ -111,12 +113,221 @@ export default function RolesPage() {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
-  const [createForm, setCreateForm] = useState<CreateRoleForm>({
+  // Enhanced role creation form with auto user creation
+  const [createForm, setCreateForm] = useState({
     name: '',
     displayName: '',
     description: '',
-    permissions: []
+    permissions: [] as Array<{ resource: string; actions: string[] }>,
+    isSystem: false,
+    isActive: true,
+    // Auto user creation fields
+    autoCreateUsers: false,
+    usersToCreate: [] as Array<{
+      email: string;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      department?: string;
+    }>,
+    sendEmailNotifications: true
   });
+
+  // User creation form state
+  const [userForm, setUserForm] = useState({
+    email: '',
+    username: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    department: ''
+  });
+
+  // Add user to creation list
+  const addUserToCreation = () => {
+    if (userForm.email && userForm.username) {
+      setCreateForm(prev => ({
+        ...prev,
+        usersToCreate: [...prev.usersToCreate, { ...userForm }]
+      }));
+      setUserForm({
+        email: '',
+        username: '',
+        firstName: '',
+        lastName: '',
+        phone: '',
+        department: ''
+      });
+    }
+  };
+
+  // Remove user from creation list
+  const removeUserFromCreation = (index: number) => {
+    setCreateForm(prev => ({
+      ...prev,
+      usersToCreate: prev.usersToCreate.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Bulk import users from CSV/text
+  const [bulkImportText, setBulkImportText] = useState('');
+  
+  const importBulkUsers = () => {
+    if (!bulkImportText.trim()) return;
+    
+    const lines = bulkImportText.trim().split('\n');
+    const users: any[] = [];
+    
+    for (const line of lines) {
+      const [email, username, firstName, lastName, phone, department] = line.split(',').map(s => s.trim());
+      if (email && username) {
+        users.push({
+          email,
+          username,
+          firstName: firstName || '',
+          lastName: lastName || '',
+          phone: phone || '',
+          department: department || ''
+        });
+      }
+    }
+    
+    if (users.length > 0) {
+      setCreateForm(prev => ({
+        ...prev,
+        usersToCreate: [...prev.usersToCreate, ...users]
+      }));
+      setBulkImportText('');
+      toast({
+        title: "Users Imported",
+        description: `${users.length} users added to creation list`,
+      });
+    }
+  };
+
+  // Quick Tier Management Forms
+  const [quickCreateForm, setQuickCreateForm] = useState({
+    email: '',
+    username: '',
+    tier: 'moderator' as 'moderator' | 'content_editor' | 'support_agent' | 'analyst'
+  });
+
+  const [quickDeleteForm, setQuickDeleteForm] = useState({
+    identifier: '',
+    confirm: 'no' as 'yes' | 'no'
+  });
+
+  const [bulkTierForm, setBulkTierForm] = useState({
+    emails: '',
+    operation: 'create' as 'create' | 'delete' | 'upgrade'
+  });
+
+  const [quickActionStatus, setQuickActionStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // System Lock Management Forms
+
+
+  const handleQuickCreate = async () => {
+    if (!quickCreateForm.email || !quickCreateForm.username || !quickCreateForm.tier) {
+      toast({
+        title: "Validation Error",
+        description: "Email, Username, and Tier are required for quick create.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/quick-create-tier', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(quickCreateForm)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuickActionStatus({ type: 'success', message: `Tier account created successfully for ${data.email}!` });
+        fetchRoles(); // Refresh roles to show new user
+      } else {
+        const errorData = await response.json();
+        setQuickActionStatus({ type: 'error', message: `Failed to create tier account: ${errorData.error}` });
+      }
+    } catch (error) {
+      console.error('Error creating quick tier account:', error);
+      setQuickActionStatus({ type: 'error', message: 'Error creating quick tier account' });
+    }
+  };
+
+  const handleQuickDelete = async () => {
+    if (!quickDeleteForm.identifier || quickDeleteForm.confirm !== 'yes') {
+      toast({
+        title: "Validation Error",
+        description: "Please confirm deletion by selecting 'Yes, delete immediately'.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/quick-delete-tier', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(quickDeleteForm)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuickActionStatus({ type: 'success', message: `Tier account deleted successfully for ${data.identifier}!` });
+        fetchRoles(); // Refresh roles to show deleted user
+      } else {
+        const errorData = await response.json();
+        setQuickActionStatus({ type: 'error', message: `Failed to delete tier account: ${errorData.error}` });
+      }
+    } catch (error) {
+      console.error('Error deleting quick tier account:', error);
+      setQuickActionStatus({ type: 'error', message: 'Error deleting quick tier account' });
+    }
+  };
+
+  const handleBulkOperation = async () => {
+    if (!bulkTierForm.emails.trim() || !bulkTierForm.operation) {
+      toast({
+        title: "Validation Error",
+        description: "Emails and operation are required for bulk operations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/bulk-tier-operation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bulkTierForm)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuickActionStatus({ type: 'success', message: `Bulk operation completed: ${data.message}` });
+        fetchRoles(); // Refresh roles to show updated users
+      } else {
+        const errorData = await response.json();
+        setQuickActionStatus({ type: 'error', message: `Failed to execute bulk operation: ${errorData.error}` });
+      }
+    } catch (error) {
+      console.error('Error executing bulk operation:', error);
+      setQuickActionStatus({ type: 'error', message: 'Error executing bulk operation' });
+    }
+  };
+
+
 
   // Fetch REAL data from database
   const fetchRoles = async () => {
@@ -145,6 +356,8 @@ export default function RolesPage() {
     fetchRoles();
   }, []);
 
+
+
   // Initialize permissions for create form
   useEffect(() => {
     if (showCreateModal) {
@@ -155,6 +368,21 @@ export default function RolesPage() {
       setCreateForm(prev => ({ ...prev, permissions: initialPermissions }));
     }
   }, [showCreateModal]);
+
+  // Clear quick action status after 5 seconds
+  useEffect(() => {
+    if (quickActionStatus) {
+      const timer = setTimeout(() => {
+        setQuickActionStatus(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [quickActionStatus]);
+
+  // Clear quick action status manually
+  const clearQuickActionStatus = () => {
+    setQuickActionStatus(null);
+  };
 
   const toggleResourceExpansion = (resourceKey: string) => {
     const newExpanded = new Set(expandedResources);
@@ -216,12 +444,12 @@ export default function RolesPage() {
       return;
     }
 
-    // Validate role name format (lowercase, no spaces, alphanumeric and underscores only)
-    const roleNameRegex = /^[a-z0-9_]+$/;
+    // Validate role name format (allow more characters, just no spaces)
+    const roleNameRegex = /^[a-zA-Z0-9_-]+$/;
     if (!roleNameRegex.test(createForm.name.trim())) {
       toast({
         title: "Validation Error",
-        description: "Role name must be lowercase with only letters, numbers, and underscores",
+        description: "Role name can contain letters, numbers, hyphens, and underscores. No spaces allowed.",
         variant: "destructive"
       });
       return;
@@ -250,18 +478,24 @@ export default function RolesPage() {
     }
 
     try {
+      // Filter out permissions with no actions before sending
+      const filteredPermissions = createForm.permissions.filter(p => p.actions.length > 0);
+      
       const response = await fetch('/api/admin/roles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(createForm)
+        body: JSON.stringify({
+          ...createForm,
+          permissions: filteredPermissions
+        })
       });
 
       if (response.ok) {
         const data = await response.json();
         setShowCreateModal(false);
-        setCreateForm({ name: '', displayName: '', description: '', permissions: [] });
+                 setCreateForm({ name: '', displayName: '', description: '', permissions: [], isSystem: false, isActive: true, autoCreateUsers: false, usersToCreate: [], sendEmailNotifications: true });
         setExpandedResources(new Set());
         toast({
           title: "Success",
@@ -424,6 +658,153 @@ export default function RolesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Quick Tier Management */}
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Users className="h-5 w-5" />
+            🚀 Quick Tier Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Quickly create and manage tier accounts without going through the full role creation process.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Quick Create Tier Account */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-foreground">Quick Create Tier</h4>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Email"
+                  value={quickCreateForm.email}
+                  onChange={(e) => setQuickCreateForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="h-9"
+                />
+                <Input
+                  placeholder="Username"
+                  value={quickCreateForm.username}
+                  onChange={(e) => setQuickCreateForm(prev => ({ ...prev, username: e.target.value }))}
+                  className="h-9"
+                />
+                                 <Select value={quickCreateForm.tier} onValueChange={(value) => setQuickCreateForm(prev => ({ ...prev, tier: value as 'moderator' | 'content_editor' | 'support_agent' | 'analyst' }))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select Tier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                    <SelectItem value="content_editor">Content Editor</SelectItem>
+                    <SelectItem value="support_agent">Support Agent</SelectItem>
+                    <SelectItem value="analyst">Analyst</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={handleQuickCreate}
+                  disabled={!quickCreateForm.email || !quickCreateForm.username || !quickCreateForm.tier}
+                  size="sm"
+                  className="w-full"
+                >
+                  🚀 Quick Create
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Delete Tier Account */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-foreground">Quick Delete Tier</h4>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Email or Username"
+                  value={quickDeleteForm.identifier}
+                  onChange={(e) => setQuickDeleteForm(prev => ({ ...prev, identifier: e.target.value }))}
+                  className="h-9"
+                />
+                                 <Select value={quickDeleteForm.confirm} onValueChange={(value) => setQuickDeleteForm(prev => ({ ...prev, confirm: value as 'yes' | 'no' }))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Confirm deletion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Yes, delete immediately</SelectItem>
+                    <SelectItem value="no">No, cancel</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={handleQuickDelete}
+                  disabled={!quickDeleteForm.identifier || quickDeleteForm.confirm !== 'yes'}
+                  size="sm"
+                  variant="destructive"
+                  className="w-full"
+                >
+                  🗑️ Quick Delete
+                </Button>
+              </div>
+            </div>
+
+            {/* Bulk Tier Operations */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-foreground">Bulk Operations</h4>
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="emails, one per line&#10;user1@example.com&#10;user2@example.com"
+                  value={bulkTierForm.emails}
+                  onChange={(e) => setBulkTierForm(prev => ({ ...prev, emails: e.target.value }))}
+                  rows={3}
+                  className="text-xs"
+                />
+                                 <Select value={bulkTierForm.operation} onValueChange={(value) => setBulkTierForm(prev => ({ ...prev, operation: value as 'create' | 'delete' | 'upgrade' }))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select operation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="create">Create Tier Accounts</SelectItem>
+                    <SelectItem value="delete">Delete Tier Accounts</SelectItem>
+                    <SelectItem value="upgrade">Upgrade to Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={handleBulkOperation}
+                  disabled={!bulkTierForm.emails.trim() || !bulkTierForm.operation}
+                  size="sm"
+                  className="w-full"
+                >
+                  📦 Bulk Execute
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions Status */}
+          {quickActionStatus && (
+            <div className={`p-3 rounded-lg ${
+              quickActionStatus.type === 'success' 
+                ? 'bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800' 
+                : 'bg-red-100 dark:bg-red-900 border border-red-200 dark:border-red-800'
+            }`}>
+              <div className="flex items-center justify-between">
+                <p className={`text-sm ${
+                  quickActionStatus.type === 'success' 
+                    ? 'text-green-800 dark:text-green-200' 
+                    : 'text-red-800 dark:text-red-200'
+                }`}>
+                  {quickActionStatus.message}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearQuickActionStatus}
+                  className="h-6 w-6 p-0 hover:bg-opacity-20"
+                >
+                  ×
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -635,9 +1016,9 @@ export default function RolesPage() {
                   placeholder="e.g., moderator"
                   className="mt-1 h-9"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Lowercase, no spaces (e.g., content_moderator)
-                </p>
+                                 <p className="text-xs text-muted-foreground mt-1">
+                   Letters, numbers, hyphens, underscores. No spaces (e.g., Content-Moderator, content_moderator)
+                 </p>
               </div>
               <div>
                 <Label htmlFor="role-display-name" className="text-sm font-medium">Display Name</Label>
@@ -757,6 +1138,136 @@ export default function RolesPage() {
                   )}
                 </div>
               ))}
+            </div>
+            
+            {/* Auto User Creation Section */}
+            <div className="border-t pt-4">
+              <div className="flex items-center space-x-2 mb-4">
+                <Checkbox
+                  id="autoCreateUsers"
+                  checked={createForm.autoCreateUsers}
+                  onCheckedChange={(checked) => setCreateForm(prev => ({ ...prev, autoCreateUsers: !!checked }))}
+                />
+                <Label htmlFor="autoCreateUsers" className="font-semibold">
+                  🚀 Auto-Create Users with This Role
+                </Label>
+              </div>
+              
+              {createForm.autoCreateUsers && (
+                <div className="space-y-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Users will be automatically created with this role and receive email notifications
+                  </div>
+                  
+                  {/* Individual User Addition */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Email"
+                      value={userForm.email}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="h-9"
+                    />
+                    <Input
+                      placeholder="Username"
+                      value={userForm.username}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, username: e.target.value }))}
+                      className="h-9"
+                    />
+                    <Input
+                      placeholder="First Name (optional)"
+                      value={userForm.firstName}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="h-9"
+                    />
+                    <Input
+                      placeholder="Last Name (optional)"
+                      value={userForm.lastName}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="h-9"
+                    />
+                    <Input
+                      placeholder="Phone (optional)"
+                      value={userForm.phone}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="h-9"
+                    />
+                    <Input
+                      placeholder="Department (optional)"
+                      value={userForm.department}
+                      onChange={(e) => setUserForm(prev => ({ ...prev, department: e.target.value }))}
+                      className="h-9"
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={addUserToCreation} 
+                    size="sm" 
+                    className="w-full"
+                    disabled={!userForm.email || !userForm.username}
+                  >
+                    ➕ Add User to Creation List
+                  </Button>
+                  
+                  {/* Bulk Import */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">📥 Bulk Import (CSV format)</Label>
+                    <Textarea
+                      placeholder="email,username,firstName,lastName,phone,department&#10;john@example.com,johndoe,John,Doe,1234567890,IT&#10;jane@example.com,janedoe,Jane,Doe,0987654321,HR"
+                      value={bulkImportText}
+                      onChange={(e) => setBulkImportText(e.target.value)}
+                      rows={4}
+                      className="text-xs"
+                    />
+                    <Button 
+                      onClick={importBulkUsers} 
+                      size="sm" 
+                      variant="outline"
+                      className="w-full"
+                      disabled={!bulkImportText.trim()}
+                    >
+                      📥 Import Users
+                    </Button>
+                  </div>
+                  
+                  {/* Users to Create List */}
+                  {createForm.usersToCreate.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        👥 Users to Create ({createForm.usersToCreate.length})
+                      </Label>
+                      <div className="max-h-40 overflow-y-auto space-y-2">
+                        {createForm.usersToCreate.map((user, index) => (
+                          <div key={index} className="flex items-center justify-between bg-white dark:bg-gray-700 p-2 rounded border">
+                            <div className="text-sm">
+                              <div className="font-medium">{user.email}</div>
+                              <div className="text-gray-500">@{user.username}</div>
+                            </div>
+                            <Button
+                              onClick={() => removeUserFromCreation(index)}
+                              size="sm"
+                              variant="destructive"
+                            >
+                              ❌
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Email Notifications */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="sendEmailNotifications"
+                      checked={createForm.sendEmailNotifications}
+                      onCheckedChange={(checked) => setCreateForm(prev => ({ ...prev, sendEmailNotifications: !!checked }))}
+                    />
+                    <Label htmlFor="sendEmailNotifications" className="text-sm">
+                      📧 Send email notifications to new users
+                    </Label>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Permissions Summary */}
@@ -886,5 +1397,5 @@ export default function RolesPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
+   );
+ }

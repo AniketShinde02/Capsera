@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Edit, Home, Clock, Settings, Bell, LogOut, Loader2, User, Eye, AlertCircle, CheckCircle, Star, X, Trash2, Copy, MessageSquare, Image as ImageIcon, Crown, Shield, Users, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSession, signOut } from 'next-auth/react';
+import { useToast } from '@/hooks/use-toast';
 import { useEffect, useRef, useState } from 'react';
 import { IPost } from '@/models/Post';
 import { format } from 'date-fns';
@@ -21,6 +22,7 @@ import ProfileDeletion from '@/components/ProfileDeletion';
 // The component will be dynamic by default since it uses useSession
 
 export default function ProfilePage() {
+    const { toast } = useToast();
     const { data: session, status } = useSession({
         required: false, // Don't force authentication
     });
@@ -166,7 +168,7 @@ export default function ProfilePage() {
 
     if (sessionStatus === 'loading' || !sessionData) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
                 <div className="text-center">
                     <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-indigo-600" />
                     <p className="text-gray-600 dark:text-gray-400">Loading your profile...</p>
@@ -177,7 +179,7 @@ export default function ProfilePage() {
 
     if (!sessionData?.user) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
                 <div className="text-center max-w-md mx-auto p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
                     <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Authentication Required</h2>
@@ -367,10 +369,18 @@ export default function ProfilePage() {
                     captionsGenerated: Math.max(0, prev.captionsGenerated - 1)
                 }));
             } else {
-                alert('Failed to delete caption. Please try again.');
+                toast({
+                    title: "Delete Failed",
+                    description: "Failed to delete caption. Please try again.",
+                    variant: "destructive"
+                });
             }
         } catch (error) {
-            alert('Failed to delete caption. Please try again.');
+            toast({
+                title: "Delete Error",
+                description: "Failed to delete caption. Please try again.",
+                variant: "destructive"
+            });
         } finally {
             setIsDeleting(null);
         }
@@ -384,7 +394,7 @@ export default function ProfilePage() {
     const hasMoreCaptions = currentPage < totalPages;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
             <div className="container mx-auto px-1 sm:px-3 py-4 sm:py-6 lg:py-8">
                 <div className="max-w-6xl mx-auto">
                     
@@ -476,6 +486,17 @@ export default function ProfilePage() {
                                                 Admin
                                             </span>
                                         )}
+                                        
+                                        {/* Admin Dashboard Button */}
+                                        {isAdmin && (
+                                            <Link 
+                                                href="/admin/dashboard"
+                                                className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/40 dark:to-blue-900/40 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-purple-700 dark:text-purple-300 hover:from-purple-200 hover:to-blue-200 dark:hover:from-purple-800/60 dark:hover:to-blue-800/60 transition-all duration-200 cursor-pointer"
+                                            >
+                                                <Crown className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                Admin Dashboard
+                                            </Link>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -502,6 +523,20 @@ export default function ProfilePage() {
                                 <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
                                 Preferences
                             </Button>
+                            
+                            {/* Admin Dashboard Button - Mobile */}
+                            {isAdmin && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.location.href = '/admin/dashboard'}
+                                    className="border-yellow-200 dark:border-yellow-700 hover:border-yellow-300 dark:hover:border-yellow-600 text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
+                                >
+                                    <Crown className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
+                                    Admin Panel
+                                </Button>
+                            )}
+                            
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -536,7 +571,7 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
                         {/* Left Sidebar - Mobile: 90% width, Desktop: Full */}
                         <div className="w-[90%] mx-auto lg:w-full lg:col-span-1 order-2 lg:order-1">
-                            <Card className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm lg:sticky lg:top-4">
+                            <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm lg:sticky lg:top-4">
                                 <CardContent className="p-4 lg:p-6">
                                     {/* Navigation */}
                                     <nav className="space-y-2">
@@ -544,21 +579,32 @@ export default function ProfilePage() {
                                             <User className="w-4 h-4" />
                                             Account
                                         </button>
+                                        
+                                        {/* Admin Dashboard Navigation */}
+                                        {isAdmin && (
+                                            <Link 
+                                                href="/admin/dashboard"
+                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
+                                            >
+                                                <Crown className="w-4 h-4" />
+                                                Admin Dashboard
+                                            </Link>
+                                        )}
                                         <button 
                                             onClick={() => document.getElementById('recent-captions')?.scrollIntoView({ behavior: 'smooth' })}
-                                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
                                         >
                                             <Clock className="w-4 h-4" />
                                             Caption History
                                         </button>
                                         <button 
                                             onClick={() => window.location.href = '/settings'}
-                                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
                                         >
                                             <Settings className="w-4 h-4" />
                                             Preferences
                                         </button>
-                                        <Link href="#" className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                                        <Link href="#" className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                             <Bell className="w-4 h-4" />
                                             Notifications
                                         </Link>
@@ -593,7 +639,7 @@ export default function ProfilePage() {
                                     </nav>
                                     
                                     {/* Profile Image Actions */}
-                                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-800">
+                                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
                                         <div className="flex gap-2 justify-center">
                                             <Button 
                                                 variant="outline" 
@@ -635,7 +681,7 @@ export default function ProfilePage() {
                         <div className="lg:col-span-3 order-1 lg:order-2 space-y-4 sm:space-y-6 w-full">
                             
                             {/* Profile Settings */}
-                            <Card className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm w-[90%] mx-auto lg:w-full">
+                            <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm w-[90%] mx-auto lg:w-full">
                                 <CardContent className="p-4 sm:p-6">
                                     <div className="flex items-center gap-3 mb-4 sm:mb-6">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -791,9 +837,9 @@ export default function ProfilePage() {
                                         <p className="text-gray-600 dark:text-gray-400">Loading your captions...</p>
                                     </div>
                                 ) : posts.length === 0 ? (
-                                    <Card className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm">
+                                    <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm">
                                         <CardContent className="p-12 text-center">
-                                            <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                                                         <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                                                 <MessageSquare className="w-8 h-8 text-gray-400" />
                                             </div>
                                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Captions Yet</h3>
@@ -809,7 +855,7 @@ export default function ProfilePage() {
                                         {displayedCaptions.map((post, index) => (
                                             <Card 
                                                 key={post._id} 
-                                                className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden"
+                                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden"
                                             >
                                                 <CardContent className="p-0">
                                                     {/* Image Section - Smaller on Mobile */}
@@ -870,7 +916,7 @@ export default function ProfilePage() {
                                                         </div>
                                                         
                                                         {/* Action Buttons - Compact Design */}
-                                                        <div className="flex items-center justify-between mt-2 sm:mt-3 lg:mt-4 pt-2 sm:pt-3 lg:pt-4 border-t border-gray-100 dark:border-slate-800">
+                                                                                                                 <div className="flex items-center justify-between mt-2 sm:mt-3 lg:mt-4 pt-2 sm:pt-3 lg:pt-4 border-t border-gray-100 dark:border-gray-800">
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
@@ -880,13 +926,17 @@ export default function ProfilePage() {
                                                                             await navigator.clipboard.writeText(post.captions[0]);
                                                                             // Show success feedback
                                                                             const button = e.currentTarget;
-                                                                            const originalText = button.textContent;
-                                                                            button.textContent = 'Copied!';
-                                                                            button.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                            setTimeout(() => {
-                                                                                button.textContent = originalText;
-                                                                                button.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                            }, 1500);
+                                                                            if (button && button.textContent !== null) {
+                                                                                const originalText = button.textContent;
+                                                                                button.textContent = 'Copied!';
+                                                                                button.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+                                                                                setTimeout(() => {
+                                                                                    if (button && button.textContent !== null) {
+                                                                                        button.textContent = originalText;
+                                                                                        button.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
+                                                                                    }
+                                                                                }, 1500);
+                                                                            }
                                                                         } catch (error) {
                                                                             // Fallback for older browsers
                                                                             const textArea = document.createElement('textarea');
@@ -898,13 +948,17 @@ export default function ProfilePage() {
                                                                             
                                                                             // Show success feedback
                                                                             const button = e.currentTarget;
-                                                                            const originalText = button.textContent;
-                                                                            button.textContent = 'Copied!';
-                                                                            button.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                            setTimeout(() => {
-                                                                                button.textContent = originalText;
-                                                                                button.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                            }, 1500);
+                                                                            if (button && button.textContent !== null) {
+                                                                                const originalText = button.textContent;
+                                                                                button.textContent = 'Copied!';
+                                                                                button.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+                                                                                setTimeout(() => {
+                                                                                    if (button && button.textContent !== null) {
+                                                                                        button.textContent = originalText;
+                                                                                        button.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
+                                                                                    }
+                                                                                }, 1500);
+                                                                            }
                                                                         }
                                                                     }
                                                                 }}
@@ -953,10 +1007,10 @@ export default function ProfilePage() {
 
             {/* Data Recovery Dialog - Mobile Optimized */}
             <Dialog open={showDataRecovery} onOpenChange={setShowDataRecovery}>
-                <DialogContent className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl sm:rounded-2xl shadow-xl max-w-sm sm:max-w-md mx-4">
+                <DialogContent className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl sm:rounded-2xl shadow-xl max-w-sm sm:max-w-md mx-4">
                     <DialogHeader className="text-center">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
-                            <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400" />
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center">
+                            <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Data Recovery Request</DialogTitle>
                         <p className="text-gray-600 dark:text-gray-300 mt-2 text-sm sm:text-base">Tell us what you need help with</p>
@@ -968,7 +1022,7 @@ export default function ProfilePage() {
                                 id="recoveryReason"
                                 value={recoveryReason}
                                 onChange={(e) => setRecoveryReason(e.target.value)}
-                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white transition-all duration-200"
+                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-white transition-all duration-200"
                             >
                                 <option value="">Select a reason</option>
                                 <option value="Account Access">Account Access</option>
@@ -984,7 +1038,7 @@ export default function ProfilePage() {
                                 onChange={(e) => setRecoveryDetails(e.target.value)}
                                 rows={3}
                                 placeholder="Please provide more details about your request..."
-                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 resize-none transition-all duration-200"
+                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 resize-none transition-all duration-200"
                             />
                         </div>
                         <div className="grid gap-2 sm:gap-3">
@@ -994,14 +1048,14 @@ export default function ProfilePage() {
                                 id="contactEmail"
                                 value={contactEmail}
                                 onChange={(e) => setContactEmail(e.target.value)}
-                                placeholder="your-email@example.com"
-                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200"
+                                placeholder="Your Email"
+                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200"
                             />
                         </div>
                     </div>
                     <Button 
                         onClick={handleDataRecoveryRequest} 
-                        className="w-full h-11 sm:h-12 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
+                        className="w-full h-11 sm:h-12 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
                     >
                         Submit Recovery Request
                     </Button>

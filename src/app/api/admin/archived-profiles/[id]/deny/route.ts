@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { ObjectId } from 'mongodb';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 
@@ -15,7 +16,7 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const profileId = params.id;
+    const profileId = new ObjectId(params.id);
 
     // Find the archived profile
     const archivedProfile = await db.collection('deletedprofiles').findOne({

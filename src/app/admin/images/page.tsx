@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter } from 'lucide-react';
+import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw } from 'lucide-react';
+import JSZip from 'jszip';
 
 interface ImageItem {
   id: string;
@@ -57,6 +59,7 @@ interface ModerationQueue {
 export default function ImageManagementPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { toast } = useToast();
   const [images, setImages] = useState<ImageItem[]>([]);
   const [storageMetrics, setStorageMetrics] = useState<StorageMetrics>({
     totalImages: 0,
@@ -85,23 +88,370 @@ export default function ImageManagementPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [moderationNotes, setModerationNotes] = useState('');
   const [moderationAction, setModerationAction] = useState<'approve' | 'reject' | 'flag'>('approve');
+  const [downloadingImage, setDownloadingImage] = useState<string | null>(null);
+  const [exportingData, setExportingData] = useState(false);
+  const [bulkDownloadProgress, setBulkDownloadProgress] = useState<{ current: number; total: number; zipSize?: string } | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [imagesPerPage] = useState(12);
   const [totalImages, setTotalImages] = useState(0);
 
+  // Download image functionality
+  const downloadImage = async (image: ImageItem) => {
+    try {
+      setDownloadingImage(image.id);
+      console.log('🔄 Starting download for:', image.originalName);
+      console.log('📥 Image URL:', image.url);
+      
+      // Check if URL is valid
+      if (!image.url || image.url === 'https://placehold.co/400text=No+Image') {
+        console.error('❌ Invalid image URL for download');
+        toast({
+          title: "Download Error",
+          description: "Cannot download: Invalid image URL",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Add CORS headers and use mode: 'cors'
+      const response = await fetch(image.url, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          'Accept': 'image/*',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log('✅ Image fetched successfully, creating blob...');
+      const blob = await response.blob();
+      console.log('📦 Blob created, size:', blob.size, 'bytes');
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = image.originalName || image.filename || `image-${Date.now()}.png`;
+      a.style.display = 'none';
+      
+      // Append to body and trigger download
+      document.body.appendChild(a);
+      console.log('🔗 Download link created, triggering download...');
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('🧹 Cleanup completed');
+      }, 100);
+
+      console.log('✅ Download initiated successfully!');
+      toast({
+        title: "Download Started",
+        description: `Downloading ${image.originalName || 'image'}...`,
+      });
+      
+    } catch (error) {
+      console.error('❌ Download failed:', error);
+      
+      // Try alternative method for Cloudinary URLs
+      if (image.url.includes('cloudinary.com')) {
+        console.log('🔄 Trying alternative download method for Cloudinary...');
+        try {
+          // Open in new tab for manual download
+          window.open(image.url, '_blank');
+          console.log('✅ Opened image in new tab for manual download');
+          toast({
+            title: "Alternative Download",
+            description: "Image opened in new tab for manual download",
+          });
+        } catch (altError) {
+          console.error('❌ Alternative method also failed:', altError);
+          toast({
+            title: "Download Failed",
+            description: "Please right-click the image and 'Save image as...'",
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Download Failed",
+          description: "Please try again or contact support",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setDownloadingImage(null);
+    }
+  };
+
+  // Download all images as ZIP
+  const downloadAllImages = async () => {
+    try {
+      if (images.length === 0) {
+        toast({
+          title: "No Images",
+          description: "No images available for download",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Creating ZIP File",
+        description: `Preparing ${images.length} images for compression...`,
+      });
+
+      // Initialize JSZip
+      const zip = new JSZip();
+      let processedCount = 0;
+      setBulkDownloadProgress({ current: 0, total: images.length });
+
+      // Process each image and add to ZIP
+      for (const image of images) {
+        try {
+          if (image.url && image.url !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') {
+            console.log(`🔄 Processing image: ${image.originalName}`);
+            
+            // Fetch the image
+            const response = await fetch(image.url, {
+              method: 'GET',
+              mode: 'cors',
+              headers: {
+                'Accept': 'image/*',
+              }
+            });
+
+            if (response.ok) {
+              const blob = await response.blob();
+              
+              // Generate filename with extension
+              const extension = image.format.toLowerCase();
+              const filename = `${image.originalName || image.filename || `image-${Date.now()}`}.${extension}`;
+              
+              // Add image to ZIP
+              zip.file(filename, blob);
+              console.log(`✅ Added to ZIP: ${filename}`);
+              
+              processedCount++;
+              setBulkDownloadProgress({ current: processedCount, total: images.length });
+            } else {
+              console.warn(`⚠️ Failed to fetch image: ${image.originalName}`);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Error processing ${image.originalName}:`, error);
+        }
+      }
+
+      if (processedCount === 0) {
+        toast({
+          title: "No Images Processed",
+          description: "Failed to process any images for ZIP creation",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Compressing ZIP File",
+        description: `Compressing ${processedCount} images...`,
+      });
+
+      // Generate ZIP file
+      const zipBlob = await zip.generateAsync({ 
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: {
+          level: 6 // Good balance between speed and compression
+        }
+      });
+
+      const zipSizeMB = (zipBlob.size / 1024 / 1024).toFixed(2);
+      console.log(`📦 ZIP created successfully! Size: ${zipSizeMB} MB`);
+
+      // Update progress with ZIP size
+      setBulkDownloadProgress(prev => prev ? { ...prev, zipSize: `${zipSizeMB} MB` } : null);
+
+      // Download the ZIP file
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `images-bulk-download-${new Date().toISOString().split('T')[0]}.zip`;
+      a.style.display = 'none';
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Cleanup
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast({
+        title: "ZIP Download Complete!",
+        description: `Successfully downloaded ${processedCount} images in compressed ZIP file`,
+      });
+
+    } catch (error) {
+      console.error('Bulk download failed:', error);
+      toast({
+        title: "ZIP Creation Failed",
+        description: "Failed to create ZIP file. Please try individual downloads.",
+        variant: "destructive"
+      });
+    } finally {
+      setBulkDownloadProgress(null);
+    }
+  };
+
+  // Export image data as CSV or JSON
+  const exportImageData = async (format: 'csv' | 'json') => {
+    try {
+      if (images.length === 0) {
+        toast({
+          title: "No Data",
+          description: "No images available for export",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setExportingData(true);
+      
+      const exportData = {
+        timestamp: new Date().toISOString(),
+        totalImages: images.length,
+        images: images.map(img => ({
+          id: img.id,
+          filename: img.filename,
+          originalName: img.originalName,
+          size: img.size,
+          dimensions: img.dimensions,
+          format: img.format,
+          uploadedBy: img.uploadedBy,
+          uploadedAt: img.uploadedAt,
+          status: img.status,
+          tags: img.tags.join(', '),
+          url: img.url,
+          storageLocation: img.storageLocation,
+          accessCount: img.accessCount,
+          lastAccessed: img.lastAccessed
+        }))
+      };
+
+      if (format === 'csv') {
+        // Create CSV content
+        const headers = ['ID', 'Filename', 'Original Name', 'Size', 'Dimensions', 'Format', 'Uploaded By', 'Uploaded At', 'Status', 'Tags', 'URL', 'Storage Location', 'Access Count', 'Last Accessed'];
+        const rows = exportData.images.map(img => [
+          img.id || 'N/A',
+          img.filename || 'N/A',
+          img.originalName || 'N/A',
+          img.size || 'N/A',
+          img.dimensions || 'N/A',
+          img.format || 'N/A',
+          img.uploadedBy || 'N/A',
+          img.uploadedAt ? new Date(img.uploadedAt).toLocaleDateString() : 'N/A',
+          img.status || 'N/A',
+          Array.isArray(img.tags) ? img.tags.join(', ') : 'N/A',
+          img.url || 'N/A',
+          img.storageLocation || 'N/A',
+          img.accessCount || 'N/A',
+          img.lastAccessed === 'Never' ? 'Never' : (img.lastAccessed ? new Date(img.lastAccessed).toLocaleDateString() : 'N/A')
+        ]);
+
+        // Helper function to safely escape CSV values
+        const escapeCSV = (value: any): string => {
+          if (value === null || value === undefined) return 'N/A';
+          const stringValue = String(value);
+          // If value contains comma, quote, or newline, wrap in quotes and escape internal quotes
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        };
+
+        const csvContent = [headers.join(','), ...rows.map(row => row.map(escapeCSV).join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `images-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export Successful",
+          description: "Image data exported as CSV file",
+        });
+      } else {
+        // Export as JSON
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `images-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export Successful",
+          description: "Image data exported as JSON file",
+        });
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export image data",
+        variant: "destructive"
+      });
+    } finally {
+      setExportingData(false);
+    }
+  };
+  
   // Fetch REAL data from database
   const fetchImages = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching images from API...');
       const response = await fetch('/api/admin/images');
       
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Received image data:', data);
+        console.log('🖼️ Images array:', data.images);
+        console.log('📊 Storage metrics:', data.storageMetrics);
+        console.log('⚖️ Moderation queue:', data.moderationQueue);
+        
         setImages(data.images || []);
         setStorageMetrics(data.storageMetrics || storageMetrics);
         setModerationQueue(data.moderationQueue || moderationQueue);
+        
+        // Debug: Check first few images for thumbnail URLs
+        if (data.images && data.images.length > 0) {
+          console.log('🔍 First 3 images thumbnail URLs:');
+          data.images.slice(0, 3).forEach((img: any, index: number) => {
+            console.log(`  Image ${index + 1}:`, {
+              id: img.id,
+              thumbnailUrl: img.thumbnailUrl,
+              url: img.url,
+              originalName: img.originalName
+            });
+          });
+        }
       } else {
         console.error('Failed to fetch images:', response.status);
         setImages([]);
@@ -114,12 +464,31 @@ export default function ImageManagementPage() {
     }
   };
 
+  // Silent background refresh function
+  const fetchImagesSilently = async () => {
+    try {
+      console.log('🔄 Silent background refresh of images...');
+      const response = await fetch('/api/admin/images');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setImages(data.images || []);
+        setStorageMetrics(data.storageMetrics || storageMetrics);
+        setModerationQueue(data.moderationQueue || moderationQueue);
+        console.log('✅ Silent refresh completed');
+      }
+    } catch (error) {
+      console.error('❌ Silent refresh failed:', error);
+      // Don't show errors to user during background refresh
+    }
+  };
+
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchImages();
+      fetchImages(); // Initial fetch with loading
       
-      // Set up auto-refresh every 60 seconds
-      const interval = setInterval(fetchImages, 60000);
+      // Set up auto-refresh every 30 seconds (silent)
+      const interval = setInterval(fetchImagesSilently, 30000);
       
       return () => clearInterval(interval);
     }
@@ -196,11 +565,19 @@ export default function ImageManagementPage() {
         setModerationNotes('');
       } else {
         console.error('Failed to moderate image:', response.status);
-        alert('Failed to moderate image. Please try again.');
+        toast({
+          title: "Moderation Failed",
+          description: "Failed to moderate image. Please try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error moderating image:', error);
-      alert('Error moderating image. Please try again.');
+      toast({
+        title: "Moderation Error",
+        description: "Error moderating image. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -243,11 +620,19 @@ export default function ImageManagementPage() {
         setSelectedImage(null);
       } else {
         console.error('Failed to delete image:', response.status);
-        alert('Failed to delete image. Please try again.');
+        toast({
+          title: "Delete Failed",
+          description: "Failed to delete image. Please try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error deleting image:', error);
-      alert('Error deleting image. Please try again.');
+      toast({
+        title: "Delete Error",
+        description: "Error deleting image. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -310,18 +695,79 @@ export default function ImageManagementPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+                     <Button 
+             variant="default"
+             onClick={downloadAllImages}
+             className="bg-blue-600 hover:bg-blue-700"
+             disabled={images.length === 0 || bulkDownloadProgress !== null}
+           >
+             {bulkDownloadProgress ? (
+               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+             ) : (
+               <Download className="h-4 w-4 mr-2" />
+             )}
+                           {bulkDownloadProgress ? `Creating ZIP... (${bulkDownloadProgress.current}/${bulkDownloadProgress.total})` : `Download as ZIP (${images.length})`}
+           </Button>
           <Button variant="outline">
             <Settings className="h-4 w-4 mr-2" />
             Settings
           </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
-      </div>
+                     <Button 
+             variant="outline" 
+             onClick={() => exportImageData('csv')}
+             disabled={exportingData}
+           >
+             {exportingData ? (
+               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+             ) : (
+               <Download className="h-4 w-4 mr-2" />
+             )}
+             Export CSV
+           </Button>
+           <Button 
+             variant="outline" 
+             onClick={() => exportImageData('json')}
+             disabled={exportingData}
+           >
+             {exportingData ? (
+               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+             ) : (
+               <Download className="h-4 w-4 mr-2" />
+             )}
+             Export JSON
+           </Button>
+                 </div>
+       </div>
 
-      {/* Storage Overview */}
+       {/* Bulk Download Progress */}
+       {bulkDownloadProgress && (
+         <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+           <CardContent className="pt-4">
+             <div className="flex items-center justify-between mb-2">
+               <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                 Bulk Download Progress
+               </span>
+               <span className="text-sm text-blue-600 dark:text-blue-400">
+                 {bulkDownloadProgress.current} / {bulkDownloadProgress.total}
+               </span>
+             </div>
+             <Progress 
+               value={(bulkDownloadProgress.current / bulkDownloadProgress.total) * 100} 
+               className="h-2 bg-blue-100 dark:bg-blue-900"
+             />
+                           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Processing images and creating ZIP file... Please wait.
+                {bulkDownloadProgress.zipSize && (
+                  <span className="block mt-1 font-medium">
+                    ZIP Size: {bulkDownloadProgress.zipSize}
+                  </span>
+                )}
+              </p>
+           </CardContent>
+         </Card>
+       )}
+
+       {/* Storage Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -436,9 +882,10 @@ export default function ImageManagementPage() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Storage Used</span>
-                    <span>{storageMetrics.storagePercentage.toFixed(1)}%</span>
+                    <span>Unknown Limit</span>
                   </div>
-                  <Progress value={storageMetrics.storagePercentage} className="h-3" />
+                  <Progress value={0} className="h-3" />
+                  <p className="text-xs text-muted-foreground mt-1">Storage limit not configured</p>
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
@@ -446,8 +893,8 @@ export default function ImageManagementPage() {
                     <div className="text-xs text-muted-foreground">Used</div>
                   </div>
                   <div>
-                    <div className="text-lg font-semibold">{storageMetrics.availableStorage}</div>
-                    <div className="text-xs text-muted-foreground">Available</div>
+                    <div className="text-lg font-semibold">Unknown</div>
+                    <div className="text-xs text-muted-foreground">Storage Limit</div>
                   </div>
                   <div>
                     <div className="text-lg font-semibold">{storageMetrics.averageImageSize}</div>
@@ -505,7 +952,12 @@ export default function ImageManagementPage() {
       <Card>
         <CardHeader>
           <CardTitle>Images ({filteredImages.length})</CardTitle>
-          <CardDescription>Manage and moderate user-uploaded images</CardDescription>
+          <CardDescription>
+            Manage and moderate user-uploaded images
+            <span className="ml-2 text-xs text-green-600 dark:text-green-400">
+              🔄 Auto-refresh every 30s
+            </span>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -532,20 +984,27 @@ export default function ImageManagementPage() {
                   <div className="relative overflow-hidden rounded-lg border bg-background hover:shadow-md transition-shadow">
                     {/* Image */}
                     <div className="aspect-square overflow-hidden">
-                      {image.thumbnailUrl ? (
-                        <img 
-                          src={image.thumbnailUrl} 
-                          alt={image.originalName}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                          onError={(e) => {
-                            // Fallback to placeholder if image fails to load
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.nextElementSibling!.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div className="w-full h-full flex items-center justify-center bg-muted" style={{ display: image.thumbnailUrl ? 'none' : 'flex' }}>
+                                             {image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image' ? (
+                         <img 
+                           src={image.thumbnailUrl} 
+                           alt={image.originalName}
+                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                           loading="lazy"
+                           decoding="async"
+                           onError={(e) => {
+                             console.log('❌ Image failed to load:', image.thumbnailUrl);
+                             // Fallback to placeholder if image fails to load
+                             e.currentTarget.style.display = 'none';
+                             (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
+                           }}
+                           onLoad={() => {
+                             console.log('✅ Image loaded successfully:', image.thumbnailUrl);
+                           }}
+                         />
+                       ) : null}
+                      <div className="w-full h-full flex items-center justify-center bg-muted" style={{ display: (image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') ? 'none' : 'flex' }}>
                         <Image className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground ml-2">No Image</span>
                       </div>
                     </div>
                     
@@ -566,8 +1025,23 @@ export default function ImageManagementPage() {
                           setShowModerationDialog(true);
                         }}
                         className="h-8 w-8 p-0"
+                        title="View Details"
                       >
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => downloadImage(image)}
+                        className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
+                        title="Download Image"
+                        disabled={downloadingImage === image.id}
+                      >
+                        {downloadingImage === image.id ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
                       </Button>
                       <Button
                         variant="destructive"
@@ -577,6 +1051,7 @@ export default function ImageManagementPage() {
                           setShowDeleteDialog(true);
                         }}
                         className="h-8 w-8 p-0"
+                        title="Delete Image"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -667,7 +1142,7 @@ export default function ImageManagementPage() {
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling!.style.display = 'flex';
+                          (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
                         }}
                       />
                     ) : null}

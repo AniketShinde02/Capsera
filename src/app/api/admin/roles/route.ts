@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/db';
 import { canManageAdmins } from '@/lib/init-admin';
-import Role from '@/models/Role';
-import User from '@/models/User';
-import AdminUser from '@/models/AdminUser';
+import { connectToDatabase } from '@/lib/db';
+import AutoUserManager from '@/lib/auto-user-manager';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,22 +19,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
-    // Get all roles from the roles collection using Mongoose
-    const roles = await Role.find({}).lean();
+    // Get all roles from the roles collection using direct MongoDB
+    const roles = await db.collection('roles').find({}).toArray();
     
     console.log('Raw roles from database:', JSON.stringify(roles, null, 2));
 
     // Transform the data and count users for each role
     const transformedRoles = await Promise.all(roles.map(async (role) => {
       // Count users from both collections for this role
-      const regularUserCount = await User.countDocuments({ 
+      const regularUserCount = await db.collection('users').countDocuments({ 
         'role.name': role.name,
         isDeleted: { $ne: true }
       });
       
-      const adminUserCount = await AdminUser.countDocuments({ 
+      const adminUserCount = await db.collection('adminusers').countDocuments({ 
         'role.name': role.name,
         status: 'active'
       });
@@ -44,7 +42,7 @@ export async function GET(request: NextRequest) {
       const totalUserCount = regularUserCount + adminUserCount;
 
       return {
-        _id: role._id.toString(),
+        _id: (role._id as any).toString(),
         name: role.name,
         displayName: role.displayName || role.name,
         description: role.description || `Role: ${role.name}`,
@@ -80,26 +78,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user can manage roles
+    // Check if user can manage admins
     const canManage = await canManageAdmins(session.user.id);
     if (!canManage) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { name, displayName, description, permissions, isActive = true } = body;
+    const { 
+      name, 
+      displayName, 
+      description, 
+      permissions, 
+      isSystem = false,
+      isActive = true,
+      // New fields for auto user creation
+      autoCreateUsers = false,
+      usersToCreate = [],
+      sendEmailNotifications = true
+    } = body;
 
     // Validate required fields
-    if (!name || !displayName) {
-      return NextResponse.json({ error: 'Name and display name are required' }, { status: 400 });
+    if (!name || !displayName || !permissions || !Array.isArray(permissions)) {
+      return NextResponse.json({ 
+        error: 'Missing required fields: name, displayName, permissions' 
+      }, { status: 400 });
     }
 
     // Validate permissions structure
-    if (!Array.isArray(permissions) || permissions.length === 0) {
-      return NextResponse.json({ error: 'At least one permission is required' }, { status: 400 });
-    }
-
-    // Validate each permission has correct structure
     for (const permission of permissions) {
       if (!permission.resource || !Array.isArray(permission.actions) || permission.actions.length === 0) {
         return NextResponse.json({ 
@@ -108,47 +114,139 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
-    // Check if role name already exists
-    const existingRole = await Role.findOne({ name });
+    // Check if role already exists
+    const existingRole = await db.collection('roles').findOne({ name: name.toLowerCase() });
     if (existingRole) {
-      return NextResponse.json({ error: 'Role name already exists' }, { status: 409 });
+      return NextResponse.json({ error: 'Role with this name already exists' }, { status: 409 });
     }
 
-    // Create new role using Mongoose model
-    const newRole = new Role({
-      name,
+    // Create role
+    const roleData = {
+      name: name.toLowerCase(),
       displayName,
-      description: description || `Role: ${displayName}`,
-      permissions: permissions || [],
+      description,
+      permissions,
+      isSystem,
       isActive,
-      isSystem: false,
-      createdBy: session.user.id
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: session.user.id,
+      assignedUsers: 0
+    };
+
+    const result = await db.collection('roles').insertOne(roleData);
+    
+    if (!result.insertedId) {
+      return NextResponse.json({ error: 'Failed to create role' }, { status: 500 });
+    }
+
+    const createdRole = {
+      ...roleData,
+      _id: result.insertedId
+    };
+
+    // Auto create users if requested
+    let userCreationResults: any = null;
+    if (autoCreateUsers && usersToCreate && usersToCreate.length > 0) {
+      try {
+        const autoUserManager = new AutoUserManager();
+        
+        // Prepare user data with the new role
+        const usersWithRole = usersToCreate.map((user: any) => ({
+          ...user,
+          roleName: name.toLowerCase()
+        }));
+
+        userCreationResults = await autoUserManager.createBulkUsersWithRole({
+          users: usersWithRole,
+          roleName: name.toLowerCase(),
+          adminEmail: session.user.email || 'admin@capsera.com'
+        });
+
+        // Update role with assigned users count
+        await db.collection('roles').updateOne(
+          { _id: result.insertedId },
+          { $set: { assignedUsers: userCreationResults.success } }
+        );
+
+        // Send email notifications if enabled
+        if (sendEmailNotifications && userCreationResults.success > 0) {
+          // Send role creation notification to admin
+          await autoUserManager.testEmailService().then(async (emailWorking) => {
+            if (emailWorking) {
+              await autoUserManager['emailService'].sendRoleCreationNotification(
+                session.user.email || 'admin@capsera.com',
+                {
+                  name: createdRole.name,
+                  displayName: createdRole.displayName,
+                  description: createdRole.description,
+                  permissions: permissions.map((p: any) => `${p.resource}: ${p.actions.join(', ')}`),
+                  assignedUsers: userCreationResults.success
+                }
+              );
+            }
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error in auto user creation:', error);
+        // Don't fail the role creation if user creation fails
+        userCreationResults = {
+          total: usersToCreate.length,
+          success: 0,
+          failed: usersToCreate.length,
+          results: usersToCreate.map((user: any) => ({
+            success: false,
+            email: user.email,
+            error: 'Auto user creation failed'
+          }))
+        };
+      }
+    }
+
+    // Always send role creation notification to admin (even without auto user creation)
+    if (sendEmailNotifications) {
+      try {
+        const autoUserManager = new AutoUserManager();
+        const emailWorking = await autoUserManager.testEmailService();
+        
+        if (emailWorking) {
+          await autoUserManager['emailService'].sendRoleCreationNotification(
+            session.user.email || 'admin@capsera.com',
+            {
+              name: createdRole.name,
+              displayName: createdRole.displayName,
+              description: createdRole.description,
+              permissions: permissions.map((p: any) => `${p.resource}: ${p.actions.join(', ')}`),
+              assignedUsers: autoCreateUsers ? (userCreationResults?.success || 0) : 0
+            }
+          );
+          console.log('✅ Role creation notification email sent to admin');
+        } else {
+          console.log('⚠️ Email service not working, skipping notification');
+        }
+      } catch (error) {
+        console.error('❌ Failed to send role creation notification:', error);
+        // Don't fail the role creation if email fails
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Role created successfully',
+      role: createdRole,
+      autoUserCreation: userCreationResults ? {
+        enabled: autoCreateUsers,
+        results: userCreationResults
+      } : null
     });
 
-    const savedRole = await newRole.save();
-    console.log('✅ Role created successfully:', savedRole);
-
-    return NextResponse.json({ 
-      success: true, 
-      role: {
-        _id: savedRole._id.toString(),
-        name: savedRole.name,
-        displayName: savedRole.displayName,
-        description: savedRole.description,
-        permissions: savedRole.permissions,
-        isActive: savedRole.isActive,
-        isSystem: savedRole.isSystem,
-        createdAt: savedRole.createdAt
-      }
-    }, { status: 201 });
-
   } catch (error) {
-    console.error('Error creating role:', error);
-    return NextResponse.json(
-      { error: 'Failed to create role' }, 
-      { status: 500 }
-    );
+    console.error('❌ Error creating role:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

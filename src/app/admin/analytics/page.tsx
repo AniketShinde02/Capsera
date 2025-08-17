@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, TrendingUp, TrendingDown, Activity, Clock, BarChart3, 
-  PieChart, LineChart, Download, RefreshCw, Smartphone, Monitor,
+  Download, RefreshCw, Smartphone, Monitor,
   Globe, Target, MapPin, AlertTriangle, Lightbulb, ArrowUpRight,
   Minus, Play, Pause, Eye, MousePointer, Zap
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 interface AnalyticsData {
   overview: {
@@ -55,6 +56,39 @@ interface AnalyticsData {
     trends: Array<{ trend: string; description: string; impact: string; confidence: number }>;
     recommendations: Array<{ action: string; description: string; priority: string; expectedImpact: string }>;
     alerts: Array<{ type: string; message: string; severity: 'low' | 'medium' | 'high'; timestamp: string }>;
+  };
+  realTimeActivity?: {
+    recentPosts: Array<{
+      caption: string;
+      hasImage: boolean;
+      user: string;
+      createdAt: string;
+    }>;
+    recentUsers: Array<{
+      username: string;
+      joined: string;
+    }>;
+    chartData?: Array<{
+      date: string;
+      users: number;
+      posts: number;
+      images: number;
+    }>;
+    realDeviceUsage?: Array<{
+      device: string;
+      count: number;
+      percentage: number;
+    }>;
+    realTrafficSources?: Array<{
+      source: string;
+      users: number;
+      percentage: number;
+    }>;
+    realRegions?: Array<{
+      region: string;
+      users: number;
+      percentage: number;
+    }>;
   };
 }
 
@@ -133,12 +167,59 @@ export default function AdminAnalytics() {
     return 'text-gray-600';
   };
 
-  const handleExport = (format: 'pdf' | 'csv' | 'xlsx') => {
-    toast({
-      title: "Export Started",
-      description: `Exporting analytics data as ${format.toUpperCase()}...`,
-    });
-    // TODO: Implement actual export functionality
+  const handleExport = async (format: 'pdf' | 'csv' | 'xlsx' | 'enhanced-json') => {
+    try {
+      if (!analyticsData) {
+        toast({
+          title: "No Data",
+          description: "Please wait for analytics data to load",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Show loading toast
+      toast({
+        title: "Generating Report",
+        description: `Creating ${format.toUpperCase()} report...`,
+      });
+
+      const response = await fetch('/api/admin/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportType: 'analytics-comprehensive',
+          format: format === 'xlsx' ? 'excel' : format
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate report');
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || `analytics-export-${new Date().toISOString().split('T')[0]}.${format === 'xlsx' ? 'xlsx' : format === 'enhanced-json' ? 'json' : format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export Successful",
+        description: `Analytics data exported as ${format.toUpperCase()} file`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (status === 'loading' || loading) {
@@ -163,6 +244,9 @@ export default function AdminAnalytics() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Analytics Dashboard</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             Advanced insights into user behavior, performance metrics, and growth trends
+            <span className="ml-2 text-xs text-green-600 dark:text-green-400">
+              {realTimeMode ? '🟢 Live updates every 30s' : '⏸️ Updates paused'}
+            </span>
           </p>
         </div>
         
@@ -204,6 +288,7 @@ export default function AdminAnalytics() {
               <SelectItem value="pdf">PDF</SelectItem>
               <SelectItem value="csv">CSV</SelectItem>
               <SelectItem value="xlsx">XLSX</SelectItem>
+              <SelectItem value="enhanced-json">Enhanced JSON</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -296,36 +381,84 @@ export default function AdminAnalytics() {
 
       {/* Main Analytics Content */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="behavior">User Behavior</TabsTrigger>
           <TabsTrigger value="traffic">Traffic</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
+          <TabsTrigger value="realtime">Real-Time</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* User Growth Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  User Growth Trends
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <BarChart3 className="w-12 h-12 mx-auto mb-2" />
-                    <p>Chart visualization would go here</p>
-                    <p className="text-sm">User growth over {selectedTimeRange}</p>
-                    <p className="text-xs">Growth: {analyticsData?.overview.userGrowth || 0}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                         {/* User Growth Chart */}
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <TrendingUp className="w-5 h-5" />
+                   User Growth Trends
+                 </CardTitle>
+                 <p className="text-sm text-muted-foreground">
+                   Real-time user growth over {selectedTimeRange}
+                 </p>
+               </CardHeader>
+               <CardContent>
+                 {analyticsData?.realTimeActivity?.chartData && analyticsData.realTimeActivity.chartData.length > 0 ? (
+                   <div className="h-64">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <LineChart data={analyticsData.realTimeActivity.chartData}>
+                         <CartesianGrid strokeDasharray="3 3" />
+                         <XAxis 
+                           dataKey="date" 
+                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                         />
+                         <YAxis />
+                         <Tooltip 
+                           labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                           formatter={(value, name) => [value, name === 'users' ? 'Users' : name === 'posts' ? 'Posts' : 'Images']}
+                         />
+                         <Legend />
+                         <Line 
+                           type="monotone" 
+                           dataKey="users" 
+                           stroke="#3b82f6" 
+                           strokeWidth={2}
+                           dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                           activeDot={{ r: 6 }}
+                         />
+                         <Line 
+                           type="monotone" 
+                           dataKey="posts" 
+                           stroke="#10b981" 
+                           strokeWidth={2}
+                           dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                           activeDot={{ r: 6 }}
+                         />
+                         <Line 
+                           type="monotone" 
+                           dataKey="images" 
+                           stroke="#f59e0b" 
+                           strokeWidth={2}
+                           dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+                           activeDot={{ r: 6 }}
+                         />
+                       </LineChart>
+                     </ResponsiveContainer>
+                   </div>
+                 ) : (
+                   <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
+                     <div className="text-center text-muted-foreground">
+                       <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                       <p>Loading chart data...</p>
+                       <p className="text-sm">User growth over {selectedTimeRange}</p>
+                       <p className="text-xs">Growth: {analyticsData?.overview.userGrowth || 0}%</p>
+                     </div>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
 
             {/* Popular Moods */}
             <Card>
@@ -384,33 +517,70 @@ export default function AdminAnalytics() {
         {/* User Behavior Tab */}
         <TabsContent value="behavior" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Device Usage */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="w-5 h-5" />
-                  Device Usage
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {analyticsData?.userBehavior.deviceUsage.map((device) => (
-                    <div key={device.device} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {device.device === 'Mobile' && <Smartphone className="w-4 h-4" />}
-                        {device.device === 'Desktop' && <Monitor className="w-4 h-4" />}
-                        {device.device === 'Tablet' && <Smartphone className="w-4 h-4" />}
-                        <span className="font-medium">{device.device}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{device.count}</span>
-                        <span className="text-xs text-muted-foreground">({device.percentage}%)</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                         {/* Device Usage */}
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Smartphone className="w-5 h-5" />
+                   Device Usage
+                 </CardTitle>
+                 <p className="text-sm text-muted-foreground">
+                   Real-time device distribution from user data
+                 </p>
+               </CardHeader>
+               <CardContent>
+                 {analyticsData?.realTimeActivity?.realDeviceUsage && analyticsData.realTimeActivity.realDeviceUsage.length > 0 ? (
+                   <div className="space-y-4">
+                     <div className="h-48">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <PieChart>
+                           <Pie
+                             data={analyticsData.realTimeActivity.realDeviceUsage}
+                             cx="50%"
+                             cy="50%"
+                             labelLine={false}
+                             label={({ device, percentage }) => `${device}: ${percentage}%`}
+                             outerRadius={80}
+                             fill="#8884d8"
+                             dataKey="count"
+                           >
+                             {analyticsData.realTimeActivity.realDeviceUsage.map((entry, index) => (
+                               <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][index % 5]} />
+                             ))}
+                           </Pie>
+                           <Tooltip formatter={(value, name) => [value, 'Users']} />
+                         </PieChart>
+                       </ResponsiveContainer>
+                     </div>
+                     <div className="space-y-2">
+                       {analyticsData.realTimeActivity.realDeviceUsage.map((device) => (
+                         <div key={device.device} className="flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                             {device.device.toLowerCase().includes('mobile') && <Smartphone className="w-4 h-4" />}
+                             {device.device.toLowerCase().includes('desktop') && <Monitor className="w-4 h-4" />}
+                             {device.device.toLowerCase().includes('tablet') && <Smartphone className="w-4 h-4" />}
+                             <span className="font-medium">{device.device}</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <span className="text-sm font-medium">{device.count}</span>
+                             <span className="text-xs text-muted-foreground">({device.percentage}%)</span>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="space-y-4">
+                     <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+                       <div className="text-center text-muted-foreground">
+                         <Smartphone className="w-8 h-8 mx-auto mb-2" />
+                         <p>No device data available</p>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
 
             {/* Time Spent by Mood */}
             <Card>
@@ -472,51 +642,105 @@ export default function AdminAnalytics() {
         {/* Traffic Tab */}
         <TabsContent value="traffic" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Traffic Sources */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="w-5 h-5" />
-                  Traffic Sources
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {analyticsData?.traffic.sources.map((source) => (
-                    <div key={source.source} className="flex items-center justify-between">
-                      <span className="font-medium">{source.source}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{source.users}</span>
-                        <span className="text-xs text-muted-foreground">({source.percentage}%)</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                         {/* Traffic Sources */}
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Globe className="w-5 h-5" />
+                   Traffic Sources
+                 </CardTitle>
+                 <p className="text-sm text-muted-foreground">
+                   Real-time traffic source distribution
+                 </p>
+               </CardHeader>
+               <CardContent>
+                 {analyticsData?.realTimeActivity?.realTrafficSources && analyticsData.realTimeActivity.realTrafficSources.length > 0 ? (
+                   <div className="space-y-4">
+                     <div className="h-48">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={analyticsData.realTimeActivity.realTrafficSources}>
+                           <CartesianGrid strokeDasharray="3 3" />
+                           <XAxis dataKey="source" />
+                           <YAxis />
+                           <Tooltip formatter={(value, name) => [value, 'Users']} />
+                           <Bar dataKey="users" fill="#3b82f6" />
+                         </BarChart>
+                       </ResponsiveContainer>
+                     </div>
+                     <div className="space-y-3">
+                       {analyticsData.realTimeActivity.realTrafficSources.map((source) => (
+                         <div key={source.source} className="flex items-center justify-between">
+                           <span className="font-medium">{source.source}</span>
+                           <div className="flex items-center gap-2">
+                             <span className="text-sm font-medium">{source.users}</span>
+                             <span className="text-xs text-muted-foreground">({source.percentage}%)</span>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="space-y-3">
+                     <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+                       <div className="text-center text-muted-foreground">
+                         <Globe className="w-8 h-8 mx-auto mb-2" />
+                         <p>No traffic data available</p>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
 
-            {/* Regional Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  Regional Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {analyticsData?.traffic.regions.map((region) => (
-                    <div key={region.region} className="flex items-center justify-between">
-                      <span className="font-medium">{region.region}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{region.users}</span>
-                        <span className="text-xs text-muted-foreground">({region.percentage}%)</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                         {/* Regional Distribution */}
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <MapPin className="w-5 h-5" />
+                   Regional Distribution
+                 </CardTitle>
+                 <p className="text-sm text-muted-foreground">
+                   Real-time user distribution by region
+                 </p>
+               </CardHeader>
+               <CardContent>
+                 {analyticsData?.realTimeActivity?.realRegions && analyticsData.realTimeActivity.realRegions.length > 0 ? (
+                   <div className="space-y-4">
+                     <div className="h-48">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={analyticsData.realTimeActivity.realRegions}>
+                           <CartesianGrid strokeDasharray="3 3" />
+                           <XAxis dataKey="region" />
+                           <YAxis />
+                           <Tooltip formatter={(value, name) => [value, 'Users']} />
+                           <Bar dataKey="users" fill="#10b981" />
+                         </BarChart>
+                       </ResponsiveContainer>
+                     </div>
+                     <div className="space-y-3">
+                       {analyticsData.realTimeActivity.realRegions.map((region) => (
+                         <div key={region.region} className="flex items-center justify-between">
+                           <span className="font-medium">{region.region}</span>
+                           <div className="flex items-center gap-2">
+                             <span className="text-sm font-medium">{region.users}</span>
+                             <span className="text-xs text-muted-foreground">({region.percentage}%)</span>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="space-y-3">
+                     <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+                       <div className="text-center text-muted-foreground">
+                         <MapPin className="w-8 h-8 mx-auto mb-2" />
+                         <p>No regional data available</p>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
           </div>
         </TabsContent>
 
@@ -663,6 +887,153 @@ export default function AdminAnalytics() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Real-Time Activity Tab */}
+        <TabsContent value="realtime" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Live User Activities */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-green-600" />
+                  Live User Activities
+                  {realTimeMode && (
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  )}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Real-time activities from the last hour
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {analyticsData?.realTimeActivity?.recentPosts && analyticsData.realTimeActivity.recentPosts.length > 0 ? (
+                    analyticsData.realTimeActivity.recentPosts.map((post, index) => (
+                      <div key={index} className="p-3 border rounded-lg bg-green-50 dark:bg-green-900/20">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                              New Caption Generated
+                            </p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              {post.caption}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {post.hasImage ? '📷 With Image' : '📝 Text Only'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(post.createdAt).toLocaleTimeString()}
+                            </p>
+                            <p className="text-xs text-green-600 dark:text-green-400">
+                              User: {post.user}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No recent activities</p>
+                      <p className="text-xs">Activities will appear here in real-time</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent User Registrations */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  Recent User Registrations
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  New users who joined recently
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {analyticsData?.realTimeActivity?.recentUsers && analyticsData.realTimeActivity.recentUsers.length > 0 ? (
+                    analyticsData.realTimeActivity.recentUsers.map((user, index) => (
+                      <div key={index} className="p-3 border rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                              <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                {user.username}
+                              </p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400">
+                                Joined {new Date(user.joined).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(user.joined).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No recent registrations</p>
+                      <p className="text-xs">New users will appear here</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Live Activity Feed */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-yellow-600" />
+                Live Activity Feed
+                {realTimeMode && (
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    LIVE
+                  </Badge>
+                )}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Real-time system events and user interactions
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Update Frequency:</span>
+                  <span className="font-medium">
+                    {realTimeMode ? 'Every 30 seconds' : 'Manual refresh only'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Last Update:</span>
+                  <span className="font-medium">
+                    {new Date().toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Total Activities Today:</span>
+                  <span className="font-medium">
+                    {analyticsData?.realTimeActivity?.recentPosts?.length || 0} captions, {analyticsData?.realTimeActivity?.recentUsers?.length || 0} users
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

@@ -21,11 +21,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied. Admin privileges required.' }, { status: 403 });
     }
 
-    await connectToDatabase();
+    const { db } = await connectToDatabase();
     
-    // Fetch users from both User and AdminUser collections
-    const regularUsers = await User.find({}).select('email username role createdAt lastLogin isActive').lean();
-    const adminUsers = await AdminUser.find({}).select('email username role createdAt lastLoginAt isActive status').lean();
+    // Fetch users from both User and AdminUser collections using direct MongoDB
+    const regularUsers = await db.collection('users').find({}).project({
+      email: 1, 
+      username: 1, 
+      role: 1, 
+      createdAt: 1, 
+      lastLogin: 1, 
+      isActive: 1
+    }).toArray();
+    
+    const adminUsers = await db.collection('adminusers').find({}).project({
+      email: 1, 
+      username: 1, 
+      role: 1, 
+      createdAt: 1, 
+      lastLoginAt: 1, 
+      status: 1
+    }).toArray();
 
     // Transform regular users
     const transformedRegularUsers = regularUsers.map((user: any) => ({

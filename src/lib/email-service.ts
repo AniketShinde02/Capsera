@@ -73,14 +73,14 @@ export function getEmailService(): EmailService {
   return new ConsoleEmailService();
 }
 
-// Helper function to send admin setup tokens
-export async function sendAdminSetupToken(email: string, token: string): Promise<boolean> {
+// Helper function to send admin setup OTP
+export async function sendAdminSetupOTP(email: string, otp: string): Promise<boolean> {
   const emailService = getEmailService();
   
   const emailData: EmailData = {
     to: email,
-    subject: 'Capsera Admin Setup Token',
-    body: `Your admin setup token is: ${token}\n\nThis token expires in 24 hours.\n\nPlease use this token to complete the admin setup process.\n\nIf you did not request this token, please contact system administrators immediately.`,
+    subject: 'Capsera Admin Setup OTP',
+    body: `Your admin setup OTP is: ${otp}\n\nThis OTP expires in 5 minutes.\n\nPlease use this OTP to complete the admin setup process.\n\nIf you did not request this OTP, please contact system administrators immediately.`,
     html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <!-- Header with Logo -->
@@ -102,18 +102,18 @@ export async function sendAdminSetupToken(email: string, token: string): Promise
           
           <!-- Content -->
           <div style="background: white; padding: 32px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
-            <h2 style="color: #2563eb; margin: 0 0 24px 0;">🔐 Admin Setup Token</h2>
-            <p>Your admin setup token has been generated successfully.</p>
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0; font-family: monospace; font-size: 14px; word-break: break-all;">${token}</p>
+            <h2 style="color: #2563eb; margin: 0 0 24px 0;">🔐 Admin Setup OTP</h2>
+            <p>Your admin setup OTP has been generated successfully.</p>
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0; font-family: monospace; font-size: 24px; font-weight: bold; color: #2563eb; letter-spacing: 4px;">${otp}</p>
             </div>
             <p><strong>⚠️ Important:</strong></p>
             <ul>
-              <li>This token expires in 24 hours</li>
-              <li>Keep this token secure and confidential</li>
-              <li>Use this token to complete the admin setup process</li>
+              <li>This OTP expires in 5 minutes</li>
+              <li>Keep this OTP secure and confidential</li>
+              <li>Use this OTP to complete the admin setup process</li>
             </ul>
-            <p>If you did not request this token, please contact system administrators immediately.</p>
+            <p>If you did not request this OTP, please contact system administrators immediately.</p>
             <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px;">This is an automated message from Capsera Admin System.</p>
           </div>

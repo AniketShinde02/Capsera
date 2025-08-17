@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if this token has already been used
-    const resetRequest = user.resetPasswordRequests.find(req => req.token === token);
+    const resetRequest = user.resetPasswordRequests.find((req: any) => req.token === token);
     if (!resetRequest) {
       console.log(`❌ Reset token not found in tracking for email: ${email} from IP: ${clientIP}`);
       return NextResponse.json({ 

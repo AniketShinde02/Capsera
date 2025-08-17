@@ -207,7 +207,7 @@ UserSchema.methods.addResetRequest = function(token: string, ipAddress: string, 
 
 // Method to mark a reset token as used
 UserSchema.methods.markResetTokenUsed = function(token: string): void {
-  const request = this.resetPasswordRequests.find(req => req.token === token);
+  const request = this.resetPasswordRequests.find((req: any) => req.token === token);
   if (request) {
     request.used = true;
     request.usedAt = new Date();
@@ -217,7 +217,7 @@ UserSchema.methods.markResetTokenUsed = function(token: string): void {
 // Method to clean up old reset requests (older than 24 hours)
 UserSchema.methods.cleanupOldResetRequests = function(): void {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
-  this.resetPasswordRequests = this.resetPasswordRequests.filter(req => req.requestedAt > cutoff);
+  this.resetPasswordRequests = this.resetPasswordRequests.filter((req: any) => req.requestedAt > cutoff);
 };
 
 // Method to check if promotional email can be sent (every 3 days)

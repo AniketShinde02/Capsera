@@ -1,8 +1,10 @@
 import dbConnect from './db';
+import { connectToDatabase } from './db';
 import Role from '@/models/Role';
 import User from '@/models/User';
 import AdminUser from '@/models/AdminUser';
 import bcrypt from 'bcryptjs';
+import { ObjectId } from 'mongodb';
 
 // Default roles configuration
 const DEFAULT_ROLES = [
@@ -151,12 +153,18 @@ export async function createAdminUser(email: string, password: string, username?
 // Function to check if user has permission
 export async function checkUserPermission(userId: string, resource: string, action: string): Promise<boolean> {
   try {
+    // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
+    const { db } = await connectToDatabase();
+    const adminUsersCollection = db.collection('adminusers');
+    const usersCollection = db.collection('users');
+    const rolesCollection = db.collection('roles');
+    
     // First check AdminUser collection
-    let user = await AdminUser.findById(userId).populate('role');
+    let user = await adminUsersCollection.findOne({ _id: new ObjectId(userId) });
     
     // If not found in AdminUser, check User collection
     if (!user) {
-      user = await User.findById(userId).populate('role');
+      user = await usersCollection.findOne({ _id: new ObjectId(userId) });
     }
     
     if (!user) return false;
@@ -166,7 +174,10 @@ export async function checkUserPermission(userId: string, resource: string, acti
 
     if (!user.role) return false;
 
-    const role = user.role as any;
+    // Get role details from roles collection
+    const role = await rolesCollection.findOne({ _id: new ObjectId(user.role._id || user.role) });
+    if (!role) return false;
+
     const permission = role.permissions.find((p: any) => p.resource === resource);
     
     if (!permission) return false;
@@ -181,12 +192,18 @@ export async function checkUserPermission(userId: string, resource: string, acti
 // Function to get user permissions
 export async function getUserPermissions(userId: string): Promise<string[]> {
   try {
+    // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
+    const { db } = await connectToDatabase();
+    const adminUsersCollection = db.collection('adminusers');
+    const usersCollection = db.collection('users');
+    const rolesCollection = db.collection('roles');
+    
     // First check AdminUser collection
-    let user = await AdminUser.findById(userId).populate('role');
+    let user = await adminUsersCollection.findOne({ _id: new ObjectId(userId) });
     
     // If not found in AdminUser, check User collection
     if (!user) {
-      user = await User.findById(userId).populate('role');
+      user = await usersCollection.findOne({ _id: new ObjectId(userId) });
     }
     
     if (!user) return [];
@@ -202,7 +219,10 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
 
     if (!user.role) return [];
 
-    const role = user.role as any;
+    // Get role details from roles collection
+    const role = await rolesCollection.findOne({ _id: new ObjectId(user.role._id || user.role) });
+    if (!role) return [];
+
     return role.permissions.flatMap((p: any) => 
       p.actions.map((action: string) => `${p.resource}:${action}`)
     );
@@ -215,12 +235,17 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
 // Function to check if user is super admin
 export async function isSuperAdmin(userId: string): Promise<boolean> {
   try {
+    // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
+    const { db } = await connectToDatabase();
+    const adminUsersCollection = db.collection('adminusers');
+    const usersCollection = db.collection('users');
+    
     // First check AdminUser collection
-    let user = await AdminUser.findById(userId);
+    let user = await adminUsersCollection.findOne({ _id: new ObjectId(userId) });
     
     // If not found in AdminUser, check User collection
     if (!user) {
-      user = await User.findById(userId);
+      user = await usersCollection.findOne({ _id: new ObjectId(userId) });
     }
     
     return user?.isSuperAdmin || false;
@@ -233,12 +258,17 @@ export async function isSuperAdmin(userId: string): Promise<boolean> {
 // Function to check if user can manage admins
 export async function canManageAdmins(userId: string): Promise<boolean> {
   try {
+    // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
+    const { db } = await connectToDatabase();
+    const adminUsersCollection = db.collection('adminusers');
+    const usersCollection = db.collection('users');
+    
     // First check AdminUser collection
-    let user = await AdminUser.findById(userId);
+    let user = await adminUsersCollection.findOne({ _id: new ObjectId(userId) });
     
     // If not found in AdminUser, check User collection
     if (!user) {
-      user = await User.findById(userId);
+      user = await usersCollection.findOne({ _id: new ObjectId(userId) });
     }
     
     if (!user) return false;

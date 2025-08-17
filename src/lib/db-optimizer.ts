@@ -95,7 +95,11 @@ class DatabaseOptimizer {
       const connection = await this.getConnection()
       const db = connection.db
 
-      // Get all collections
+      if (!db) {
+        console.error('Database connection not available');
+        return;
+      }
+      
       const collections = await db.listCollections().toArray()
       
       for (const collection of collections) {

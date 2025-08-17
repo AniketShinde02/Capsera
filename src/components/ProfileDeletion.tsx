@@ -222,7 +222,7 @@ export default function ProfileDeletion({ userEmail }: { userEmail: string }) {
                   type="email"
                   value={emailConfirmation}
                   onChange={(e) => setEmailConfirmation(e.target.value)}
-                  placeholder="your.email@example.com"
+                  placeholder="Your Email"
                   className="border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                 />
               </div>
@@ -235,7 +235,7 @@ export default function ProfileDeletion({ userEmail }: { userEmail: string }) {
                   type="email"
                   value={confirmEmailField}
                   onChange={(e) => setConfirmEmailField(e.target.value)}
-                  placeholder="your.email@example.com"
+                  placeholder="Your Email"
                   className="border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                 />
               </div>

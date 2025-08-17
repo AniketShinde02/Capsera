@@ -18,7 +18,8 @@ import {
   Lock,
   Zap,
   Menu,
-  X
+  X,
+  TrendingUp
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -28,6 +29,18 @@ const adminNavItems = [
     href: '/admin/dashboard',
     icon: BarChart3,
     description: 'Overview and statistics'
+  },
+  {
+    title: 'Analytics',
+    href: '/admin/analytics',
+    icon: BarChart3,
+    description: 'User behavior and performance analytics'
+  },
+  {
+    title: 'Advanced Analytics',
+    href: '/admin/advanced-analytics',
+    icon: TrendingUp,
+    description: 'System performance and technical metrics'
   },
   {
     title: 'System Setup',
@@ -106,6 +119,12 @@ const adminNavItems = [
     href: '/admin/settings',
     icon: Settings,
     description: 'Administrative configuration'
+  },
+  {
+    title: 'System Lock',
+    href: '/admin/system-lock',
+    icon: Lock,
+    description: 'Manage system lock PIN and security settings'
   }
 ];
 
@@ -172,18 +191,14 @@ export default function AdminSidebar() {
           <div className="mt-4 sm:mt-6 lg:mt-8 pt-3 sm:pt-4 lg:pt-6 border-t border-sidebar-border">
             <div className="text-xs text-sidebar-foreground/60 mb-2 hidden sm:block">Quick Actions</div>
             <div className="space-y-1">
-              <button 
-                onClick={() => {
-                  if (confirm('Are you sure you want to lock the system? This will prevent new user registrations and logins.')) {
-                    // TODO: Implement system lock functionality
-                    alert('System lock functionality will be implemented in the next update');
-                  }
-                }}
+              <Link
+                href="/admin/system-lock"
                 className="w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-sidebar-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors flex items-center gap-2"
+                onClick={() => setIsMobileOpen(false)}
               >
                 <Lock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="truncate">Lock System</span>
-              </button>
+                <span className="truncate">System Lock</span>
+              </Link>
               <button 
                 onClick={() => {
                   // Navigate to dashboard and trigger export

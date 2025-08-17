@@ -55,5 +55,5 @@ function getClientIP(req: NextRequest): string {
     return cfConnectingIP;
   }
   
-  return req.ip || 'unknown';
+  return 'unknown';
 }

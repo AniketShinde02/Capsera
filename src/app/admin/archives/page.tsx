@@ -39,6 +39,25 @@ interface UserArchive {
   createdAt: string;
   width: number;
   height: number;
+  thumbnailUrl?: string;
+  userId?: string;
+  originalName?: string;
+}
+
+interface ArchivedImage {
+  publicId: string;
+  url: string;
+  thumbnailUrl: string;
+  size: number;
+  format: string;
+  createdAt: string;
+  width: number;
+  height: number;
+  userId: string;
+  originalName: string;
+  archiveDate: string;
+  isArchive?: boolean;
+  folder?: string;
 }
 
 export default function AdminArchivesPage() {
@@ -47,8 +66,13 @@ export default function AdminArchivesPage() {
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [searchUserId, setSearchUserId] = useState('');
   const [userArchives, setUserArchives] = useState<UserArchive[]>([]);
+  const [archivedImages, setArchivedImages] = useState<ArchivedImage[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [cleanupDays, setCleanupDays] = useState(90);
+  const [showImageGrid, setShowImageGrid] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<ArchivedImage | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const { toast } = useToast();
 
   // Fetch archive statistics
@@ -124,6 +148,39 @@ export default function AdminArchivesPage() {
     }
   };
 
+  // Fetch all archived images
+  const fetchArchivedImages = async () => {
+    try {
+      console.log('🔄 Fetching archived images...');
+      const response = await fetch('/api/admin/archives?action=get-all-archives');
+      const data = await response.json();
+      
+      console.log('📊 API Response:', data);
+      console.log('📁 Archives array:', data.archives);
+      console.log('🔢 Count:', data.count);
+      
+      if (data.success) {
+        setArchivedImages(data.archives || []);
+        setShowImageGrid(true);
+        console.log('✅ Set archived images:', data.archives?.length || 0);
+      } else {
+        console.error('❌ API Error:', data.error);
+        toast({
+          title: "Error",
+          description: data.error || "Failed to fetch archived images",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching archived images:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch archived images",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Search user archives
   const handleSearchUserArchives = async () => {
     if (!searchUserId.trim()) {
@@ -182,6 +239,95 @@ export default function AdminArchivesPage() {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Handle permanent deletion of archived image
+  const handleDeleteArchivedImage = async (image: ArchivedImage) => {
+    if (!confirm(`Are you sure you want to PERMANENTLY delete this archived image? This action cannot be undone and will free up storage space.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/archives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete-archived-image',
+          publicId: image.publicId
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Archived image permanently deleted",
+        });
+        // Remove from local state
+        setArchivedImages(prev => prev.filter(img => img.publicId !== image.publicId));
+        // Refresh stats
+        fetchStats();
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to delete archived image",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting archived image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete archived image",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle restore of archived image
+  const handleRestoreArchivedImage = async (image: ArchivedImage) => {
+    if (!confirm(`Are you sure you want to restore this archived image? It will be moved back to active storage.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/archives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'restore-archived-image',
+          publicId: image.publicId,
+          originalUrl: image.url
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Archived image restored successfully",
+        });
+        // Remove from local state
+        setArchivedImages(prev => prev.filter(img => img.publicId !== image.publicId));
+        // Refresh stats
+        fetchStats();
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to restore archived image",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error restoring archived image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to restore archived image",
+        variant: "destructive"
+      });
+    }
   };
 
   // Format date
@@ -412,6 +558,146 @@ export default function AdminArchivesPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Archived Images Grid */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileImage className="w-5 h-5" />
+            Archived Images Management
+          </CardTitle>
+          <CardDescription>
+            View, restore, or permanently delete archived images
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+                     <div className="flex items-center gap-4">
+             <Button 
+               onClick={fetchArchivedImages}
+               variant="outline"
+             >
+               <RefreshCw className="w-4 h-4 mr-2" />
+               Load Archived Images
+             </Button>
+             <Button 
+               onClick={async () => {
+                 try {
+                   console.log('🧪 Testing Cloudinary connection...');
+                   const response = await fetch('/api/admin/archives?action=get-all-archives');
+                   const data = await response.json();
+                   console.log('🧪 Test Response:', data);
+                   alert(`Test Result: ${data.success ? 'SUCCESS' : 'FAILED'}\nCount: ${data.count}\nError: ${data.error || 'None'}`);
+                 } catch (error) {
+                   console.error('🧪 Test Error:', error);
+                   alert('Test failed: ' + error);
+                 }
+               }}
+               variant="secondary"
+               size="sm"
+             >
+               🧪 Test API
+             </Button>
+             {archivedImages.length > 0 && (
+               <Badge variant="secondary">
+                 {archivedImages.length} archived images
+               </Badge>
+             )}
+           </div>
+
+          {/* Image Grid */}
+          {showImageGrid && archivedImages.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {archivedImages.map((image) => (
+                <div key={image.publicId} className="group relative">
+                  {/* Image Card */}
+                  <div className="relative overflow-hidden rounded-lg border bg-background hover:shadow-md transition-shadow">
+                    {/* Image */}
+                    <div className="aspect-square overflow-hidden">
+                      <img 
+                        src={image.thumbnailUrl || image.url} 
+                        alt={image.originalName || 'Archived image'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    
+                    {/* Action Buttons - Hidden by default, shown on hover */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleRestoreArchivedImage(image)}
+                        className="h-8 w-8 p-0"
+                        title="Restore Image"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteArchivedImage(image)}
+                        className="h-8 w-8 p-0"
+                        title="Permanently Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Image Info */}
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs font-medium truncate" title={image.originalName || image.publicId.split('/').pop()}>
+                      {image.originalName || image.publicId.split('/').pop()}
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{formatFileSize(image.size)}</span>
+                      <span>{image.format.toUpperCase()}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      User: {image.userId || 'Unknown'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(image.archiveDate || image.createdAt)}
+                    </p>
+                    {image.folder && (
+                      <Badge variant={image.isArchive ? "secondary" : "outline"} className="text-xs">
+                        {image.folder}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+                     {/* Debug Info */}
+           {showImageGrid && (
+             <div className="bg-muted p-4 rounded-lg">
+               <h4 className="font-medium mb-2">Debug Information:</h4>
+               <div className="text-sm space-y-1">
+                 <p>• Show Image Grid: {showImageGrid ? '✅ Yes' : '❌ No'}</p>
+                 <p>• Archived Images Count: {archivedImages.length}</p>
+                 <p>• Image Grid Visible: {showImageGrid && archivedImages.length > 0 ? '✅ Yes' : '❌ No'}</p>
+                 <p>• Last API Call: {new Date().toLocaleTimeString()}</p>
+                 <p>• Images from API: {JSON.stringify(archivedImages.slice(0, 2).map(img => ({ publicId: img.publicId, folder: img.folder })))}</p>
+                 <p>• API Endpoint: /api/admin/archives?action=get-all-archives</p>
+                 <p>• Cloudinary Status: {archivedImages.length > 0 ? '✅ Connected' : '❌ No Images'}</p>
+               </div>
+             </div>
+           )}
+
+           {/* No Images Message */}
+           {showImageGrid && archivedImages.length === 0 && (
+             <div className="text-center py-12 text-muted-foreground">
+               <FileImage className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+               <p className="text-lg font-medium">No archived images found</p>
+               <p className="text-sm">All archived images have been processed or no images are currently archived.</p>
+               <p className="text-xs mt-2 text-blue-500">Check console for debug information</p>
+             </div>
+           )}
         </CardContent>
       </Card>
 

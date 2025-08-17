@@ -17,7 +17,21 @@ class SimpleRateLimiter {
   }
 
   // Check if IP is rate limited
-  public isRateLimited(ip: string): boolean {
+  public async isRateLimited(ip: string, userId?: string): Promise<boolean> {
+    // If userId is provided, check if user is admin
+    if (userId) {
+      try {
+        const User = (await import('@/models/User')).default;
+        const user = await User.findById(userId);
+        if (user?.isAdmin) {
+          console.log(`👑 Admin user ${userId} - bypassing simple rate limits`);
+          return false; // Admin users are never rate limited
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    }
+
     const now = Date.now();
     const entry = this.limits.get(ip);
 
@@ -107,7 +121,7 @@ const simpleRateLimiter = new SimpleRateLimiter();
 export default simpleRateLimiter;
 
 // Export individual functions for easy use
-export const isRateLimited = (ip: string) => simpleRateLimiter.isRateLimited(ip);
+export const isRateLimited = async (ip: string, userId?: string) => simpleRateLimiter.isRateLimited(ip, userId);
 export const getRemainingRequests = (ip: string) => simpleRateLimiter.getRemainingRequests(ip);
 export const getResetTime = (ip: string) => simpleRateLimiter.getResetTime(ip);
 export const getRateLimitStatus = () => simpleRateLimiter.getStatus();

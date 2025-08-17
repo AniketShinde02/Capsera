@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -23,7 +23,7 @@ export async function DELETE(
     }
 
     const { db } = await connectToDatabase();
-    const userId = params.id;
+    const { id: userId } = await params;
 
     // Check if user exists in either collection
     let user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
@@ -81,7 +81,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -97,7 +97,7 @@ export async function PATCH(
     }
 
     const { db } = await connectToDatabase();
-    const userId = params.id;
+    const { id: userId } = await params;
     const updates = await request.json();
 
     // Check if user exists in either collection

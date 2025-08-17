@@ -10,24 +10,29 @@ import { InlineMessage } from '@/components/ui/inline-message';
 interface CaptionCardProps {
   caption: string;
   index: number;
-  onRegenerate: (index: number) => void;
-  isRegenerating?: boolean;
 }
 
-export function CaptionCard({ caption, index, onRegenerate, isRegenerating }: CaptionCardProps) {
+export function CaptionCard({ caption, index }: CaptionCardProps) {
   const [copied, setCopied] = useState(false);
   const [inlineMessage, setInlineMessage] = useState<string | null>(null);
 
-  const handleCopy = () => {
+  const handleCopy = (e: React.MouseEvent) => {
+    // Prevent any event bubbling that might trigger form submission
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // console.log('🔄 Copy button clicked for caption:', caption.substring(0, 50) + '...');
+    
     // Check if clipboard API is available
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(caption)
         .then(() => {
           setCopied(true);
           setInlineMessage("Copied to clipboard! ✨");
+          // console.log('✅ Caption copied successfully to clipboard');
         })
         .catch((err) => {
-          console.error('Failed to copy to clipboard:', err);
+          console.error('❌ Failed to copy to clipboard:', err);
           // Fallback: try to copy using document.execCommand
           fallbackCopyTextToClipboard(caption);
         });
@@ -44,6 +49,7 @@ export function CaptionCard({ caption, index, onRegenerate, isRegenerating }: Ca
 
   // Fallback copy function for older browsers
   const fallbackCopyTextToClipboard = (text: string) => {
+    // console.log('🔄 Using fallback copy method');
     const textArea = document.createElement('textarea');
     textArea.value = text;
     textArea.style.position = 'fixed';
@@ -58,11 +64,13 @@ export function CaptionCard({ caption, index, onRegenerate, isRegenerating }: Ca
       if (successful) {
         setCopied(true);
         setInlineMessage("Copied to clipboard! ✨");
+        // console.log('✅ Fallback copy successful');
       } else {
         setInlineMessage("Copy failed. Please select and copy manually.");
+        // console.log('❌ Fallback copy failed');
       }
     } catch (err) {
-      console.error('Fallback copy failed:', err);
+      console.error('❌ Fallback copy failed:', err);
       setInlineMessage("Copy failed. Please select and copy manually.");
     }
     
@@ -89,6 +97,7 @@ export function CaptionCard({ caption, index, onRegenerate, isRegenerating }: Ca
       <div className="p-3 border-t border-[#C7C8CC]/50 dark:border-border/50 bg-[#E3E1D9]/10 dark:bg-muted/10 space-y-2">
         {/* Copy Button */}
         <Button
+          type="button"
           onClick={handleCopy}
           variant="ghost"
           size="sm"
@@ -107,6 +116,7 @@ export function CaptionCard({ caption, index, onRegenerate, isRegenerating }: Ca
           )}
         </Button>
         
+
 
       </div>
     </div>

@@ -23,6 +23,10 @@ declare module 'next-auth' {
       isAdmin?: boolean;
       /** The user's profile image URL */
       image?: string | null;
+      /** Dual-mode system properties */
+      hasRegularUserAccount?: boolean;
+      regularUserId?: string;
+      canBrowseAsUser?: boolean;
     } & DefaultSession['user']; // Inherit the default properties
   }
 }
@@ -50,6 +54,10 @@ declare module 'next-auth/jwt' {
     image?: string | null;
     /** Timestamp of last validation */
     lastValidated?: number;
+    /** Dual-mode system properties */
+    hasRegularUserAccount?: boolean;
+    regularUserId?: string;
+    canBrowseAsUser?: boolean;
   }
 }
 
@@ -70,5 +78,9 @@ declare module 'next-auth/core/types' {
     isVerified?: boolean;
     /** Whether the user is an admin */
     isAdmin?: boolean;
+    /** Dual-mode system properties */
+    hasRegularUserAccount?: boolean;
+    regularUserId?: string;
+    canBrowseAsUser?: boolean;
   }
 }

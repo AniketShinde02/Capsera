@@ -269,19 +269,19 @@ export default function CookieConsent() {
               </div>
             </div>
             
-            {/* Personalization Cookies */}
+            {/* Functional Cookies */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
                   <div>
-                    <h4 className="text-sm sm:text-base font-medium text-foreground">Personalization</h4>
+                    <h4 className="text-sm sm:text-base font-medium text-foreground">Functional</h4>
                     <p className="text-xs sm:text-sm text-muted-foreground">Customize your experience</p>
                   </div>
                 </div>
                 <Checkbox 
-                  checked={preferences.personalization} 
-                  onCheckedChange={(checked) => updatePreference('personalization', checked as boolean)}
+                  checked={preferences.functional} 
+                  onCheckedChange={(checked) => updatePreference('functional', checked as boolean)}
                   className="rounded-md"
                 />
               </div>
@@ -290,7 +290,7 @@ export default function CookieConsent() {
           
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 sm:pt-6">
             <Button 
-              onClick={savePreferences} 
+              onClick={() => savePreferences(preferences)} 
               className="w-full sm:w-auto h-10 sm:h-11 text-sm sm:text-base font-medium rounded-lg"
             >
               Save Preferences

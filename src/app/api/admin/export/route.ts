@@ -98,26 +98,141 @@ export async function POST(request: NextRequest) {
         };
         break;
 
+      case 'dashboard-comprehensive':
+        // Comprehensive dashboard report
+        const totalUsers = await db.collection('users').countDocuments({ isDeleted: { $ne: true } });
+        const totalPosts = await db.collection('posts').countDocuments({ isDeleted: { $ne: true } });
+        const totalImages = await db.collection('posts').countDocuments({ 
+          image: { $exists: true, $ne: null },
+          isDeleted: { $ne: true }
+        });
+        
+        reportData = {
+          reportType: 'Comprehensive Dashboard Report',
+          generatedAt: now.toISOString(),
+          overview: {
+            totalUsers,
+            totalPosts,
+            totalImages,
+            systemStatus: 'Operational'
+          },
+          collections: {
+            users: await db.collection('users').countDocuments({}),
+            adminusers: await db.collection('adminusers').countDocuments({}),
+            roles: await db.collection('roles').countDocuments({}),
+            posts: await db.collection('posts').countDocuments({}),
+            contacts: await db.collection('contacts').countDocuments({}),
+            deletedprofiles: await db.collection('deletedprofiles').countDocuments({})
+          }
+        };
+        break;
+
+      case 'analytics-comprehensive':
+        // Comprehensive analytics report
+        const analyticsUsers = await db.collection('users').countDocuments({ isDeleted: { $ne: true } });
+        const analyticsPosts = await db.collection('posts').countDocuments({ isDeleted: { $ne: true } });
+        const analyticsImages = await db.collection('posts').countDocuments({ 
+          image: { $exists: true, $ne: null },
+          isDeleted: { $ne: true }
+        });
+        
+        // Get user growth data
+        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const newUsersThisWeek = await db.collection('users').countDocuments({ 
+          createdAt: { $gte: oneWeekAgo },
+          isDeleted: { $ne: true }
+        });
+        
+        // Get post growth data
+        const newPostsThisWeek = await db.collection('posts').countDocuments({ 
+          createdAt: { $gte: oneWeekAgo },
+          isDeleted: { $ne: true }
+        });
+        
+        reportData = {
+          reportType: 'Comprehensive Analytics Report',
+          generatedAt: now.toISOString(),
+          overview: {
+            totalUsers: analyticsUsers,
+            totalPosts: analyticsPosts,
+            totalImages: analyticsImages,
+            newUsersThisWeek,
+            newPostsThisWeek,
+            userGrowthRate: Math.round((newUsersThisWeek / Math.max(analyticsUsers - newUsersThisWeek, 1)) * 100),
+            postGrowthRate: Math.round((newPostsThisWeek / Math.max(analyticsPosts - newPostsThisWeek, 1)) * 100)
+          },
+          collections: {
+            users: await db.collection('users').countDocuments({}),
+            adminusers: await db.collection('adminusers').countDocuments({}),
+            roles: await db.collection('roles').countDocuments({}),
+            posts: await db.collection('posts').countDocuments({}),
+            contacts: await db.collection('contacts').countDocuments({}),
+            deletedprofiles: await db.collection('deletedprofiles').countDocuments({})
+          }
+        };
+        break;
+
       default:
         return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });
     }
 
-    if (format === 'csv') {
-      // Convert to CSV format
-      const csvData = convertToCSV(reportData);
-      return new NextResponse(csvData, {
-        headers: {
-          'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.csv"`
-        }
-      });
-    }
+    // Handle different export formats
+    switch (format.toLowerCase()) {
+      case 'csv':
+        const csvData = convertToCSV(reportData);
+        return new NextResponse(csvData, {
+          headers: {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.csv"`
+          }
+        });
 
-    // Return JSON by default
-    return NextResponse.json({ 
-      success: true, 
-      data: reportData 
-    });
+      case 'excel':
+      case 'xlsx':
+        const excelData = await convertToExcel(reportData);
+        return new NextResponse(excelData, {
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.xlsx"`
+          }
+        });
+
+      case 'pdf':
+        const pdfData = await convertToPDF(reportData);
+        return new NextResponse(pdfData, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.pdf"`
+          }
+        });
+
+      case 'enhanced-json':
+        // Enhanced JSON with better formatting and metadata
+        const enhancedData = {
+          metadata: {
+            reportType: reportData.reportType,
+            generatedAt: reportData.generatedAt,
+            format: 'Enhanced JSON',
+            instructions: 'This file can be opened in any text editor or browser. For better viewing, use a JSON viewer extension.',
+            totalRecords: getTotalRecords(reportData)
+          },
+          data: reportData
+        };
+        
+        return new NextResponse(JSON.stringify(enhancedData, null, 2), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}-enhanced.json"`
+          }
+        });
+
+      default:
+        // Return JSON by default
+        return NextResponse.json({ 
+          success: true, 
+          data: reportData 
+        });
+    }
 
   } catch (error) {
     console.error('Error generating export:', error);
@@ -129,18 +244,103 @@ export async function POST(request: NextRequest) {
 }
 
 function convertToCSV(data: any): string {
-  // Simple CSV conversion - can be enhanced based on data structure
+  // Enhanced CSV conversion with better formatting
   if (data.reportType === 'User Summary Report') {
-    return `Report Type,Generated At,Total Users,Regular Users,Admin Users,Active Users,Inactive Users\n${data.reportType},${data.generatedAt},${data.summary.totalUsers},${data.summary.regularUsers},${data.summary.adminUsers},${data.summary.activeUsers},${data.summary.inactiveUsers}`;
+    return `Report Type,Generated At,Total Users,Regular Users,Admin Users,Active Users,Inactive Users\n"${data.reportType}","${data.generatedAt}",${data.summary.totalUsers},${data.summary.regularUsers},${data.summary.adminUsers},${data.summary.activeUsers},${data.summary.inactiveUsers}`;
   } else if (data.reportType === 'Role Summary Report') {
     let csv = 'Report Type,Generated At,Role Name,Display Name,Total Users,Regular Users,Admin Users,Is System,Is Active\n';
     data.roles.forEach((role: any) => {
-      csv += `${data.reportType},${data.generatedAt},${role.roleName},${role.displayName},${role.totalUsers},${role.regularUsers},${role.adminUsers},${role.isSystem},${role.isActive}\n`;
+      csv += `"${data.reportType}","${data.generatedAt}","${role.roleName}","${role.displayName}",${role.totalUsers},${role.regularUsers},${role.adminUsers},${role.isSystem},${role.isActive}\n`;
     });
     return csv;
   } else if (data.reportType === 'System Status Report') {
-    return `Report Type,Generated At,Database,Total Users,Total Admin Users,Total Roles,Total Deleted Profiles,Last Backup,System Load,Uptime\n${data.reportType},${data.generatedAt},${data.systemStats.database},${data.systemStats.collections.users},${data.systemStats.collections.adminusers},${data.systemStats.collections.roles},${data.systemStats.collections.deletedprofiles},${data.systemStats.lastBackup},${data.systemStats.systemLoad}%,${data.systemStats.uptime}`;
+    return `Report Type,Generated At,Database,Total Users,Total Admin Users,Total Roles,Total Deleted Profiles,Last Backup,System Load,Uptime\n"${data.reportType}","${data.generatedAt}",${data.systemStats.database},${data.systemStats.collections.users},${data.systemStats.collections.adminusers},${data.systemStats.collections.roles},${data.systemStats.collections.deletedprofiles},"${data.systemStats.lastBackup}",${data.systemStats.systemLoad}%,"${data.systemStats.uptime}"`;
+  } else if (data.reportType === 'Comprehensive Dashboard Report') {
+    return `Report Type,Generated At,Total Users,Total Posts,Total Images,System Status,Users Collection,Admin Users Collection,Roles Collection,Posts Collection,Contacts Collection,Deleted Profiles Collection\n"${data.reportType}","${data.generatedAt}",${data.overview.totalUsers},${data.overview.totalPosts},${data.overview.totalImages},"${data.overview.systemStatus}",${data.collections.users},${data.collections.adminusers},${data.collections.roles},${data.collections.posts},${data.collections.contacts},${data.collections.deletedprofiles}`;
+  } else if (data.reportType === 'Comprehensive Analytics Report') {
+    return `Report Type,Generated At,Total Users,Total Posts,Total Images,New Users This Week,New Posts This Week,User Growth Rate,Post Growth Rate,Users Collection,Admin Users Collection,Roles Collection,Posts Collection,Contacts Collection,Deleted Profiles Collection\n"${data.reportType}","${data.generatedAt}",${data.overview.totalUsers},${data.overview.totalPosts},${data.overview.totalImages},${data.overview.newUsersThisWeek},${data.overview.newPostsThisWeek},${data.overview.userGrowthRate}%,${data.overview.postGrowthRate}%,${data.collections.users},${data.collections.adminusers},${data.collections.roles},${data.collections.posts},${data.collections.contacts},${data.collections.deletedprofiles}`;
   }
   
+  // Fallback to JSON string
   return JSON.stringify(data, null, 2);
+}
+
+async function convertToExcel(data: any): Promise<Buffer> {
+  // For now, return a simple Excel-like structure
+  // In production, you'd use a library like 'xlsx' or 'exceljs'
+  const csvData = convertToCSV(data);
+  return Buffer.from(csvData, 'utf-8');
+}
+
+async function convertToPDF(data: any): Promise<Buffer> {
+  // For now, return a simple text-based PDF structure
+  // In production, you'd use a library like 'pdfkit' or 'puppeteer'
+  const textContent = formatForPDF(data);
+  return Buffer.from(textContent, 'utf-8');
+}
+
+function formatForPDF(data: any): string {
+  let content = `REPORT: ${data.reportType}\n`;
+  content += `Generated: ${data.generatedAt}\n`;
+  content += `\n${'='.repeat(50)}\n\n`;
+  
+  if (data.reportType === 'User Summary Report') {
+    content += `USER SUMMARY\n\n`;
+    content += `Total Users: ${data.summary.totalUsers}\n`;
+    content += `Regular Users: ${data.summary.regularUsers}\n`;
+    content += `Admin Users: ${data.summary.adminUsers}\n`;
+    content += `Active Users: ${data.summary.activeUsers}\n`;
+    content += `Inactive Users: ${data.summary.inactiveUsers}\n`;
+  } else if (data.reportType === 'Role Summary Report') {
+    content += `ROLE SUMMARY\n\n`;
+    data.roles.forEach((role: any) => {
+      content += `Role: ${role.roleName}\n`;
+      content += `Display Name: ${role.displayName}\n`;
+      content += `Total Users: ${role.totalUsers}\n`;
+      content += `Regular Users: ${role.regularUsers}\n`;
+      content += `Admin Users: ${role.adminUsers}\n`;
+      content += `System Role: ${role.isSystem ? 'Yes' : 'No'}\n`;
+      content += `Active: ${role.isActive ? 'Yes' : 'No'}\n`;
+      content += `\n${'-'.repeat(30)}\n\n`;
+    });
+  } else if (data.reportType === 'Comprehensive Dashboard Report') {
+    content += `DASHBOARD OVERVIEW\n\n`;
+    content += `Total Users: ${data.overview.totalUsers}\n`;
+    content += `Total Posts: ${data.overview.totalPosts}\n`;
+    content += `Total Images: ${data.overview.totalImages}\n`;
+    content += `System Status: ${data.overview.systemStatus}\n\n`;
+    content += `COLLECTION STATISTICS\n`;
+    content += `Users Collection: ${data.collections.users}\n`;
+    content += `Admin Users Collection: ${data.collections.adminusers}\n`;
+    content += `Roles Collection: ${data.collections.roles}\n`;
+    content += `Posts Collection: ${data.collections.posts}\n`;
+    content += `Contacts Collection: ${data.collections.contacts}\n`;
+    content += `Deleted Profiles Collection: ${data.collections.deletedprofiles}\n`;
+  } else if (data.reportType === 'Comprehensive Analytics Report') {
+    content += `ANALYTICS OVERVIEW\n\n`;
+    content += `Total Users: ${data.overview.totalUsers}\n`;
+    content += `Total Posts: ${data.overview.totalPosts}\n`;
+    content += `Total Images: ${data.overview.totalImages}\n`;
+    content += `New Users This Week: ${data.overview.newUsersThisWeek}\n`;
+    content += `New Posts This Week: ${data.overview.newPostsThisWeek}\n`;
+    content += `User Growth Rate: ${data.overview.userGrowthRate}%\n`;
+    content += `Post Growth Rate: ${data.overview.postGrowthRate}%\n\n`;
+    content += `COLLECTION STATISTICS\n`;
+    content += `Users Collection: ${data.collections.users}\n`;
+    content += `Admin Users Collection: ${data.collections.adminusers}\n`;
+    content += `Roles Collection: ${data.collections.roles}\n`;
+    content += `Posts Collection: ${data.collections.posts}\n`;
+    content += `Contacts Collection: ${data.collections.contacts}\n`;
+    content += `Deleted Profiles Collection: ${data.collections.deletedprofiles}\n`;
+  }
+  
+  return content;
+}
+
+function getTotalRecords(data: any): number {
+  if (data.roles) return data.roles.length;
+  if (data.summary) return 1;
+  if (data.systemStats) return 1;
+  if (data.overview) return 1;
+  return 0;
 }

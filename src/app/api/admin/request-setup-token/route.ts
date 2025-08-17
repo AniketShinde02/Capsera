@@ -1,85 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sign } from 'jsonwebtoken';
-import { sendAdminSetupToken } from '@/lib/email-service';
+import { otpDbService } from '@/lib/otp-db-service';
+import { sendAdminSetupOTP } from '@/lib/email-service';
 
 // Only allow requests from the specified admin email
 const ALLOWED_EMAIL = 'sunnyshinde2601@gmail.com';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    
+    // Validate email exists and is a string
+    if (!body.email || typeof body.email !== 'string') {
+      return NextResponse.json(
+        { success: false, message: 'Valid email is required' },
+        { status: 400 }
+      );
+    }
+
+    // TypeScript should now know body.email is a string
+    const email = body.email as string;
 
     // Security check: Only allow the specified admin email
     if (email !== ALLOWED_EMAIL) {
-      console.log('❌ Unauthorized token request attempt from:', email);
+      console.log('❌ Unauthorized OTP request attempt from:', email);
       return NextResponse.json(
         { 
           success: false, 
-          message: 'Unauthorized email address. Token requests are restricted to authorized administrators only.' 
+          message: 'Unauthorized email address. OTP requests are restricted to authorized administrators only.' 
         },
         { status: 403 }
       );
     }
 
-    // Check if JWT_SECRET is available
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error('❌ JWT_SECRET environment variable not set');
+    // Generate a new 6-digit OTP
+    const otpResult = await otpDbService.generateOTP(email);
+    
+    if (!otpResult.success) {
       return NextResponse.json(
         { 
           success: false, 
-          message: 'Server configuration error. Please contact system administrator.' 
+          message: otpResult.message 
         },
-        { status: 500 }
+        { status: 429 }
       );
     }
 
-    // Generate a unique JWT token for setup
-    const tokenPayload = {
-      type: 'admin-setup',
-      purpose: 'initial-admin-creation',
-      email: email,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
-      jti: `setup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Unique token ID
-    };
+    const { otp } = otpResult;
 
-    const setupToken = sign(tokenPayload, jwtSecret);
+    // Log the OTP generation for security tracking
+    console.log('🔐 Production setup OTP generated for:', email);
+    console.log('📝 OTP:', otp);
+    console.log('⏰ Expires in 5 minutes');
 
-    // Log the token generation for security tracking
-    console.log('🔐 Production setup token generated for:', email);
-    console.log('📝 Token ID:', tokenPayload.jti);
-    console.log('⏰ Expires:', new Date(tokenPayload.exp * 1000).toISOString());
-
-    // Send the token via email
-    const emailSent = await sendAdminSetupToken(email, setupToken);
+    // Send the OTP via email - email is guaranteed to be a string at this point
+    const emailSent = await sendAdminSetupOTP(email, otp as string);
     
     if (!emailSent) {
-      console.error('❌ Failed to send email with token');
+      console.error('❌ Failed to send email with OTP');
       return NextResponse.json(
         { 
           success: false, 
-          message: 'Token generated but failed to send email. Please contact system administrator.' 
+          message: 'OTP generated but failed to send email. Please contact system administrator.' 
         },
         { status: 500 }
       );
     }
 
-    console.log('✅ Token sent successfully via email to:', email);
+    console.log('✅ OTP sent successfully via email to:', email);
 
     return NextResponse.json({
       success: true,
-      message: 'Setup token generated and sent to admin email',
-      tokenId: tokenPayload.jti,
-      expiresAt: new Date(tokenPayload.exp * 1000).toISOString()
+      message: 'Setup OTP generated and sent to admin email',
+      expiresIn: '5 minutes',
+      instructions: 'Check your email for the 6-digit OTP code'
     });
 
   } catch (error) {
-    console.error('❌ Error generating setup token:', error);
+    console.error('❌ Error generating setup OTP:', error);
     return NextResponse.json(
       { 
         success: false, 
-        message: 'Failed to generate setup token. Please try again or contact system administrator.' 
+        message: 'Failed to generate setup OTP. Please try again or contact system administrator.' 
       },
       { status: 500 }
     );

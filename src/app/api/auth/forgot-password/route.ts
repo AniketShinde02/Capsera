@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     const ipRateLimit = await checkRateLimit(ipRateLimitKey, RESET_RATE_LIMITS.MAX_IP_RESETS, RESET_RATE_LIMITS.WINDOW_HOURS);
     
     if (!ipRateLimit.allowed) {
-      console.log(`🚫 IP rate limit exceeded for ${clientIP}: ${ipRateLimit.count}/${RESET_RATE_LIMITS.MAX_IP_RESETS} requests`);
+      console.log(`🚫 IP rate limit exceeded for ${clientIP}: ${RESET_RATE_LIMITS.MAX_IP_RESETS - ipRateLimit.remaining}/${RESET_RATE_LIMITS.MAX_IP_RESETS} requests`);
       
       // Block this IP if it's making too many requests
       await blockCredentials(`ip:${clientIP}`, 'password_reset_abuse', clientIP, userAgent);

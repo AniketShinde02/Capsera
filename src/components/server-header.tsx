@@ -28,10 +28,6 @@ export default function ServerHeader() {
   const isSetupPage = pathname.startsWith('/setup');
   const isLoginPage = pathname.startsWith('/login');
 
-  if (isAdminPage || isSetupPage || isLoginPage) {
-    return null;
-  }
-
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
@@ -70,14 +66,19 @@ export default function ServerHeader() {
     };
   }, [isMenuOpen]);
 
+  // Hide header on admin, setup, and login pages
+  if (isAdminPage || isSetupPage || isLoginPage) {
+    return null;
+  }
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full bg-[#E3E1D9]/90 dark:bg-background/80 backdrop-blur-sm border-b border-[#C7C8CC]/60 dark:border-border/50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {/* Main Header */}
-          <div className="grid grid-cols-3 items-center w-full px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
-            {/* Logo - Left Column */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 justify-self-start">
+          <div className="flex items-center justify-between w-full px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+            {/* Logo - Left Side */}
+            <Link href="/" className="flex items-center gap-2 sm:gap-3">
               <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg overflow-hidden flex items-center justify-center">
                 <img 
                   src="/favicon.svg" 
@@ -94,11 +95,11 @@ export default function ServerHeader() {
                   <span className="text-[6px] sm:text-[9px] md:text-[8px] bg-gradient-to-r from-blue-600 to-purple-600 text-white px-1 sm:px-1.5 py-0.5 rounded-full font-semibold leading-none">BETA</span>
                   <span className="text-[6px] sm:text-[8px] md:text-[10px] text-muted-foreground leading-none">v1.0.0</span>
                 </div>
-            </div>
-          </Link>
-          
-          {/* Desktop Navigation - Center Column */}
-            <nav className="hidden md:flex items-center space-x-6 lg:space-x-8 justify-self-center">
+              </div>
+            </Link>
+            
+            {/* Desktop Navigation - Center */}
+            <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
               <Link href="/" className="relative group">
                 <span className="text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-cyan-300 transition-colors duration-300 ease-out font-medium">
                   Home
@@ -133,55 +134,58 @@ export default function ServerHeader() {
               </Link>
             </nav>
 
-            {/* Right Side - Auth & Theme - Hidden on Mobile */}
-            <div className="hidden md:flex items-center space-x-2 sm:space-x-3 justify-self-end">
-              {isAuthed ? (
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <Link href="/profile" className="flex items-center space-x-2 text-white hover:text-cyan-300 transition-colors duration-300 ease-out">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {userEmail.charAt(0).toUpperCase()}
-                    </div>
-                  </Link>
-                </div>
-            ) : (
-              <SignUpButton />
-            )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-lg border-slate-300/60 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all duration-300 ease-out hover:scale-110"
-                onClick={() => {
-                  const html = document.documentElement;
-                  if (html.classList.contains('dark')) {
-                    html.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                  } else {
-                    html.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                  }
-                }}
-              >
-                <div className="w-3 h-3 sm:w-4 sm:h-4">
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4 hidden dark:block text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-              </Button>
-            </div>
+            {/* Right Side - Auth, Theme & Mobile Menu */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Desktop Auth & Theme - Hidden on Mobile */}
+              <div className="hidden md:flex items-center space-x-2 sm:space-x-3">
+                {isAuthed ? (
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <Link href="/profile" className="flex items-center space-x-2 text-white hover:text-cyan-300 transition-colors duration-300 ease-out">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        {userEmail.charAt(0).toUpperCase()}
+                      </div>
+                    </Link>
+                  </div>
+                ) : (
+                  <SignUpButton />
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-lg border-slate-300/60 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all duration-300 ease-out hover:scale-110"
+                  onClick={() => {
+                    const html = document.documentElement;
+                    if (html.classList.contains('dark')) {
+                      html.classList.remove('dark');
+                      localStorage.setItem('theme', 'light');
+                    } else {
+                      html.classList.add('dark');
+                      localStorage.setItem('theme', 'dark');
+                    }
+                  }}
+                >
+                  <div className="w-3 h-3 sm:w-4 sm:h-4">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 hidden dark:block text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                </Button>
+              </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden p-1.5 sm:p-2 rounded-lg hover:bg-white/10 transition-colors"
-              aria-label="Toggle mobile menu"
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+              {/* Mobile Menu Button - Always Visible on Mobile */}
+              <button
+                onClick={toggleMenu}
+                className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors text-slate-700 dark:text-white"
+                aria-label="Toggle mobile menu"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </header>

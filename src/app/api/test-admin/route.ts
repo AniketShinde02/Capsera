@@ -1,51 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('🧪 Testing admin system...');
+    const session = await getServerSession(authOptions);
     
-    // Test database connection
-    const { db } = await connectToDatabase();
-    console.log('✅ Database connected');
-    
-    // Check users collection
-    const usersCollection = db.collection('users');
-    const adminCount = await usersCollection.countDocuments({ 'role.name': 'admin' });
-    const totalUsers = await usersCollection.countDocuments();
-    
-    console.log('📊 Database stats:', { adminCount, totalUsers });
-    
-    // Get admin users
-    const adminUsers = await usersCollection.find({ 'role.name': 'admin' }).toArray();
-    const adminEmails = adminUsers.map(user => ({ 
-      id: user._id, 
-      email: user.email, 
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt
-    }));
-    
+    if (!session?.user) {
+      return NextResponse.json({
+        success: false,
+        message: 'No session found'
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Admin system test completed',
-      database: {
-        connected: true,
-        adminCount,
-        totalUsers
-      },
-      adminUsers: adminEmails
+      session: {
+        id: session.user.id,
+        email: session.user.email,
+        role: (session.user as any).role,
+        isAdmin: (session.user as any).isAdmin,
+        username: (session.user as any).username,
+        canBrowseAsUser: (session.user as any).canBrowseAsUser,
+        hasRegularUserAccount: (session.user as any).hasRegularUserAccount,
+        regularUserId: (session.user as any).regularUserId
+      }
     });
-    
-  } catch (error) {
-    console.error('❌ Admin system test failed:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Admin system test failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+
+  } catch (error: any) {
+    console.error('Test admin API error:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Error checking session',
+      error: error.message
+    }, { status: 500 });
   }
 }

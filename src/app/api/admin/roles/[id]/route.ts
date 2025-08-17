@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/db';
+import { connectToDatabase } from '@/lib/db';
 import { canManageAdmins } from '@/lib/init-admin';
-import Role from '@/models/Role';
-import User from '@/models/User';
-import AdminUser from '@/models/AdminUser';
+import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
@@ -24,22 +22,22 @@ export async function GET(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
-    // Get role by ID using Mongoose
-    const role = await Role.findById(params.id).lean();
+    // Get role by ID using direct MongoDB
+    const role = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
     
     if (!role) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
 
-    // Count users for this role
-    const regularUserCount = await User.countDocuments({ 
+    // Count users for this role using direct MongoDB
+    const regularUserCount = await db.collection('users').countDocuments({ 
       'role.name': role.name,
       isDeleted: { $ne: true }
     });
     
-    const adminUserCount = await AdminUser.countDocuments({ 
+    const adminUserCount = await db.collection('adminusers').countDocuments({ 
       'role.name': role.name,
       status: 'active'
     });
@@ -47,7 +45,7 @@ export async function GET(
     const totalUserCount = regularUserCount + adminUserCount;
 
     const transformedRole = {
-      _id: role._id.toString(),
+      _id: (role._id as any).toString(),
       name: role.name,
       displayName: role.displayName || role.name,
       description: role.description || `Role: ${role.name}`,
@@ -92,10 +90,10 @@ export async function PUT(
     const body = await request.json();
     const { displayName, description, permissions, isActive } = body;
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
     // Check if role exists and is not a system role
-    const existingRole = await Role.findById(params.id);
+    const existingRole = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
     if (!existingRole) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
@@ -120,7 +118,7 @@ export async function PUT(
       }
     }
 
-    // Update role using Mongoose
+    // Update role using direct MongoDB
     const updateData: any = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (description !== undefined) updateData.description = description;
@@ -129,15 +127,17 @@ export async function PUT(
     updateData.updatedAt = new Date();
     updateData.updatedBy = session.user.id;
 
-    const updatedRole = await Role.findByIdAndUpdate(
-      params.id,
-      { $set: updateData },
-      { new: true, runValidators: true }
+    const result = await db.collection('roles').updateOne(
+      { _id: new ObjectId(params.id) },
+      { $set: updateData }
     );
 
-    if (!updatedRole) {
+    if (result.matchedCount === 0) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
+
+    // Get the updated role
+    const updatedRole = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
 
     console.log('✅ Role updated successfully:', updatedRole);
 
@@ -182,10 +182,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    await dbConnect();
+    const { db } = await connectToDatabase();
 
     // Check if role exists and is not a system role
-    const existingRole = await Role.findById(params.id);
+    const existingRole = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
     if (!existingRole) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
@@ -195,15 +195,14 @@ export async function DELETE(
     }
 
     // Check if any users are using this role
-    const regularUserCount = await User.countDocuments({ 
+    const regularUserCount = await db.collection('users').countDocuments({ 
       'role.name': existingRole.name,
       isDeleted: { $ne: true }
     });
     
-    const adminUserCount = await AdminUser.countDocuments({ 
+    const adminUserCount = await db.collection('adminusers').countDocuments({ 
       'role.name': existingRole.name,
-      status: 'active'
-    });
+      status: 'active' });
     
     if (regularUserCount > 0 || adminUserCount > 0) {
       return NextResponse.json({ 
@@ -211,14 +210,14 @@ export async function DELETE(
       }, { status: 409 });
     }
 
-    // Delete role using Mongoose
-    const deletedRole = await Role.findByIdAndDelete(params.id);
+    // Delete role using direct MongoDB
+    const result = await db.collection('roles').deleteOne({ _id: new ObjectId(params.id) });
 
-    if (!deletedRole) {
+    if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
 
-    console.log('✅ Role deleted successfully:', deletedRole);
+    console.log('✅ Role deleted successfully:', existingRole);
 
     return NextResponse.json({ 
       success: true, 

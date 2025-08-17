@@ -103,7 +103,7 @@ AdminUserSchema.methods.incLoginAttempts = function(): void {
     });
   }
   
-  const updates = { $inc: { loginAttempts: 1 } };
+  const updates: any = { $inc: { loginAttempts: 1 } };
   
   // Lock account after 5 failed attempts for 2 hours
   if (this.loginAttempts + 1 >= 5 && !this.isLocked()) {

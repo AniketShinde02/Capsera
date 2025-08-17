@@ -135,7 +135,8 @@ const generateCaptionsFlow = ai.defineFlow(
     const rateLimitResult = await checkRateLimit(
       rateLimitKey,
       rateLimitConfig.MAX_GENERATIONS,
-      rateLimitConfig.WINDOW_HOURS
+      rateLimitConfig.WINDOW_HOURS,
+      input.userId
     );
 
     if (!rateLimitResult.allowed) {

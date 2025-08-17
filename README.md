@@ -4,7 +4,7 @@
 
 <div align="center">
 
-![CaptionCraft Banner](https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=1200&h=400&fit=crop&crop=entropy&auto=format&q=80)
+![Capsera Banner](../Capsera/screenshots/capsera_banner.png)
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -25,11 +25,12 @@ CaptionCraft isn't just another caption generator – it's your **AI-powered cre
 
 ### 🎯 **Key Differentiators:**
 - **🔍 Advanced Image Analysis**: AI analyzes colors, objects, people, and scenes
-- **🎭 Mood-Driven Generation**: 21 different moods for perfect tone matching
+- **🎭 Mood-Driven Generation**: 41 different moods for perfect tone matching
 - **🔄 Maximum Caption Variety**: 3 completely different caption styles every time
 - **🛡️ Smart Rate Limiting**: 3 free generations, 25 for registered users
 - **🔐 Advanced Admin Security**: JWT-based production-ready admin system
 - **🗑️ Complete Image Management**: Cloudinary-powered upload, storage, and deletion
+- **🖼️ Smart Image Compression**: Automatic optimization with 70-90% size reduction
 - **📱 Fully Responsive**: Mobile-first design with perfect desktop experience
 - **⚡ Optimized Performance**: Streamlined processes and database optimization
 - **🛡️ Robust Error Handling**: Graceful fallback for all failure scenarios
@@ -46,7 +47,7 @@ CaptionCraft isn't just another caption generator – it's your **AI-powered cre
 |---------|------------|-------------|
 | **🏠 Homepage & Main Interface** | ![Homepage](screenshots/01-homepage-main.png) | Main caption generation interface with image upload |
 | **📸 Image Upload & Preview** | ![Image Upload](screenshots/02-image-upload.png) | Drag & drop image upload with preview |
-| **🎭 Mood Selection** | ![Mood Selection](screenshots/03-mood-selection.png) | 21 different mood options for caption generation |
+| **🎭 Mood Selection** | ![Mood Selection](screenshots/03-mood-selection.png) | 41 different mood options for caption generation |
 | **✨ Caption Generation** | ![Caption Generation](screenshots/04-caption-generation.png) | AI-generated captions with variety |
 | **🔄 Regenerate for Variety** | ![Regenerate](screenshots/05-regenerate-variety.png) | Get completely different caption styles |
 | **👤 User Authentication** | ![User Auth](screenshots/06-user-auth.png) | Login, registration, and profile management |
@@ -246,6 +247,7 @@ Capsera/
 │   ├── 📄 env.example               # Environment variables template
 │   ├── 📄 FIXES-SUMMARY.md          # Fixes summary
 │   ├── 📄 flow.md                   # Authentication flow
+│   ├── 📄 IMAGE_COMPRESSION_SYSTEM.md # Image compression system
 │   ├── 📄 GEMINI_KEYS_SETUP.md      # Gemini AI setup
 │   ├── 📄 help.md                   # User help documentation
 │   ├── 📄 IMAGE_DELETION_OPTIMIZATION.md # Image deletion optimization
@@ -300,7 +302,7 @@ Capsera/
 │   ├── 📄 README.md                 # Screenshots documentation
 │   ├── 📄 01-homepage-main.png      # Homepage screenshot ✅
 │   ├── 📄 02-image-upload.png      # Image upload screenshot ✅
-│   ├── 📄 03-mood-selection.png    # Mood selection screenshot ✅
+│   ├── 📄 03-mood-selection.png    # Mood selection screenshot (41 options) ✅
 │   ├── 📄 04-caption-generation.png # Caption generation screenshot ✅
 │   ├── 📄 05-regenerate-variety.png # Regenerate variety screenshot ✅
 │   ├── 📄 06-user-auth.png         # User authentication screenshot ✅
@@ -631,7 +633,7 @@ npm run test-super-admin
 - **Randomization Seeds**: Unique generation every time
 - **Anti-Duplication**: Prevents similar structures and patterns
 
-### **🎭 Available Moods (21 Options)**
+### **🎭 Available Moods (41 Options)**
 - **😊 Happy / Cheerful** - Upbeat, positive vibes
 - **😍 Romantic / Flirty** - Sweet, intimate language
 - **😎 Cool / Confident** - Bold, powerful statements
@@ -654,6 +656,25 @@ npm run test-super-admin
 - **🍔 Foodie / Culinary** - Delicious, appetite appeal
 - **🐾 Pet / Cute** - Adorable, lovable language
 - **🎵 Musical / Rhythmic** - Beat, lyrical style
+- **🎨 Custom / Your Style** - Personalized creative expression
+- **🕰️ Vintage / Retro** - Classic, nostalgic vibes
+- **✨ New / Fresh** - Modern, contemporary language
+- **👾 Gen Z / Trendy** - Current slang and trends
+- **🎭 Dramatic / Theatrical** - Bold, expressive language
+- **🧘 Zen / Minimalist** - Simple, peaceful vibes
+- **🎪 Whimsical / Magical** - Fantasy, enchanting language
+- **🏆 Champion / Winner** - Success, achievement focus
+- **🌙 Mysterious / Enigmatic** - Intriguing, mysterious tone
+- **🎨 Creative / Artistic** - Artistic, imaginative language
+- **🚀 Futuristic / Tech** - Modern tech, innovation vibes
+- **🌿 Natural / Organic** - Earthy, natural language
+- **💎 Luxury / Premium** - High-end, sophisticated tone
+- **🎯 Focused / Determined** - Goal-oriented, driven language
+- **🌈 Colorful / Vibrant** - Bright, energetic vibes
+- **🕶️ Mysterious / Intriguing** - Enigmatic, captivating tone
+- **🎪 Circus / Entertainment** - Fun, show-stopping language
+- **🏰 Fantasy / Dreamy** - Magical, dreamlike vibes
+- **⚡ Energetic / Dynamic** - High-energy, powerful language
 
 ---
 
@@ -844,7 +865,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 📊 **Current Project Status Summary**
 
 ### **✅ What's Working Perfectly**
-- **Core Functionality**: AI caption generation with 21 mood options
+- **Core Functionality**: AI caption generation with 41 mood options
 - **User Authentication**: Complete login/register system with password reset
 - **Image Management**: Cloudinary integration with smart auto-deletion
 - **Admin System**: JWT-based secure admin dashboard (fully functional)
@@ -875,10 +896,12 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 🎉 **Acknowledgments**
 
 ### 🙏 **Special Thanks**
+- **Cursor Agent & IDE** : For Making This Possible 
 - **Google AI Team**: For Gemini 2.0 Flash capabilities
 - **Vercel**: For seamless deployment platform  
 - **MongoDB**: For reliable database infrastructure
 - **ImageKit**: For powerful image processing
+- **Cloudinary** : For image handling 
 - **Brevo**: For professional email delivery
 - **Open Source Community**: For incredible tools
 
@@ -899,7 +922,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/captioncraft)
 
-**[🌟 Star on GitHub](https://github.com/yourusername/captioncraft)** • **[🚀 Try Live Demo](#-screenshot-gallery)** • **[📚 Read Docs](./help.md)**
+**[🌟 Star on GitHub](https://github.com/AniketShinde02/captioncraft)** • **[🚀 Try Live Demo](#-screenshot-gallery)** • **[📚 Read Docs](./docs)**
 
 ---
 
@@ -911,7 +934,71 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 </div>
 
+## 🐛 **Known Bugs & Issues (Work in Progress)**
+
+### **🚨 Critical Issues Being Addressed**
+
+#### **1. Flash Login Bug (High Priority)**
+- **Issue**: Users experience persistent logout flash bug where session appears to clear but revives after page refresh
+- **Status**: 🔄 **IN PROGRESS** - Investigating mixed JWT + Database strategy conflicts
+- **Impact**: Users cannot properly logout from the application
+- **Workaround**: Manual cookie clearing and browser cache clearing
+- **ETA**: Working on resolution
+
+#### **2. Session Revival Problem (High Priority)**
+- **Issue**: Browser restores session state from cached data after logout
+- **Status**: 🔄 **IN PROGRESS** - Implementing JWT-only strategy
+- **Impact**: Authentication state confusion and security concerns
+- **Workaround**: Force refresh and manual session clearing
+- **ETA**: Active development
+
+#### **3. Auto-Login Interference (Medium Priority)**
+- **Issue**: Session validator component causing aggressive logout behavior
+- **Status**: 🔄 **IN PROGRESS** - Temporarily disabled, working on balanced approach
+- **Impact**: Disrupts normal user flow and login processes
+- **Workaround**: Component temporarily disabled
+- **ETA**: Next sprint
+
+### **⚠️ Minor Issues & UI Glitches**
+
+#### **4. Form Size Inconsistency (Low Priority)**
+- **Issue**: Some forms expand when error/success messages appear
+- **Status**: 🔄 **PLANNED** - Will be addressed in UI improvements
+- **Impact**: Minor visual inconsistency
+- **Workaround**: None needed, cosmetic issue
+
+#### **5. Mobile Button Sizing (Low Priority)**
+- **Issue**: Some buttons on mobile devices could be better sized
+- **Status**: 🔄 **PLANNED** - Part of mobile optimization
+- **Impact**: Minor UX improvement opportunity
+- **Workaround**: Functional but could be more touch-friendly
+
+### **🔧 Bug Resolution Process**
+
+1. **Issue Identification**: Users report bugs via GitHub Issues
+2. **Priority Assessment**: Critical > High > Medium > Low
+3. **Development**: Fixes implemented in development branch
+4. **Testing**: Thorough testing across devices and browsers
+5. **Deployment**: Fixes deployed to production
+6. **Verification**: Confirm resolution and close issues
+
+### **📋 How to Report Bugs**
+
+- **GitHub Issues**: [Create new issue](https://github.com/yourusername/captioncraft/issues)
+- **Include**: Steps to reproduce, expected vs actual behavior
+- **Screenshots**: Visual evidence when possible
+- **Environment**: Browser, device, and OS information
+
+---
+
 ## 🐛 **Recent Bug Fixes (Critical)**
+
+### **Fixed "TypeError: Cannot read properties of null (reading 'textContent')" in Profile Page**
+- **Issue**: Copy button in profile page was throwing JavaScript errors when trying to access button properties
+- **Root Cause**: Missing null checks when accessing `button.textContent` in the copy functionality
+- **Fix**: Added proper null checks and safety guards around button element access
+- **Impact**: Users can now copy captions without JavaScript errors
+- **Files Modified**: `src/app/profile/page.tsx`
 
 ### **Fixed "Invalid Request" Error in Caption Generator**
 - **Issue**: Caption generation was failing with "Invalid request" error due to property mismatch

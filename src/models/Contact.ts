@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IContact extends Document {
   name: string;
   email: string;
-  subject: string;
+  category: string;
   message: string;
   status: 'new' | 'read' | 'replied';
   createdAt: Date;
@@ -25,12 +25,11 @@ const ContactSchema: Schema = new Schema({
     lowercase: true,
     match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address']
   },
-  subject: {
+  category: {
     type: String,
-    required: [true, 'Subject is required'],
-    trim: true,
-    minlength: [5, 'Subject must be at least 5 characters long'],
-    maxlength: [200, 'Subject cannot exceed 200 characters']
+    required: [true, 'Category is required'],
+    enum: ['General Inquiry', 'Feedback & Suggestions', 'Technical Support', 'Partnership & Business', 'Bug Report', 'Feature Request', 'Other'],
+    default: 'General Inquiry'
   },
   message: {
     type: String,

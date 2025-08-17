@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { ObjectId } from 'mongodb';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 
@@ -15,57 +16,43 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const reportId = params.id;
-    const { action, status } = await request.json();
+    const reportId = new ObjectId(params.id);
+    const { action, notes } = await request.json();
 
-    // Find the content report (post)
-    const post = await db.collection('posts').findOne({
+    // Find the report
+    const report = await db.collection('reports').findOne({
       _id: reportId
     });
 
-    if (!post) {
+    if (!report) {
       return NextResponse.json(
-        { error: 'Content report not found' }, 
+        { error: 'Report not found' }, 
         { status: 404 }
       );
     }
 
-    // Update the post with moderation action
-    await db.collection('posts').updateOne(
+    // Update the report status
+    await db.collection('reports').updateOne(
       { _id: reportId },
       { 
         $set: { 
-          moderationStatus: status || 'resolved',
-          moderationAction: action,
-          moderatedAt: new Date(),
-          moderatedBy: session.user.email
+          status: action,
+          reviewNotes: notes,
+          reviewedAt: new Date(),
+          reviewedBy: session.user.email
         }
       }
     );
 
-    // If action is ban or suspend, update user status
-    if (action === 'banned' || action === 'suspended') {
-      await db.collection('users').updateOne(
-        { _id: post.userId },
-        { 
-          $set: { 
-            status: action === 'banned' ? 'banned' : 'suspended',
-            moderatedAt: new Date(),
-            moderatedBy: session.user.email
-          }
-        }
-      );
-    }
-
     return NextResponse.json({ 
       success: true, 
-      message: `Content report ${status} with action: ${action}` 
+      message: `Report ${action} successfully` 
     });
 
   } catch (error) {
-    console.error('Error reviewing content report:', error);
+    console.error('Error reviewing report:', error);
     return NextResponse.json(
-      { error: 'Failed to review content report' }, 
+      { error: 'Failed to review report' }, 
       { status: 500 }
     );
   }

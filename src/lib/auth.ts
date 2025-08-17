@@ -27,7 +27,6 @@ export const authOptions: NextAuthOptions = {
     maxAge: 60 * 60 * 24, // 1 day
   },
   secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
   // Explicit cookie config so we can nuke it reliably
   cookies: {
     sessionToken: {
@@ -108,18 +107,28 @@ export const authOptions: NextAuthOptions = {
         try {
           console.log('🔐 Admin auth: Attempting login for:', credentials.email);
           
-          // Find admin user using AdminUser model
-          const adminUser = await AdminUser.findOne({
+          // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
+          const { db } = await connectToDatabase();
+          const adminUsersCollection = db.collection('adminusers');
+          const usersCollection = db.collection('users');
+          
+          // Find admin user directly from MongoDB
+          const adminUser = await adminUsersCollection.findOne({
             email: credentials.email.toLowerCase(),
             isAdmin: true
-          }).select('+password');
+          });
 
           if (!adminUser) {
             console.log('❌ Admin auth: No admin user found with email:', credentials.email);
             return null;
           }
 
-          console.log('✅ Admin auth: Found admin user:', { id: adminUser._id, role: adminUser.role });
+          console.log('✅ Admin auth: Found admin user:', { 
+            id: adminUser._id, 
+            email: adminUser.email,
+            username: adminUser.username,
+            role: adminUser.role 
+          });
 
           // Check if account is locked
           if (adminUser.isLocked) {
@@ -139,36 +148,191 @@ export const authOptions: NextAuthOptions = {
             console.log('❌ Admin auth: Invalid password for:', credentials.email);
             
             // Increment failed login attempts
-            await AdminUser.findByIdAndUpdate(adminUser._id, {
-              $inc: { failedLoginAttempts: 1 },
-              lastFailedLoginAt: new Date()
-            });
+            await adminUsersCollection.updateOne(
+              { _id: adminUser._id },
+              {
+                $inc: { failedLoginAttempts: 1 },
+                $set: { lastFailedLoginAt: new Date() }
+              }
+            );
             
             return null;
           }
 
           // Reset failed login attempts on successful login
-          await AdminUser.findByIdAndUpdate(adminUser._id, {
-            failedLoginAttempts: 0,
-            lastLoginAt: new Date(),
-            status: 'active'
+          await adminUsersCollection.updateOne(
+            { _id: adminUser._id },
+            {
+              $set: { 
+                failedLoginAttempts: 0, 
+                lastLoginAt: new Date(), 
+                status: 'active' 
+              }
+            }
+          );
+
+          // Check if admin user also has a regular user account
+          let regularUser = await usersCollection.findOne({
+            email: credentials.email.toLowerCase()
           });
+
+          // If no regular user account exists, create one for seamless browsing
+          if (!regularUser) {
+            console.log('🔄 Admin auth: Creating regular user account for admin browsing...');
+            
+            try {
+              const regularUserData = {
+                email: adminUser.email,
+                username: adminUser.username || adminUser.email.split('@')[0],
+                password: adminUser.password, // Use same password for convenience
+                firstName: adminUser.firstName || '',
+                lastName: adminUser.lastName || '',
+                phone: adminUser.phone || '',
+                isAdmin: false, // Regular user account
+                isVerified: true,
+                role: 'user',
+                status: 'active',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                lastLoginAt: new Date(),
+                profileImage: adminUser.profileImage || null,
+                preferences: {
+                  theme: 'light',
+                  notifications: true,
+                  language: 'en'
+                }
+              };
+
+              const result = await usersCollection.insertOne(regularUserData);
+              if (result.insertedId) {
+                regularUser = {
+                  ...regularUserData,
+                  _id: result.insertedId
+                };
+                console.log('✅ Admin auth: Regular user account created for admin browsing');
+              }
+            } catch (error) {
+              console.warn('⚠️ Admin auth: Failed to create regular user account:', error);
+              // Don't fail the login if regular user creation fails
+            }
+          }
 
           console.log('✅ Admin auth: Login successful for:', credentials.email);
 
-          // Return admin user data
-          return {
-            id: adminUser._id.toString(),
+          // Return admin user data with dual-mode capability
+          // Use existing properties from adminUser if available, otherwise calculate from regularUser
+          const adminUserData = {
+            id: adminUser._id.toString(), // Always use admin user ID
             email: adminUser.email,
             username: adminUser.username || adminUser.name,
             role: adminUser.role,
-            isAdmin: adminUser.isAdmin,
+            isAdmin: true, // Force isAdmin to true for admin credentials
             isVerified: adminUser.isVerified || false,
-            image: adminUser.image || null
+            image: adminUser.image || null,
+            // Add dual-mode information - prioritize existing properties from adminUser
+            hasRegularUserAccount: adminUser.hasRegularUserAccount !== undefined ? adminUser.hasRegularUserAccount : !!regularUser,
+            regularUserId: adminUser.regularUserId || regularUser?._id?.toString(),
+            canBrowseAsUser: adminUser.canBrowseAsUser !== undefined ? adminUser.canBrowseAsUser : true
           };
+
+          console.log('🔐 Admin auth: Returning user data:', adminUserData);
+          return adminUserData;
 
         } catch (error) {
           console.error('❌ Admin auth error:', error);
+          return null;
+        }
+      },
+    }),
+    CredentialsProvider({
+      id: 'tier-credentials',
+      name: 'Tier User Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          console.log('❌ Tier auth: Missing credentials');
+          return null;
+        }
+
+        try {
+          console.log('🔐 Tier auth: Attempting login for:', credentials.email);
+          
+          // Use direct MongoDB connection
+          const { db } = await connectToDatabase();
+          const adminUsersCollection = db.collection('adminusers');
+          
+          // Find tier user (non-admin users in adminusers collection)
+          const tierUser = await adminUsersCollection.findOne({
+            email: credentials.email.toLowerCase(),
+            isAdmin: { $ne: true }, // Not an admin user
+            status: 'active'
+          });
+
+          if (!tierUser) {
+            console.log('❌ Tier auth: No tier user found with email:', credentials.email);
+            return null;
+          }
+
+          console.log('✅ Tier auth: Found tier user:', { 
+            id: tierUser._id, 
+            email: tierUser.email,
+            username: tierUser.username,
+            role: tierUser.role 
+          });
+
+          // Check if account is active
+          if (tierUser.status !== 'active') {
+            console.log('❌ Tier auth: Account is not active for:', credentials.email);
+            return null;
+          }
+
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(credentials.password, tierUser.password);
+          if (!isPasswordValid) {
+            console.log('❌ Tier auth: Invalid password for:', credentials.email);
+            
+            // Increment failed login attempts
+            await adminUsersCollection.updateOne(
+              { _id: tierUser._id },
+              {
+                $inc: { failedLoginAttempts: 1 },
+                $set: { lastFailedLoginAt: new Date() }
+              }
+            );
+            
+            return null;
+          }
+
+          // Reset failed login attempts on successful login
+          await adminUsersCollection.updateOne(
+            { _id: tierUser._id },
+            {
+              $set: { 
+                failedLoginAttempts: 0, 
+                lastLoginAt: new Date(), 
+                status: 'active' 
+              }
+            }
+          );
+
+          console.log('✅ Tier auth: Login successful for:', credentials.email);
+
+          // Return tier user data
+          return {
+            id: tierUser._id.toString(),
+            email: tierUser.email,
+            username: tierUser.username || tierUser.name,
+            role: tierUser.role,
+            isAdmin: false, // Tier users are not admins
+            isVerified: tierUser.isVerified || false,
+            image: tierUser.image || null
+          };
+
+        } catch (error) {
+          console.error('❌ Tier auth error:', error);
           return null;
         }
       },
@@ -180,21 +344,28 @@ export const authOptions: NextAuthOptions = {
       if (account && user) {
         console.log('🔐 JWT callback - Initial sign in for user:', user.email);
         
-        // Add user data to token
+        // Add user data to token with proper type checking
         token.id = user.id;
         token.email = user.email;
-        token.username = user.username;
-        token.role = user.role;
-        token.isAdmin = user.isAdmin;
-        token.isVerified = user.isVerified;
-        token.image = user.image;
+        token.username = (user as any).username;
+        token.role = (user as any).role;
+        token.isAdmin = (user as any).isAdmin;
+        token.isVerified = (user as any).isVerified;
+        token.image = (user as any).image;
         token.lastValidated = Math.floor(Date.now() / 1000);
+        
+        // Add dual-mode information to token
+        token.hasRegularUserAccount = (user as any).hasRegularUserAccount;
+        token.regularUserId = (user as any).regularUserId;
+        token.canBrowseAsUser = (user as any).canBrowseAsUser;
         
         console.log('🔐 JWT callback - Token created:', { 
           id: token.id, 
           email: token.email, 
           role: token.role, 
-          isAdmin: token.isAdmin 
+          isAdmin: token.isAdmin,
+          canBrowseAsUser: token.canBrowseAsUser,
+          hasRegularUserAccount: token.hasRegularUserAccount
         });
       }
       
@@ -204,7 +375,7 @@ export const authOptions: NextAuthOptions = {
       console.log('🔐 Session callback - Token:', { id: token.id, role: token.role, email: token.email, isAdmin: token.isAdmin, exp: token.exp });
       
       // Check if token has expired
-      if (token.exp && Math.floor(Date.now() / 1000) > token.exp) {
+      if (token.exp && typeof token.exp === 'number' && Math.floor(Date.now() / 1000) > token.exp) {
         console.log('🔐 Session expired, clearing user data');
         return { ...session, user: { id: '', email: '', name: '' } };
       }
@@ -219,11 +390,18 @@ export const authOptions: NextAuthOptions = {
         session.user.isAdmin = token.isAdmin as boolean;
         session.user.image = (token as any).image || null;
         
+        // Add dual-mode information to session
+        (session.user as any).hasRegularUserAccount = token.hasRegularUserAccount as boolean;
+        (session.user as any).regularUserId = token.regularUserId as string;
+        (session.user as any).canBrowseAsUser = token.canBrowseAsUser as boolean;
+        
         console.log('🔐 Session callback - Updated session user:', { 
           id: session.user.id, 
           role: session.user.role, 
           email: session.user.email,
-          isAdmin: session.user.isAdmin
+          isAdmin: session.user.isAdmin,
+          canBrowseAsUser: (session.user as any).canBrowseAsUser,
+          hasRegularUserAccount: (session.user as any).hasRegularUserAccount
         });
       }
       

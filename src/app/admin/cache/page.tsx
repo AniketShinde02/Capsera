@@ -90,7 +90,7 @@ export default function CacheManagementPage() {
       });
 
       if (params.minUsage) {
-        params.minUsage = parseInt(params.minUsage);
+        (params as any).minUsage = parseInt(params.minUsage);
       }
 
       const response = await fetch('/api/admin/cache', {

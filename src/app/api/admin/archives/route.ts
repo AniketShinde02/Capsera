@@ -146,10 +146,159 @@ export async function POST(req: NextRequest) {
           }, { status: 500 });
         }
 
+      case 'get-all-archives':
+        try {
+          console.log('🔍 Searching for archives in capsera_archives/ folder...');
+          
+                     // Since capsera_archives/ doesn't exist, directly fetch from capsera_uploads/
+           // These are the "archived" images from anonymous users
+           console.log('🔍 Fetching images from capsera_uploads/ (these are archived anonymous images)...');
+           let result = await cloudinary.api.resources({
+             type: 'upload',
+             prefix: 'capsera_uploads/',
+             max_results: 1000,
+             sort_by: 'created_at',
+             sort_direction: 'desc'
+           });
+           console.log('📤 Found images in capsera_uploads/:', result.resources?.length || 0);
+
+          console.log('📊 Cloudinary API Response:', {
+            resources: result.resources?.length || 0,
+            rate_limit_allowed: result.rate_limit_allowed,
+            rate_limit_reset_at: result.rate_limit_reset_at
+          });
+
+          // If no archives found, let's check what folders exist
+          if (!result.resources || result.resources.length === 0) {
+            console.log('🔍 No archives found in capsera_archives/. Checking available folders...');
+            
+            try {
+              const foldersResult = await cloudinary.api.root_folders();
+              console.log('📁 Available root folders:', foldersResult.folders);
+              
+              // Also check if capsera_uploads folder exists (your main uploads)
+              try {
+                const uploadsResult = await cloudinary.api.resources({
+                  type: 'upload',
+                  prefix: 'capsera_uploads/',
+                  max_results: 5
+                });
+                console.log('📤 Found uploads in capsera_uploads/:', uploadsResult.resources?.length || 0);
+              } catch (uploadsError) {
+                console.log('❌ Could not check capsera_uploads folder:', uploadsError);
+              }
+            } catch (folderError) {
+              console.log('❌ Could not fetch root folders:', folderError);
+            }
+          }
+
+          const allArchives = result.resources || [];
+          
+                     const archives = allArchives.map((resource: any) => {
+             const pathParts = resource.public_id.split('/');
+             const userId = pathParts.length >= 3 ? pathParts[2] : 'unknown';
+             // Since we're fetching from capsera_uploads/, treat all as archived
+             const isArchive = true;
+             
+             return {
+               publicId: resource.public_id,
+               url: resource.secure_url,
+               thumbnailUrl: resource.secure_url.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/'),
+               size: resource.bytes || 0,
+               format: resource.format || 'unknown',
+               createdAt: resource.created_at,
+               width: resource.width || 0,
+               height: resource.height || 0,
+               userId: userId,
+               originalName: pathParts[pathParts.length - 1] || 'unknown',
+               archiveDate: resource.created_at,
+               isArchive: isArchive,
+               folder: 'Archived Uploads' // These are archived anonymous images
+             };
+           });
+          
+          return NextResponse.json({
+            success: true,
+            archives,
+            count: archives.length
+          });
+
+        } catch (cloudinaryError: any) {
+          console.error('❌ Cloudinary API error for all archives:', cloudinaryError);
+          return NextResponse.json({
+            success: false,
+            error: 'Failed to fetch all archives from Cloudinary',
+            details: cloudinaryError.message
+          }, { status: 500 });
+        }
+
+      case 'delete-archived-image':
+        const { publicId: deletePublicId } = params;
+        if (!deletePublicId) {
+          return NextResponse.json({
+            success: false,
+            error: 'Public ID is required for delete-archived-image action'
+          }, { status: 400 });
+        }
+
+        try {
+          const deleteResult = await cloudinary.uploader.destroy(deletePublicId);
+          
+          if (deleteResult.result === 'ok') {
+            console.log(`🗑️ Permanently deleted archived image: ${deletePublicId}`);
+            return NextResponse.json({
+              success: true,
+              message: 'Archived image permanently deleted',
+              publicId: deletePublicId
+            });
+          } else {
+            return NextResponse.json({
+              success: false,
+              error: 'Failed to delete archived image from Cloudinary'
+            }, { status: 500 });
+          }
+        } catch (cloudinaryError: any) {
+          console.error('❌ Cloudinary API error for delete:', cloudinaryError);
+          return NextResponse.json({
+            success: false,
+            error: 'Failed to delete archived image from Cloudinary',
+            details: cloudinaryError.message
+          }, { status: 500 });
+        }
+
+      case 'restore-archived-image':
+        const { publicId: restorePublicId, originalUrl } = params;
+        if (!restorePublicId || !originalUrl) {
+          return NextResponse.json({
+            success: false,
+            error: 'Public ID and original URL are required for restore-archived-image action'
+          }, { status: 400 });
+        }
+
+        try {
+          // For now, we'll just return success since restoring requires moving the file
+          // In a real implementation, you'd move the file from archives back to active storage
+          console.log(`🔄 Restore requested for archived image: ${restorePublicId}`);
+          
+          return NextResponse.json({
+            success: true,
+            message: 'Restore functionality will be implemented in future updates',
+            publicId: restorePublicId,
+            note: 'This is a placeholder - actual restore requires moving files between Cloudinary folders'
+          });
+        } catch (cloudinaryError: any) {
+          console.error('❌ Cloudinary API error for restore:', cloudinaryError);
+          return NextResponse.json({
+            success: false,
+            error: 'Failed to restore archived image from Cloudinary',
+            details: cloudinaryError.message
+          }, { status: 500 });
+        }
+
       default:
         return NextResponse.json({
           success: false,
-          error: 'Invalid action. Supported actions: cleanup, get-user-archives'
+          error: 'Invalid action. Supported actions: cleanup, get-user-archives, get-all-archives, delete-archived-image, restore-archived-image'
         }, { status: 400 });
     }
 

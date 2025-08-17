@@ -71,7 +71,7 @@ export function CaptionGenerator() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [error, setError] = useState('');
-  const [quotaInfo, setQuotaInfo] = useState<{ remaining: number, total: number, isAuthenticated: boolean } | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<{ remaining: number, total: number, isAuthenticated: boolean, isAdmin?: boolean } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [uploadStage, setUploadStage] = useState<'idle' | 'uploading' | 'processing' | 'generating' | 'loading'>('idle');
   const [buttonMessage, setButtonMessage] = useState('Generate Captions');
@@ -210,11 +210,7 @@ export function CaptionGenerator() {
     setErrorTimer(timer);
   };
 
-  // Function to handle caption regeneration
-  const handleRegenerateCaption = async (index: number) => {
-    // Regeneration feature removed - not working properly
-    setError('Regeneration feature is temporarily disabled');
-  };
+
 
   // Function to clear error when user has used all free tokens
   const clearRateLimitError = () => {
@@ -273,7 +269,7 @@ export function CaptionGenerator() {
           setSuccessMessage('');
         }, 5000);
 
-        console.log('✅ Image archived successfully:', data.archivedId);
+        // Image archived successfully
       } else {
         setError(data.message || 'Failed to archive image');
       }
@@ -293,7 +289,7 @@ export function CaptionGenerator() {
   });
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('📸 Image upload triggered:', e.target.files);
+            // Image upload triggered
     const file = e.target.files?.[0];
 
     // Clear previous errors, but preserve monthly limit errors
@@ -304,7 +300,7 @@ export function CaptionGenerator() {
     // clearRateLimitError();
 
     if (file) {
-      console.log('✅ File selected:', file.name, file.size, file.type);
+              // File selected
 
       // Validate file type
       if (!file.type.startsWith('image/')) {
@@ -325,14 +321,14 @@ export function CaptionGenerator() {
         
         // If file is larger than 10MB, compress it
         if (file.size > maxSize) {
-          console.log('🔄 Compressing high-resolution image...');
+          // Compressing high-resolution image
           setError('🔄 Compressing your high-resolution image to meet upload requirements...');
           
           processedFile = await compressImage(file, maxSize);
           
           const originalSize = (file.size / (1024 * 1024)).toFixed(1);
           const compressedSize = (processedFile.size / (1024 * 1024)).toFixed(1);
-          console.log(`✅ Image compressed: ${originalSize}MB → ${compressedSize}MB`);
+          // Image compressed
           
           setError(''); // Clear compression message
         }
@@ -347,7 +343,7 @@ export function CaptionGenerator() {
         const reader = new FileReader();
         reader.onloadend = () => {
           const result = reader.result as string;
-          console.log('🖼️ Image preview generated');
+          // Image preview generated
           setImagePreview(result);
         };
 
@@ -363,31 +359,31 @@ export function CaptionGenerator() {
         setError('Failed to process your high-resolution image. Please try with a smaller image or different format.');
       }
     } else {
-      console.log('❌ No file selected');
+              // No file selected
     }
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const startTime = Date.now(); // Track processing time for analytics
-    console.log('🎯 Form submission started:', values);
-    console.log('📸 Uploaded file:', uploadedFile);
-    console.log('🎭 Selected mood:', values.mood);
+            // Form submission started
+        // Uploaded file
+        // Selected mood
 
     // Validate that an image is uploaded
     if (!uploadedFile) {
       setError("Please upload an image to generate captions.");
-      console.log('❌ No image uploaded');
+              // No image uploaded
       return;
     }
 
     // Validate that mood is selected
     if (!values.mood || values.mood.trim() === '') {
       setError("Please select a mood for your caption.");
-      console.log('❌ No mood selected');
+              // No mood selected
       return;
     }
 
-    console.log('✅ Validation passed, checking rate limit first...');
+            // Validation passed, checking rate limit first
     setIsLoading(true);
     setCaptions([]);
     // Don't clear monthly limit errors - let them stay visible
@@ -398,11 +394,11 @@ export function CaptionGenerator() {
 
     try {
       // 🔍 CORRECT FLOW: Check quota FIRST, then upload if allowed
-      console.log('🔍 Checking quota before proceeding...');
+              // Checking quota before proceeding
 
       // Step 1: Check quota first (with reasonable timeout)
       updateButtonState('loading');
-      console.log('🔍 Checking rate limits...');
+              // Checking rate limits
 
       // ⚡ SPEED OPTIMIZATION: Quick network check
       if (!navigator.onLine) {
@@ -446,8 +442,8 @@ export function CaptionGenerator() {
         throw new Error('Failed to check quota. Please try again.');
       }
 
-      if (quotaData.remaining <= 0) {
-        // User has no quota left - don't upload image
+      if (quotaData.remaining <= 0 && !quotaData.isAdmin) {
+        // User has no quota left - don't upload image (unless admin)
         const errorMessage = quotaData.isAuthenticated
           ? "You've hit your monthly limit! Your quota will reset next month. Upgrade your plan for unlimited captions!"
           : "You've used all your free images this month! Sign up for a free account to get 25 monthly images (75 captions). Your free quota resets next month.";
@@ -460,13 +456,14 @@ export function CaptionGenerator() {
         return;
       }
 
-      console.log('✅ Rate limit check passed. Remaining:', quotaData.remaining, '/', quotaData.maxGenerations);
+              // Rate limit check passed
 
       // Update quota info in UI
       setQuotaInfo({
         remaining: quotaData.remaining,
         total: quotaData.maxGenerations,
-        isAuthenticated: quotaData.isAuthenticated
+        isAuthenticated: quotaData.isAuthenticated,
+        isAdmin: quotaData.isAdmin
       });
 
       // Store current data for regeneration
@@ -475,7 +472,7 @@ export function CaptionGenerator() {
 
       // Step 2: Now upload image (only if quota check passed)
       updateButtonState('uploading');
-      console.log('📤 Starting image upload...');
+              // Starting image upload
 
       // Show upload progress for better user experience
       setButtonMessage('Uploading image...');
@@ -487,7 +484,7 @@ export function CaptionGenerator() {
       // Add timeout protection for upload with realistic timing
       const uploadController = new AbortController();
       const uploadTimeout = setTimeout(() => {
-        console.log('⏰ Upload timeout triggered - aborting upload');
+        // Upload timeout triggered - aborting upload
         uploadController.abort();
       }, 60000); // 60 second timeout - realistic for large images and slow connections
 
@@ -565,7 +562,7 @@ export function CaptionGenerator() {
         throw new Error(uploadData.message || 'Image upload failed. Please try again.');
       }
 
-      console.log('✅ Image uploaded successfully:', uploadData.url);
+              // Image uploaded successfully
 
       // Store image data for regeneration
       setCurrentImageData({
@@ -574,18 +571,12 @@ export function CaptionGenerator() {
       });
 
       // Send to AI for analysis
-      console.log('📸 Sending to AI for analysis:', {
-        mood: values.mood,
-        description: values.description || '',
-        imageUrl: uploadData.url,
-        userId: session?.user?.id || undefined
-      });
 
       updateButtonState('processing');
 
       // Step 3: Generate captions (with realistic timeout for AI processing)
       updateButtonState('generating');
-      console.log('🧠 Starting AI caption generation...');
+      // Starting AI caption generation
 
       // ⚡ SPEED OPTIMIZATION: Show immediate feedback
       setButtonMessage('AI is analyzing your image...');
@@ -594,7 +585,7 @@ export function CaptionGenerator() {
       // ⚡ SPEED OPTIMIZATION: Realistic timeout for AI processing
       const captionController = new AbortController();
       const captionTimeout = setTimeout(() => {
-        console.log('⏰ Caption generation timeout triggered - aborting AI request');
+        // Caption generation timeout triggered - aborting AI request
         captionController.abort();
       }, 90000); // 90 second timeout - realistic for AI processing, large images, and complex prompts
 
@@ -698,26 +689,13 @@ export function CaptionGenerator() {
       let captionData;
       try {
         captionData = await captionResponse.json();
-        console.log('🔍 Caption response data:', captionData);
-        console.log('🔍 Response structure:', {
-          success: captionData.success,
-          hasCaptions: !!captionData.captions,
-          captionsType: typeof captionData.captions,
-          isArray: Array.isArray(captionData.captions),
-          captionsLength: captionData.captions?.length || 0
-        });
+        // Caption response data received
       } catch (parseError) {
         console.error('❌ Failed to parse caption response:', parseError);
         throw new Error('Failed to process caption response. Please try again.');
       }
 
-      console.log('🔍 Processing caption data:', {
-        success: captionData.success,
-        captions: captionData.captions,
-        captionsType: typeof captionData.captions,
-        isArray: Array.isArray(captionData.captions),
-        length: captionData.captions?.length || 0
-      });
+      // Processing caption data
 
       if (captionData.success && captionData.captions && Array.isArray(captionData.captions) && captionData.captions.length > 0) {
         // Validate that captions are actually strings and not empty
@@ -725,7 +703,7 @@ export function CaptionGenerator() {
           typeof caption === 'string' && caption.trim().length > 0
         );
 
-        console.log('🔍 Valid captions found:', validCaptions.length);
+        // Valid captions found
 
         if (validCaptions.length === 0) {
           throw new Error('Generated captions are invalid. Please try again.');
@@ -746,21 +724,21 @@ export function CaptionGenerator() {
         }
 
         // Save mood preference if personalization consent given
-        if (hasConsent('personalization')) {
+        if (hasConsent('functional')) {
           saveFavoriteMood(currentMood);
         }
 
         // Refresh quota info after successful generation
         setRefreshTrigger(prev => prev + 1);
-        console.log('✅ Captions set successfully');
+        // Captions set successfully
 
         // 🗑️ AUTO-DELETE IMAGE FOR ANONYMOUS USERS
         if (!quotaData.isAuthenticated && uploadData.public_id) {
-          console.log('🗑️ Anonymous user - auto-deleting image after caption generation');
+          // Anonymous user - auto-deleting image after caption generation
 
           // Show auto-deletion message to user
-          setShowAutoDeleteMessage(true);
-          setTimeout(() => setShowAutoDeleteMessage(false), 5000); // Hide after 5 seconds
+                  setShowAutoDeleteMessage(true);
+        setTimeout(() => setShowAutoDeleteMessage(false), 5000); // Hide after 5 seconds
 
           // Auto-delete image in background (don't wait for response)
           fetch('/api/delete-image', {
@@ -776,13 +754,13 @@ export function CaptionGenerator() {
             if (response.ok) {
               console.log('✅ Anonymous user image auto-deleted successfully');
             } else {
-              console.warn('⚠️ Failed to auto-delete anonymous user image');
+              console.log('❌ Failed to auto-delete anonymous user image');
             }
           }).catch(error => {
-            console.warn('⚠️ Error during auto-deletion of anonymous user image:', error);
+            console.log('⚠️ Error during auto-deletion of anonymous user image:', error);
           });
         } else if (quotaData.isAuthenticated) {
-          console.log('✅ Authenticated user - image saved permanently in Cloudinary');
+          console.log('💾 Authenticated user - image saved permanently in Cloudinary');
         }
       } else {
         console.error('❌ Invalid caption data structure:', captionData);
@@ -841,7 +819,7 @@ export function CaptionGenerator() {
         error.message?.includes('used all 5 free images this month') ||
         error.message?.includes('You\'ve used all') ||
         error.message?.includes('You\'ve reached your monthly limit')) {
-        console.log('🎯 Monthly limit detected, triggering shake animation and quota refresh');
+        // Monthly limit detected, triggering shake animation and quota refresh
         setRefreshTrigger(prev => prev + 1);
         setShowLimitShake(true);
         // Force immediate quota refresh
@@ -852,11 +830,14 @@ export function CaptionGenerator() {
               setQuotaInfo({
                 remaining: data.remaining,
                 total: data.maxGenerations,
-                isAuthenticated: data.isAuthenticated
+                isAuthenticated: data.isAuthenticated,
+                isAdmin: data.isAdmin
               });
-              console.log('🔄 Forced quota refresh after monthly limit:', data.remaining, '/', data.maxGenerations);
+              // Forced quota refresh after monthly limit
             })
-            .catch(err => console.error('Failed to force refresh quota:', err));
+            .catch(err => {
+              // Failed to force refresh quota
+            });
         }, 100);
         // Reset shake animation after animation completes
         setTimeout(() => setShowLimitShake(false), 600);
@@ -884,7 +865,8 @@ export function CaptionGenerator() {
           setQuotaInfo({
             remaining: data.remaining,
             total: data.maxGenerations,
-            isAuthenticated: data.isAuthenticated
+            isAuthenticated: data.isAuthenticated,
+            isAdmin: data.isAdmin
           });
           console.log('�� Quota info updated:', data.remaining, '/', data.maxGenerations);
         }
@@ -1182,16 +1164,23 @@ export function CaptionGenerator() {
 
                   {/* Clean Quota Info - Single Card Only */}
                   {quotaInfo && (
-                    <div className={`p-2 sm:p-3 border rounded-xl text-center transition-all duration-300 ${quotaInfo.remaining === 0
+                    <div className={`p-2 sm:p-3 border rounded-xl text-center transition-all duration-300 ${quotaInfo.isAdmin
+                        ? 'bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200'
+                        : quotaInfo.remaining === 0
                         ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
                         : 'bg-[#E3E1D9]/30 dark:bg-muted/30 border-[#C7C8CC]/60 dark:border-border'
                       } ${showLimitShake ? 'animate-shake-limit' : ''}`}>
-                      <div className={`text-xs mb-1 flex items-center justify-center gap-1 ${quotaInfo.remaining === 0
+                      <div className={`text-xs mb-1 flex items-center justify-center gap-1 ${quotaInfo.isAdmin
+                          ? 'text-purple-700 dark:text-purple-300 font-medium'
+                          : quotaInfo.remaining === 0
                           ? 'text-red-700 dark:text-red-300 font-medium'
                           : 'text-muted-foreground'
                         }`}>
-                        {quotaInfo.remaining === 0 && <AlertTriangle className="w-3 h-3" />}
-                        {quotaInfo.isAuthenticated ? (
+                        {quotaInfo.isAdmin && <span className="text-purple-600">👑</span>}
+                        {quotaInfo.remaining === 0 && !quotaInfo.isAdmin && <AlertTriangle className="w-3 h-3" />}
+                        {quotaInfo.isAdmin ? (
+                          <span className="text-xs sm:text-sm">👑 Admin: Unlimited images</span>
+                        ) : quotaInfo.isAuthenticated ? (
                           <span className="text-xs sm:text-sm">Monthly: {quotaInfo.remaining}/{quotaInfo.total} images</span>
                         ) : (
                           <span className="text-xs sm:text-sm">Free trial: {quotaInfo.remaining}/{quotaInfo.total} images</span>
@@ -1284,8 +1273,6 @@ export function CaptionGenerator() {
                           key={index}
                           caption={caption}
                           index={index}
-                          onRegenerate={handleRegenerateCaption}
-                          isRegenerating={false} // Regeneration removed
                         />
                       ))
                     ) : (
@@ -1307,9 +1294,18 @@ export function CaptionGenerator() {
                   {showAutoDeleteMessage && (
                     <div className="col-span-full mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                       <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                        <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                        <div className="relative flex-shrink-0">
+                          {/* Trash can with falling image animation */}
+                          <div className="w-5 h-5 text-amber-600 dark:text-amber-400">
+                            🗑️
+                          </div>
+                          {/* Falling image animation */}
+                          <div className="absolute -top-2 -left-1 w-3 h-3 bg-gradient-to-br from-blue-400 to-purple-500 rounded-sm animate-bounce opacity-80">
+                            📷
+                          </div>
+                        </div>
                         <span className="text-sm font-medium">
-                          🗑️ Your image has been automatically deleted for privacy
+                          Your image has been automatically deleted for privacy
                         </span>
                       </div>
                       <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 ml-6">

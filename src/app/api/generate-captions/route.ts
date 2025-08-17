@@ -8,7 +8,6 @@ import { CaptionCacheService } from '@/lib/caption-cache';
 
 // Get client IP address
 function getClientIP(req: NextRequest): string {
-  // Try to get real IP from various headers
   const forwarded = req.headers.get('x-forwarded-for');
   const realIP = req.headers.get('x-real-ip');
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
@@ -23,8 +22,7 @@ function getClientIP(req: NextRequest): string {
     return cfConnectingIP;
   }
   
-  // Fallback to connection remote address
-  return req.ip || 'unknown';
+  return 'unknown';
 }
 
 export async function POST(req: NextRequest) {
@@ -34,7 +32,8 @@ export async function POST(req: NextRequest) {
 
   try {
     // Check rate limiting first
-    if (isRateLimited(clientIP)) {
+    const isLimited = await isRateLimited(clientIP, session?.user?.id);
+    if (isLimited) {
       const resetTime = getResetTime(clientIP);
       const remainingTime = Math.ceil((resetTime - Date.now()) / 1000);
       

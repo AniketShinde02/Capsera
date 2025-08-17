@@ -62,7 +62,21 @@ export async function GET(request: NextRequest) {
     };
 
     // Get real alerts from database (if alerts collection exists)
-    let alerts = [];
+    let alerts: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      timestamp: string;
+      severity: string;
+      category: string;
+      isActive: boolean;
+      isAcknowledged: boolean;
+      acknowledgedBy?: string;
+      acknowledgedAt?: string;
+      autoResolve: boolean;
+      autoResolveTime?: string;
+    }> = [];
     try {
       const alertsCollection = await db.collection('systemalerts').find({}).toArray();
       alerts = alertsCollection.map(alert => ({

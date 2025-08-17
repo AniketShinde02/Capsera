@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { ObjectId } from 'mongodb';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 
@@ -15,41 +16,41 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const reportId = params.id;
+    const reportId = new ObjectId(params.id);
 
-    // Find the content report (post)
-    const post = await db.collection('posts').findOne({
+    // Find the report
+    const report = await db.collection('reports').findOne({
       _id: reportId
     });
 
-    if (!post) {
+    if (!report) {
       return NextResponse.json(
-        { error: 'Content report not found' }, 
+        { error: 'Report not found' }, 
         { status: 404 }
       );
     }
 
-    // Update the post status to dismissed
-    await db.collection('posts').updateOne(
+    // Update the report status
+    await db.collection('reports').updateOne(
       { _id: reportId },
       { 
         $set: { 
-          moderationStatus: 'dismissed',
-          moderatedAt: new Date(),
-          moderatedBy: session.user.email
+          status: 'dismissed',
+          dismissedAt: new Date(),
+          dismissedBy: session.user.email
         }
       }
     );
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Content report dismissed' 
+      message: 'Report dismissed successfully' 
     });
 
   } catch (error) {
-    console.error('Error dismissing content report:', error);
+    console.error('Error dismissing report:', error);
     return NextResponse.json(
-      { error: 'Failed to dismiss content report' }, 
+      { error: 'Failed to dismiss report' }, 
       { status: 500 }
     );
   }

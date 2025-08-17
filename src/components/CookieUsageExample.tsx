@@ -66,26 +66,26 @@ export default function CookieUsageExample() {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="flex items-center gap-2">
               <span>Analytics:</span>
-              <Badge variant={consentStatus.analyticsEnabled ? "default" : "secondary"}>
-                {consentStatus.analyticsEnabled ? "✅ Enabled" : "❌ Disabled"}
+              <Badge variant={consentStatus.analytics ? "default" : "secondary"}>
+                {consentStatus.analytics ? "✅ Enabled" : "❌ Disabled"}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span>Marketing:</span>
-              <Badge variant={consentStatus.marketingEnabled ? "default" : "secondary"}>
-                {consentStatus.marketingEnabled ? "✅ Enabled" : "❌ Disabled"}
+              <Badge variant={consentStatus.marketing ? "default" : "secondary"}>
+                {consentStatus.marketing ? "✅ Enabled" : "❌ Disabled"}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span>Functional:</span>
-              <Badge variant={consentStatus.functionalEnabled ? "default" : "secondary"}>
-                {consentStatus.functionalEnabled ? "✅ Enabled" : "❌ Disabled"}
+              <Badge variant={consentStatus.functional ? "default" : "secondary"}>
+                {consentStatus.functional ? "✅ Enabled" : "❌ Disabled"}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
-              <span>Decision Made:</span>
-              <Badge variant={consentStatus.hasMadeDecision ? "default" : "secondary"}>
-                {consentStatus.hasMadeDecision ? "✅ Yes" : "❌ No"}
+              <span>Necessary:</span>
+              <Badge variant={consentStatus.necessary ? "default" : "secondary"}>
+                {consentStatus.necessary ? "✅ Always Active" : "❌ Disabled"}
               </Badge>
             </div>
           </div>

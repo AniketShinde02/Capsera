@@ -137,7 +137,7 @@ export async function listArchivedImages(userId?: string, limit: number = 50): P
       console.log(`✅ Found ${result.resources.length} archived images`);
       return { 
         success: true, 
-        images: result.resources.map(img => ({
+        images: result.resources.map((img: any) => ({
           id: img.public_id,
           url: img.secure_url,
           created: img.created_at,
@@ -194,7 +194,7 @@ export async function cleanupOldArchivedImages(daysOld: number = 90): Promise<{ 
           console.log(`🗑️ Deleted old archived image: ${image.public_id}`);
         } catch (error) {
           errors++;
-          details.push({ id: image.public_id, action: 'failed', error: error.message });
+          details.push({ id: image.public_id, action: 'failed', error: error instanceof Error ? error.message : 'Unknown error' });
           console.error(`❌ Failed to delete old archived image: ${image.public_id}`, error);
         }
       }

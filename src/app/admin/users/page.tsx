@@ -18,7 +18,8 @@ import {
   Edit,
   Trash2,
   Eye,
-  MoreVertical
+  MoreVertical,
+  Download
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -29,7 +30,7 @@ interface User {
   username?: string;
   role?: {
     name: string;
-    displayName: string;
+    displayName?: string;
   };
   createdAt: string;
   lastLogin?: string;
@@ -64,6 +65,96 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(20);
   const [totalUsers, setTotalUsers] = useState(0);
+
+  // Export user data functionality
+  const exportUserData = async (format: 'csv' | 'json') => {
+    try {
+      if (!users || users.length === 0) {
+        toast({
+          title: "No Data",
+          description: "No users to export",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const exportData = {
+        timestamp: new Date().toISOString(),
+        totalUsers: users.length,
+        users: users.map(user => ({
+          id: user._id,
+          email: user.email,
+          username: user.username || 'N/A',
+          role: user.role?.name || 'N/A',
+          createdAt: user.createdAt,
+          lastLogin: user.lastLogin || 'Never',
+          isActive: user.isActive ? 'Yes' : 'No'
+        }))
+      };
+
+      if (format === 'csv') {
+        const headers = ['ID', 'Email', 'Username', 'Role', 'Created At', 'Last Login', 'Active'];
+        const rows = exportData.users.map(user => [
+          user.id || 'N/A',
+          user.email || 'N/A',
+          user.username || 'N/A',
+          user.role || 'N/A',
+          user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+          user.lastLogin === 'Never' ? 'Never' : (user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'),
+          user.isActive || 'N/A'
+        ]);
+
+        // Helper function to safely escape CSV values
+        const escapeCSV = (value: any): string => {
+          if (value === null || value === undefined) return 'N/A';
+          const stringValue = String(value);
+          // If value contains comma, quote, or newline, wrap in quotes and escape internal quotes
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        };
+
+        const csvContent = [headers.join(','), ...rows.map(row => row.map(escapeCSV).join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export Successful",
+          description: "User data exported as CSV file",
+        });
+      } else {
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export Successful",
+          description: "User data exported as JSON file",
+        });
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export user data",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Fetch REAL data from database
   useEffect(() => {
@@ -160,7 +251,10 @@ export default function UsersPage() {
           u._id === editingUser._id ? { 
             ...u, 
             username: editFormData.username,
-            role: { ...u.role, name: editFormData.role },
+            role: { 
+              name: editFormData.role, 
+              displayName: editFormData.role 
+            },
             isActive: editFormData.isActive
           } : u
         ));
@@ -341,11 +435,27 @@ export default function UsersPage() {
           <h1 className="text-2xl sm:text-3xl font-bold">User Management</h1>
           <p className="text-muted-foreground text-sm sm:text-base">Manage user accounts and permissions</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} className="h-10 sm:h-9 text-sm">
-          <UserPlus className="h-4 w-4 mr-2" />
-          <span className="hidden sm:inline">Add User</span>
-          <span className="sm:hidden">Add</span>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => exportUserData('csv')} 
+            className="h-10 sm:h-9 text-sm"
+          >
+            📊 Export CSV
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => exportUserData('json')} 
+            className="h-10 sm:h-9 text-sm"
+          >
+            📈 Export JSON
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)} className="h-10 sm:h-9 text-sm">
+            <UserPlus className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Add User</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards - Mobile First */}
@@ -660,7 +770,7 @@ export default function UsersPage() {
                 type="email"
                 value={createFormData.email}
                 onChange={(e) => setCreateFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="user@example.com"
+                                    placeholder="User Email"
                 className="mt-1"
               />
             </div>

@@ -54,9 +54,14 @@ async function dbConnect(): Promise<Mongoose> {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      maxPoolSize: 5, // Reduced pool size for better connection management
+      serverSelectionTimeoutMS: 60000, // Increased to 60s
+      socketTimeoutMS: 120000, // Increased to 2 minutes
+      connectTimeoutMS: 60000, // Increased to 60s
+      heartbeatFrequencyMS: 5000, // Reduced heartbeat for faster detection
+      maxIdleTimeMS: 30000, // Close idle connections after 30s
+      retryWrites: true, // Enable retry for write operations
+      retryReads: true, // Enable retry for read operations
     };
     
     console.log('🔗 Attempting to connect to MongoDB Atlas with Mongoose...');
@@ -92,9 +97,14 @@ if (process.env.NODE_ENV === 'development') {
   // is preserved across module reloads caused by HMR (Hot Module Replacement).
   if (!cachedClient.promise) {
     client = new MongoClient(MONGODB_URI, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      maxPoolSize: 5, // Reduced pool size for better connection management
+      serverSelectionTimeoutMS: 60000, // Increased to 60s
+      socketTimeoutMS: 120000, // Increased to 2 minutes
+      connectTimeoutMS: 60000, // Increased to 60s
+      heartbeatFrequencyMS: 5000, // Reduced heartbeat for faster detection
+      maxIdleTimeMS: 30000, // Close idle connections after 30s
+      retryWrites: true, // Enable retry for write operations
+      retryReads: true, // Enable retry for read operations
     });
     cachedClient.promise = client.connect();
   }
@@ -116,19 +126,33 @@ export default dbConnect;
  * Connect to MongoDB and return database instance for direct operations
  * This function is used for admin operations that need direct MongoDB access
  */
-export async function connectToDatabase() {
+export async function connectToDatabase(retryCount = 0) {
+  const maxRetries = 3;
+  
   try {
-    console.log('🔗 Connecting to MongoDB Atlas via MongoClient...');
+    console.log(`🔗 Connecting to MongoDB Atlas via MongoClient... (attempt ${retryCount + 1})`);
     const client = await clientPromise;
     const db = client.db();
     
-    // Test the connection
-    await db.admin().ping();
+    // Test the connection with timeout
+    const pingPromise = db.admin().ping();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Ping timeout')), 10000)
+    );
+    
+    await Promise.race([pingPromise, timeoutPromise]);
     console.log('✅ MongoDB Atlas connection successful');
     
     return { client, db };
   } catch (error) {
-    console.error('❌ Failed to connect to MongoDB Atlas:', error);
-    throw new Error('Database connection failed - check Atlas connection string');
+    console.error(`❌ Failed to connect to MongoDB Atlas (attempt ${retryCount + 1}):`, error);
+    
+    if (retryCount < maxRetries) {
+      console.log(`🔄 Retrying connection in 2 seconds... (${retryCount + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return connectToDatabase(retryCount + 1);
+    }
+    
+    throw new Error(`Database connection failed after ${maxRetries} attempts - check Atlas connection string`);
   }
 }

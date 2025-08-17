@@ -1,4 +1,5 @@
 import dbConnect from '@/lib/db';
+import { connectToDatabase } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import RateLimit from '@/models/RateLimit';
 import BlockedCredentials from '@/models/BlockedCredentials';
@@ -58,13 +59,27 @@ export function generateRateLimitKey(userId?: string, ip?: string): string {
 /**
  * Check if user/IP has exceeded rate limit (database version)
  */
-export async function checkRateLimit(key: string, maxGenerations: number, windowHours: number): Promise<{
+export async function checkRateLimit(key: string, maxGenerations: number, windowHours: number, userId?: string): Promise<{
   allowed: boolean;
   remaining: number;
   resetTime: number;
 }> {
   try {
     await dbConnect();
+    
+    // Check if user is admin - if so, bypass rate limiting
+    if (userId) {
+      const User = (await import('@/models/User')).default;
+      const user = await User.findById(userId);
+      if (user?.isAdmin) {
+        console.log(`👑 Admin user ${userId} - bypassing rate limits`);
+        return {
+          allowed: true,
+          remaining: 999999, // Unlimited for admins
+          resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+        };
+      }
+    }
     
     const now = new Date();
     const windowMs = windowHours * 60 * 60 * 1000;
@@ -116,18 +131,21 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
   } catch (error) {
     console.error('Rate limit check error:', error);
     // Fallback to in-memory store on database error
-    return checkRateLimitInMemory(key, maxGenerations, windowHours);
+    return checkRateLimitInMemory(key, maxGenerations, windowHours, userId);
   }
 }
 
 /**
  * Fallback in-memory rate limiting
  */
-function checkRateLimitInMemory(key: string, maxGenerations: number, windowHours: number): {
+function checkRateLimitInMemory(key: string, maxGenerations: number, windowHours: number, userId?: string): {
   allowed: boolean;
   remaining: number;
   resetTime: number;
 } {
+  // Note: In-memory fallback doesn't check admin status for performance
+  // Admin users should always use the database version
+  
   const now = Date.now();
   const windowMs = windowHours * 60 * 60 * 1000;
   
@@ -346,9 +364,56 @@ export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
   remaining: number;
   resetTime: number;
   windowHours: number;
+  isAdmin?: boolean;
 }> {
   try {
     const isAuthenticated = !!userId;
+    
+    // Check if user is admin - if so, return unlimited status
+    if (userId) {
+      try {
+        // First check the regular users collection
+        const User = (await import('@/models/User')).default;
+        const user = await User.findById(userId);
+        
+        // If not found in regular users, check adminusers collection
+        if (!user || !user.isAdmin) {
+          const { db } = await connectToDatabase();
+          const adminUsersCollection = db.collection('adminusers');
+          const adminUser = await adminUsersCollection.findOne({ 
+            email: user?.email || userId,
+            isAdmin: true 
+          });
+          
+          if (adminUser) {
+            console.log(`👑 Admin user ${userId} found in adminusers collection - showing unlimited rate limit info`);
+            return {
+              isAuthenticated: true,
+              maxGenerations: 999999, // Unlimited for admins
+              currentUsage: 0,
+              remaining: 999999, // Unlimited remaining
+              resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+              windowHours: 24,
+              isAdmin: true,
+            };
+          }
+        } else if (user?.isAdmin) {
+          console.log(`👑 Admin user ${userId} found in users collection - showing unlimited rate limit info`);
+          return {
+            isAuthenticated: true,
+            maxGenerations: 999999, // Unlimited for admins
+            currentUsage: 0,
+            remaining: 999999, // Unlimited remaining
+            resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+            windowHours: 24,
+            isAdmin: true,
+          };
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    }
+    
     const config = isAuthenticated ? RATE_LIMITS.AUTHENTICATED : RATE_LIMITS.ANONYMOUS;
     const key = generateRateLimitKey(userId, ip);
     
@@ -375,6 +440,7 @@ export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
       remaining: Math.max(0, config.MAX_GENERATIONS - currentUsage),
       resetTime,
       windowHours: config.WINDOW_HOURS,
+      isAdmin: false,
     };
   } catch (error) {
     console.error('Error getting rate limit info:', error);
@@ -393,6 +459,7 @@ function getRateLimitInfoInMemory(userId?: string, ip?: string): {
   remaining: number;
   resetTime: number;
   windowHours: number;
+  isAdmin?: boolean;
 } {
   const isAuthenticated = !!userId;
   const config = isAuthenticated ? RATE_LIMITS.AUTHENTICATED : RATE_LIMITS.ANONYMOUS;
@@ -406,6 +473,7 @@ function getRateLimitInfoInMemory(userId?: string, ip?: string): {
     remaining: Math.max(0, config.MAX_GENERATIONS - usage.count),
     resetTime: usage.resetTime,
     windowHours: config.WINDOW_HOURS,
+    isAdmin: false, // In-memory fallback doesn't check admin status
   };
 }
 

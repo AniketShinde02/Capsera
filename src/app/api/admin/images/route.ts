@@ -20,16 +20,42 @@ export async function GET(request: NextRequest) {
 
     const { db } = await connectToDatabase();
 
+    // Check total posts in database
+    const totalPosts = await db.collection('posts').countDocuments({});
+    console.log(`📊 Total posts in database: ${totalPosts}`);
+    
+    // Check posts with different image fields
+    const postsWithImage = await db.collection('posts').countDocuments({ image: { $exists: true, $ne: null } });
+    const postsWithImageUrl = await db.collection('posts').countDocuments({ imageUrl: { $exists: true, $ne: null } });
+    const postsWithSecureUrl = await db.collection('posts').countDocuments({ secure_url: { $exists: true, $ne: null } });
+    const postsWithPublicUrl = await db.collection('posts').countDocuments({ publicUrl: { $exists: true, $ne: null } });
+    
+    console.log(`🔍 Posts breakdown:`);
+    console.log(`  - With 'image' field: ${postsWithImage}`);
+    console.log(`  - With 'imageUrl' field: ${postsWithImageUrl}`);
+    console.log(`  - With 'secure_url' field: ${postsWithSecureUrl}`);
+    console.log(`  - With 'publicUrl' field: ${postsWithPublicUrl}`);
+
     // Fetch REAL images from the posts collection where image field exists
     const posts = await db.collection('posts')
       .find({ 
-        image: { $exists: true, $ne: null },
+        $or: [
+          { image: { $exists: true, $ne: null } },
+          { imageUrl: { $exists: true, $ne: null } },
+          { secure_url: { $exists: true, $ne: null } },
+          { publicUrl: { $exists: true, $ne: null } }
+        ],
         isDeleted: { $ne: true }
       })
       .sort({ createdAt: -1 })
       .toArray();
 
     console.log(`📸 Found ${posts.length} images in database`);
+    
+    // Debug: Check first post structure
+    if (posts.length > 0) {
+      console.log('🔍 First post structure:', JSON.stringify(posts[0], null, 2));
+    }
 
     // Transform posts to image items with real data
     const images = await Promise.all(posts.map(async (post, index) => {
@@ -56,10 +82,57 @@ export async function GET(request: NextRequest) {
 
       // Extract image data from post
       const imageData = post.image;
-      const imageUrl = imageData?.url || imageData?.secure_url || imageData?.publicUrl || '';
+      console.log('🔍 Post structure for:', post._id);
+      console.log('  - post.image type:', typeof post.image);
+      console.log('  - post.image value:', JSON.stringify(post.image, null, 2));
+      console.log('  - post.imageUrl:', post.imageUrl);
+      console.log('  - post.secure_url:', post.secure_url);
+      console.log('  - post.publicUrl:', post.publicUrl);
       
-      // Generate thumbnail URL (use the same image for now, but could be optimized)
-      const thumbnailUrl = imageUrl;
+      // Try multiple possible image URL fields
+      let imageUrl = '';
+      
+      // First try: post.image object fields
+      if (imageData) {
+        imageUrl = imageData.url || imageData.secure_url || imageData.publicUrl || imageData.imageUrl || '';
+        console.log('🔍 URL from imageData:', imageUrl);
+      }
+      
+      // Second try: direct post fields
+      if (!imageUrl) {
+        imageUrl = post.imageUrl || post.image_url || post.secureUrl || post.secure_url || post.publicUrl || post.public_url || '';
+        console.log('🔍 URL from direct post fields:', imageUrl);
+      }
+      
+      // Third try: check if post has a direct image field
+      if (!imageUrl && typeof post.image === 'string') {
+        imageUrl = post.image;
+        console.log('🔍 URL from post.image string:', imageUrl);
+      }
+      
+      console.log('🔍 Final image URL found:', imageUrl);
+      
+      // Generate optimized thumbnail URL for Cloudinary
+      let thumbnailUrl = imageUrl;
+      
+      // If it's a Cloudinary URL, optimize it for thumbnails
+      if (imageUrl && imageUrl.includes('res.cloudinary.com')) {
+        // Add Cloudinary transformations for thumbnails: w_200,h_200,c_fill,q_auto
+        thumbnailUrl = imageUrl.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/');
+        console.log('🔍 Optimized Cloudinary thumbnail:', thumbnailUrl);
+      } else if (imageUrl && imageUrl.includes('ik.imagekit.io')) {
+        // If it's ImageKit, add optimization
+        thumbnailUrl = imageUrl + '?tr=w-200,h-200';
+        console.log('🔍 Optimized ImageKit thumbnail:', thumbnailUrl);
+      }
+      
+      console.log('🔍 Thumbnail URL set to:', thumbnailUrl);
+      
+      // If still no image URL, provide a fallback placeholder
+      if (!imageUrl) {
+        imageUrl = 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image';
+        console.log('🔍 Using fallback placeholder image');
+      }
       
       // Calculate file size (estimate based on URL or use default)
       const estimatedSize = imageUrl ? '2.5 MB' : '1.8 MB';
@@ -80,11 +153,10 @@ export async function GET(request: NextRequest) {
       // Generate tags from post content or use defaults
       const tags = post.tags || post.caption?.split(' ').slice(0, 3) || ['caption', 'generated', 'ai'];
       
-      // Calculate storage metrics
+      // Calculate storage metrics (real data only)
       const totalSizeMB = posts.length * 2.5; // Estimate 2.5MB per image
-      const availableStorage = '50 GB';
       const usedStorage = `${totalSizeMB.toFixed(1)} MB`;
-      const storagePercentage = Math.min((totalSizeMB / (50 * 1024)) * 100, 100);
+      const storagePercentage = 0; // We don't know actual storage limits
       
       return {
         id: post._id.toString(),
@@ -110,9 +182,8 @@ export async function GET(request: NextRequest) {
     // Calculate real storage metrics
     const totalImages = images.length;
     const totalSizeMB = totalImages * 2.5; // Estimate 2.5MB per image
-    const availableStorage = '50 GB';
     const usedStorage = `${totalSizeMB.toFixed(1)} MB`;
-    const storagePercentage = Math.min((totalSizeMB / (50 * 1024)) * 100, 100);
+    const storagePercentage = 0; // We don't know actual storage limits
     
     // Calculate time-based metrics
     const now = new Date();
@@ -130,7 +201,6 @@ export async function GET(request: NextRequest) {
       totalImages,
       totalSize: `${totalSizeMB.toFixed(1)} MB`,
       usedStorage,
-      availableStorage,
       storagePercentage,
       imagesToday,
       imagesThisWeek,

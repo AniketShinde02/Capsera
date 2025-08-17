@@ -12,7 +12,7 @@ console.log('🔍 Environment Check:', {
 });
 
 // CRITICAL: Use the provided MongoDB Atlas URI - NO LOCAL CONNECTIONS
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://inquiry:JzCq395jQl13b9DL@cluster0.ucqycoj.mongodb.net/Caption_Generator';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   console.error('CRITICAL: MONGODB_URI is not defined in .env file.');

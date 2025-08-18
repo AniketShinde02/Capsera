@@ -69,15 +69,39 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
     
     // Check if user is admin - if so, bypass rate limiting
     if (userId) {
-      const User = (await import('@/models/User')).default;
-      const user = await User.findById(userId);
-      if (user?.isAdmin) {
-        console.log(`👑 Admin user ${userId} - bypassing rate limits`);
-        return {
-          allowed: true,
-          remaining: 999999, // Unlimited for admins
-          resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-        };
+      try {
+        // Use connectToDatabase for consistent connection handling
+        const { db } = await connectToDatabase();
+        const usersCollection = db.collection('users');
+        const user = await usersCollection.findOne({ _id: userId });
+        
+        if (user?.isAdmin) {
+          console.log(`👑 Admin user ${userId} - bypassing rate limits`);
+          return {
+            allowed: true,
+            remaining: 999999, // Unlimited for admins
+            resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+          };
+        }
+        
+        // Also check adminusers collection
+        const adminUsersCollection = db.collection('adminusers');
+        const adminUser = await adminUsersCollection.findOne({ 
+          email: user?.email || userId,
+          isAdmin: true 
+        });
+        
+        if (adminUser) {
+          console.log(`👑 Admin user ${userId} found in adminusers collection - bypassing rate limits`);
+          return {
+            allowed: true,
+            remaining: 999999, // Unlimited for admins
+            resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+          };
+        }
+      } catch (error) {
+        console.error('Error checking admin status in checkRateLimit:', error);
+        // Continue with normal rate limiting if admin check fails
       }
     }
     
@@ -372,13 +396,15 @@ export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
     // Check if user is admin - if so, return unlimited status
     if (userId) {
       try {
-        // First check the regular users collection
-        const User = (await import('@/models/User')).default;
-        const user = await User.findById(userId);
+        // Use connectToDatabase for consistent connection handling
+        const { db } = await connectToDatabase();
+        
+        // First check the regular users collection using direct MongoDB query
+        const usersCollection = db.collection('users');
+        const user = await usersCollection.findOne({ _id: userId });
         
         // If not found in regular users, check adminusers collection
         if (!user || !user.isAdmin) {
-          const { db } = await connectToDatabase();
           const adminUsersCollection = db.collection('adminusers');
           const adminUser = await adminUsersCollection.findOne({ 
             email: user?.email || userId,

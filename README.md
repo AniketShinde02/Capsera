@@ -19,22 +19,23 @@
 
 ---
 
-## 🌟 What Makes CaptionCraft Special?
+## 🌟 What Makes Capsera Special?
 
-CaptionCraft isn't just another caption generator – it's your **AI-powered creative partner** that actually *sees* and *understands* your images to create contextually perfect captions with maximum variety.
+Capsera isn't just another caption generator – it's your **AI-powered creative partner** that actually *sees* and *understands* your images to create contextually perfect captions with maximum variety.
 
 ### 🎯 **Key Differentiators:**
 - **🔍 Advanced Image Analysis**: AI analyzes colors, objects, people, and scenes
 - **🎭 Mood-Driven Generation**: 41 different moods for perfect tone matching
 - **🔄 Maximum Caption Variety**: 3 completely different caption styles every time
-- **🛡️ Smart Rate Limiting**: 3 free generations, 25 for registered users
-- **🔐 Advanced Admin Security**: JWT-based production-ready admin system
+- **🛡️ Smart Rate Limiting**: 3 free generations, 25 for registered users, **UNLIMITED for admins**
+- **🔐 Advanced Admin Security**: JWT-based production-ready admin system with dual-mode
 - **🗑️ Complete Image Management**: Cloudinary-powered upload, storage, and deletion
 - **🖼️ Smart Image Compression**: Automatic optimization with 70-90% size reduction
 - **📱 Fully Responsive**: Mobile-first design with perfect desktop experience
 - **⚡ Optimized Performance**: Streamlined processes and database optimization
 - **🛡️ Robust Error Handling**: Graceful fallback for all failure scenarios
-- **🎨 Rich UI/UX**: Professional design with reduced eye strain
+- **🎨 Rich UI/UX**: Professional design with reduced eye strain and smooth animations
+- **👑 Admin Unlimited Access**: No generation limits for admin users
 
 ---
 
@@ -65,6 +66,62 @@ CaptionCraft isn't just another caption generator – it's your **AI-powered cre
 > - **Unauthorized Access** (`13-unauthorized.png`) - Screenshot of the unauthorized access page
 >
 > **📊 Screenshot Status**: 10/13 available (77% complete) - All core functionality screenshots are ready!
+
+---
+
+## 🆕 **Latest Updates & Improvements (January 2025)**
+
+### 🎯 **Major Feature Enhancements**
+
+#### **👑 Admin Unlimited Access System**
+- **Unlimited Caption Generation**: Admin users now have unlimited caption generation with no monthly quotas
+- **Dual-Mode System**: Admins can switch between admin and user modes seamlessly
+- **Enhanced Admin Dashboard**: Improved navigation with "Browse Site" and "Admin Dashboard" toggle
+- **Profile Integration**: Added "Admin Dashboard" button on admin profile pages
+
+#### **🔐 Enhanced Security & Setup Flow**
+- **System Lock PIN**: Mandatory PIN verification for setup when enabled
+- **Compact UI Design**: Streamlined setup forms with better visual hierarchy
+- **Session Validation**: Automatic redirect for authenticated admins to prevent setup loops
+- **OTP & PIN Management**: Improved verification flow with better error handling
+
+#### **🎨 UI/UX Improvements**
+- **Smooth Animations**: Added text transitions and smooth mode switching
+- **Toast Notifications**: Replaced intrusive `alert()` popups with elegant toast messages
+- **Theme Consistency**: Fixed dark mode visibility issues and color scheme alignment
+- **Responsive Design**: Improved mobile experience and button sizing
+
+#### **⚡ Performance & Compatibility**
+- **Next.js 15 Compatibility**: Fixed `params` handling in dynamic API routes
+- **React Hooks Compliance**: Resolved hooks order violations in components
+- **Error Handling**: Improved error messages and user feedback
+- **Code Optimization**: Removed console logs and debug information
+
+#### **🌐 Deployment & Infrastructure**
+- **Vercel Integration**: Optimized for Vercel deployment with proper metadata
+- **Favicon System**: Modern favicon configuration using Next.js metadata
+- **Netlify Support**: Added `netlify.toml` configuration for alternative deployment
+- **Environment Management**: Better handling of environment variables
+
+### 🐛 **Recent Bug Fixes**
+
+#### **Critical Issues Resolved**
+- **Setup Redirect Loop**: Fixed infinite redirect to PIN step after login
+- **Admin Quota Display**: Removed quota limits from admin user interface
+- **Session Management**: Fixed `isAdmin: false` issues in admin sessions
+- **API Route Errors**: Resolved Next.js 15 `params.id` compatibility issues
+
+#### **UI/UX Issues Fixed**
+- **Alert Popups**: Replaced all `alert()` calls with toast notifications
+- **Console Logs**: Removed unnecessary logging and debug messages
+- **Theme Visibility**: Fixed dark mode toggle and color scheme issues
+- **Form Consistency**: Standardized form sizes and spacing across components
+
+#### **Authentication & Authorization**
+- **Admin Login Flow**: Improved admin credential verification
+- **Session Persistence**: Better session handling and validation
+- **Role Management**: Enhanced tier user system with proper email notifications
+- **Dual-Mode Toggle**: Fixed visibility and functionality issues
 
 ---
 
@@ -930,7 +987,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 *CaptionCraft - Where AI meets creativity*
 
-**Last Updated**: January 2025 • **Version**: 2.1 • **Status**: Production Ready
+**Last Updated**: January 2025 • **Version**: 2.2 • **Status**: Production Ready with Latest Updates
 
 </div>
 

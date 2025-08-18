@@ -6,6 +6,7 @@
 - **[Image Compression System](./docs/IMAGE_COMPRESSION_SYSTEM.md)** - Complete guide to automatic image optimization
 - **[Admin Panel Features](./docs/ADMIN_DASHBOARD_IMPROVEMENTS_SUMMARY.md)** - Admin dashboard enhancements
 - **[Setup & Authentication](./docs/SETUP_FIXES_SUMMARY.md)** - Admin setup and authentication fixes
+- **[Recent Changes Summary](./RECENT_CHANGES_SUMMARY.md)** - Comprehensive overview of latest updates
 
 
 

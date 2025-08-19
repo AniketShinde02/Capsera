@@ -68,13 +68,24 @@ export default function SetupPage() {
     animationDuration: number;
   }>>([]);
 
-  // Check if user is already authenticated and redirect them
+  // Network status state
+  const [networkStatus, setNetworkStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  // Check if user is already authenticated - redirect admin users away from setup page
   useEffect(() => {
     if (status === 'loading') return; // Wait for session to load
     
+    // If user is already admin, redirect them away from setup page
     if (session?.user && session.user.isAdmin) {
-      console.log('✅ User already authenticated as admin, redirecting to dashboard');
+      console.log('✅ Admin user authenticated, redirecting to admin dashboard');
       router.push('/admin/dashboard');
+      return;
+    }
+    
+    // If regular user is authenticated, redirect to home
+    if (session?.user && !session.user.isAdmin) {
+      console.log('✅ Regular user authenticated, redirecting to home');
+      router.push('/');
       return;
     }
   }, [session, status, router]);
@@ -520,12 +531,12 @@ export default function SetupPage() {
             console.log('🔍 Auto-login result:', result);
             
             if (result?.ok) {
-              console.log('✅ Auto-login successful! Redirecting to admin panel...');
-              setSuccess('Login successful! Redirecting to admin panel...');
+              console.log('✅ Auto-login successful! Redirecting to home page...');
+              setSuccess('Login successful! You can now access admin features from your profile.');
               
-              // Force redirect to admin dashboard
+              // Redirect to home page instead of admin dashboard
               setTimeout(() => {
-                router.push('/admin/dashboard');
+                router.push('/');
               }, 1000);
             } else {
               console.log('❌ Auto-login failed:', result?.error);
@@ -563,37 +574,46 @@ export default function SetupPage() {
       console.log('🔐 Attempting admin login...');
       console.log('🔍 Login credentials:', { email: loginForm.email, passwordLength: loginForm.password.length });
       
-      // Use NextAuth signIn instead of direct fetch
-      const result = await signIn('admin-credentials', {
-        email: loginForm.email,
-        password: loginForm.password,
-        redirect: false // Don't redirect automatically, we'll handle it
+      // Check network status first
+      const isNetworkOk = await checkNetworkStatus();
+      if (!isNetworkOk) {
+        setError('Network connection issue detected. Please check your internet connection and try again.');
+        return;
+      }
+      
+      // Use retry mechanism for login
+      const result = await retryOperation(async () => {
+        return await signIn('admin-credentials', {
+          email: loginForm.email,
+          password: loginForm.password,
+          redirect: false
+        });
       });
       
       console.log('🔍 Login result:', result);
       
       if (result?.ok) {
-        setSuccess('Login successful! Redirecting to admin panel...');
-        console.log('✅ Login successful, attempting redirect to /admin/dashboard...');
+        setSuccess('Login successful! Redirecting to admin dashboard...');
+        console.log('✅ Login successful, redirecting to admin dashboard...');
         
-        // Try to redirect immediately and also after a delay as backup
+        // Force session refresh to avoid cache issues
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Try to refresh the session to ensure it's properly loaded
         try {
-          router.push('/admin/dashboard');
-          console.log('🚀 Router.push called successfully');
-        } catch (redirectError) {
-          console.error('❌ Router.push failed:', redirectError);
+          // Force a session refresh with retry
+          await retryOperation(async () => {
+            return await fetch('/api/auth/session', { 
+              method: 'GET',
+              credentials: 'include'
+            });
+          });
+        } catch (refreshError) {
+          console.log('⚠️ Session refresh failed, continuing with redirect:', refreshError);
         }
         
-        // Backup redirect after delay
-        setTimeout(() => {
-          try {
-            console.log('🔄 Backup redirect attempt...');
-            router.push('/admin/dashboard');
-          } catch (error) {
-            console.error('❌ Backup redirect also failed:', error);
-            setError('Login successful but redirect failed. Please navigate manually to /admin/dashboard');
-          }
-        }, 2000);
+        // Redirect to admin dashboard
+        router.push('/admin/dashboard');
       } else {
         console.log('❌ Login failed:', result?.error);
         
@@ -602,13 +622,21 @@ export default function SetupPage() {
           setError('Invalid email or password. Please check your credentials.');
         } else if (result?.error === 'AccessDenied') {
           setError('Access denied. Your account may be locked or suspended.');
+        } else if (result?.error === 'NetworkError') {
+          setError('Network error. Please check your internet connection and try again.');
         } else {
           setError(`Login failed: ${result?.error || 'Unknown error'}. Please try again.`);
         }
       }
     } catch (error) {
       console.error('❌ Login error:', error);
-      setError(`Login failed: ${error}. Please try again.`);
+      
+      // Handle network-specific errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(`Login failed: ${error}. Please try again.`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -652,6 +680,35 @@ export default function SetupPage() {
     }
   }, [verifiedOTPToken, otpVerified]);
 
+  // Check network status and add retry mechanism
+  const checkNetworkStatus = async () => {
+    try {
+      const response = await fetch('/api/health-check', { 
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+      return response.ok;
+    } catch (error) {
+      console.log('⚠️ Network check failed:', error);
+      return false;
+    }
+  };
+
+  // Retry mechanism for network issues
+  const retryOperation = async (operation: () => Promise<any>, maxRetries: number = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        console.log(`⚠️ Attempt ${attempt} failed, retrying... (${maxRetries - attempt} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -687,7 +744,7 @@ export default function SetupPage() {
         </div>
       )}
 
-      {/* Show setup page only if not authenticated */}
+      {/* Show setup page ONLY for unauthenticated users or non-admin users */}
       {status !== 'loading' && !session?.user?.isAdmin && (
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
           <div className="w-full max-w-4xl">
@@ -699,13 +756,31 @@ export default function SetupPage() {
             <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent mb-4">
               Capsera Admin
             </h1>
-                      <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            {step === 'pin' && 'Enter 6-digit PIN to continue'}
-            {step === 'otp' && 'Enter 6-digit OTP to continue'}
-            {step === 'options' && 'Choose your next action'}
-            {step === 'signup' && 'Create your admin account'}
-            {step === 'login' && 'Access your admin panel'}
-          </p>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              {step === 'pin' && 'Enter 6-digit PIN to continue'}
+              {step === 'otp' && 'Enter 6-digit OTP to continue'}
+              {step === 'options' && 'Choose your next action'}
+              {step === 'signup' && 'Create your admin account'}
+              {step === 'login' && 'Access your admin panel'}
+            </p>
+            
+            {/* Network Status Indicator */}
+            <div className="mt-4 flex items-center justify-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                networkStatus === 'online' ? 'bg-green-500' : 
+                networkStatus === 'offline' ? 'bg-red-500' : 
+                'bg-yellow-500'
+              }`} />
+              <span className={`text-sm ${
+                networkStatus === 'online' ? 'text-green-600' : 
+                networkStatus === 'offline' ? 'text-red-600' : 
+                'text-yellow-600'
+              }`}>
+                {networkStatus === 'online' ? 'Network Online' : 
+                 networkStatus === 'offline' ? 'Network Offline' : 
+                 'Checking Network...'}
+              </span>
+            </div>
           </div>
 
           {/* Progress Indicator */}
@@ -1270,7 +1345,9 @@ export default function SetupPage() {
           </div>
         </div>
       </div>
-        )}
+      )}
+      
+
 
       {/* Custom CSS for animations */}
       <style jsx>{`

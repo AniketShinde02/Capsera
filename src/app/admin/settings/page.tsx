@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,15 @@ import {
   Globe,
   Lock
 } from 'lucide-react';
+
+interface MaintenanceStatus {
+  enabled: boolean;
+  message: string;
+  estimatedTime: string;
+  allowedIPs: string[];
+  allowedEmails: string[];
+  updatedAt: string;
+}
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState({
@@ -35,13 +44,82 @@ export default function AdminSettingsPage() {
     retentionDays: '30'
   });
 
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Load maintenance mode status on component mount
+  useEffect(() => {
+    loadMaintenanceStatus();
+  }, []);
+
+  const loadMaintenanceStatus = async () => {
+    try {
+      const response = await fetch('/api/maintenance');
+      if (response.ok) {
+        const { status } = await response.json();
+        setSettings(prev => ({
+          ...prev,
+          maintenanceMode: status.enabled || false
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load maintenance status:', error);
+    }
+  };
+
   const handleSave = () => {
     // Save settings logic here
     console.log('Saving settings:', settings);
+    showNotification('Settings saved successfully!', 'success');
   };
 
   const updateSetting = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Handle maintenance mode toggle with API call
+  const handleMaintenanceToggle = async (enabled: boolean) => {
+    try {
+      setLoading(true);
+      
+      const response = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          enabled,
+          message: "We're making things better! Capsera is currently under maintenance.",
+          estimatedTime: "2-3 hours",
+          allowedIPs: [],
+          allowedEmails: []
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setSettings(prev => ({ ...prev, maintenanceMode: enabled }));
+        showNotification(
+          enabled ? "Maintenance Mode Enabled" : "Maintenance Mode Disabled",
+          'success'
+        );
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update maintenance mode');
+      }
+    } catch (error: any) {
+      console.error('Error updating maintenance mode:', error);
+      showNotification(error?.message || "Failed to update maintenance mode.", 'error');
+      // Revert the toggle if the API call failed
+      setSettings(prev => ({ ...prev, maintenanceMode: !enabled }));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,6 +135,27 @@ export default function AdminSettingsPage() {
           Save Changes
         </Button>
       </div>
+
+      {/* Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md ${
+          notification.type === 'success' 
+            ? 'bg-green-500 text-white' 
+            : notification.type === 'error' 
+            ? 'bg-red-500 text-white' 
+            : 'bg-blue-500 text-white'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span>{notification.message}</span>
+            <button 
+              onClick={() => setNotification(null)}
+              className="ml-4 text-white hover:text-gray-200"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* General Settings */}
       <Card>
@@ -107,9 +206,19 @@ export default function AdminSettingsPage() {
             <Switch
               id="maintenanceMode"
               checked={settings.maintenanceMode}
-              onCheckedChange={(checked) => updateSetting('maintenanceMode', checked)}
+              onCheckedChange={handleMaintenanceToggle}
+              disabled={loading}
             />
           </div>
+          
+          {settings.maintenanceMode && (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                ⚠️ <strong>Maintenance mode is currently ACTIVE.</strong><br/>
+                💡 For advanced maintenance settings, visit the <a href="/admin/maintenance" className="underline font-medium">Maintenance Management</a> page.
+              </p>
+            </div>
+          )}
           
           <div className="flex items-center justify-between">
             <div>

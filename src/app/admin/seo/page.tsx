@@ -292,11 +292,11 @@ export default function SEOManagementPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span>https://ai-caption-generator-pied.vercel.app/sitemap.xml</span>
+                    <span>{process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/sitemap.xml</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span>https://ai-caption-generator-pied.vercel.app/robots.txt</span>
+                    <span>{process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/robots.txt</span>
                   </div>
                 </div>
               </div>
@@ -316,7 +316,7 @@ export default function SEOManagementPage() {
 Allow: /
 
 # Sitemap location
-Sitemap: https://ai-caption-generator-pied.vercel.app/sitemap.xml
+            Sitemap: {process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/sitemap.xml
 
 # Crawl delay (optional)
 Crawl-delay: 1

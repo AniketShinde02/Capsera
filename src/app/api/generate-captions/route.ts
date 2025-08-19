@@ -28,10 +28,12 @@ function getClientIP(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const clientIP = getClientIP(req);
-  let session: any = null; // Declare session variable in function scope
 
   try {
-    // Check rate limiting first
+    // Get session for user authentication FIRST
+    const session = await getServerSession(authOptions);
+    
+    // Check rate limiting AFTER getting session (so we can check admin status)
     const isLimited = await isRateLimited(clientIP, session?.user?.id);
     if (isLimited) {
       const resetTime = getResetTime(clientIP);
@@ -52,9 +54,6 @@ export async function POST(req: NextRequest) {
         }
       });
     }
-
-    // Get session for user authentication
-    session = await getServerSession(authOptions);
     
     // Check if we have an available Gemini key
     const geminiKey = getNextGeminiKey();

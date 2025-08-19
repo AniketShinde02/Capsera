@@ -1,21 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
 import { 
-  Shield, 
   Lock, 
   Unlock, 
+  Shield, 
   Key, 
-  AlertTriangle,
+  Eye, 
+  EyeOff, 
+  RefreshCw,
   CheckCircle,
-  XCircle,
-  RefreshCw
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 interface SystemLockStatus {
@@ -25,16 +28,35 @@ interface SystemLockStatus {
 }
 
 export default function SystemLockPage() {
-  const { toast } = useToast();
+  const { data: session } = useSession();
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [pinStatus, setPinStatus] = useState<{
+    isSet: boolean;
+    lastUpdated?: string;
+    setBy?: string;
+  } | null>(null);
+
+  // System lock status
   const [systemLockStatus, setSystemLockStatus] = useState<SystemLockStatus | null>(null);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  
+
+  // Plain text notification system
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
+
   // Form states
   const [action, setAction] = useState<'set-pin' | 'change-pin' | 'disable-lock'>('set-pin');
   const [pin, setPin] = useState('');
-  const [currentPin, setCurrentPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
   const [showActionForm, setShowActionForm] = useState(false);
 
   // Fetch system lock status
@@ -66,21 +88,13 @@ export default function SystemLockPage() {
   const handleSystemLockAction = async () => {
     // Validate PIN format
     if (pin && (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin))) {
-      toast({
-        title: "Validation Error",
-        description: "PIN must be 4-6 digits only",
-        variant: "destructive"
-      });
+      showNotification("PIN must be 4-6 digits only", "error");
       return;
     }
 
     // Validate PIN confirmation
     if (action === 'set-pin' && pin !== confirmPin) {
-      toast({
-        title: "Validation Error",
-        description: "PINs do not match",
-        variant: "destructive"
-      });
+      showNotification("PINs do not match", "error");
       return;
     }
 
@@ -100,10 +114,7 @@ export default function SystemLockPage() {
 
       if (response.ok) {
         const data = await response.json();
-        toast({
-          title: "Success",
-          description: data.message,
-        });
+        showNotification(data.message, "success");
         
         // Reset form and refresh status
         setPin('');
@@ -113,19 +124,11 @@ export default function SystemLockPage() {
         fetchSystemLockStatus();
       } else {
         const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: errorData.error,
-          variant: "destructive"
-        });
+        showNotification(errorData.error, "error");
       }
     } catch (error) {
       console.error('Error managing system lock:', error);
-      toast({
-        title: "Error",
-        description: "Error managing system lock",
-        variant: "destructive"
-      });
+      showNotification("Error managing system lock", "error");
     } finally {
       setActionLoading(false);
     }
@@ -171,6 +174,24 @@ export default function SystemLockPage() {
           Refresh
         </Button>
       </div>
+
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Current Status */}
       <Card className="border-2 border-dashed">

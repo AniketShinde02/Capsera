@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email using existing Brevo SMTP service
     const emailService = getEmailService();
-    const confirmationLink = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/confirm-subscription?email=${encodeURIComponent(email)}`;
+    const confirmationLink = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '#'}/confirm-subscription?email=${encodeURIComponent(email)}`;
     
     const emailSent = await emailService.sendEmail({
       to: email,

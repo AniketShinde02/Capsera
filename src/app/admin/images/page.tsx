@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw } from 'lucide-react';
+import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info } from 'lucide-react';
 import JSZip from 'jszip';
 
 interface ImageItem {
@@ -59,7 +58,6 @@ interface ModerationQueue {
 export default function ImageManagementPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { toast } = useToast();
   const [images, setImages] = useState<ImageItem[]>([]);
   const [storageMetrics, setStorageMetrics] = useState<StorageMetrics>({
     totalImages: 0,
@@ -97,6 +95,14 @@ export default function ImageManagementPage() {
   const [imagesPerPage] = useState(12);
   const [totalImages, setTotalImages] = useState(0);
 
+  // Plain text notification system
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
+
   // Download image functionality
   const downloadImage = async (image: ImageItem) => {
     try {
@@ -107,11 +113,7 @@ export default function ImageManagementPage() {
       // Check if URL is valid
       if (!image.url || image.url === 'https://placehold.co/400text=No+Image') {
         console.error('❌ Invalid image URL for download');
-        toast({
-          title: "Download Error",
-          description: "Cannot download: Invalid image URL",
-          variant: "destructive"
-        });
+        showNotification("Cannot download: Invalid image URL", "error");
         return;
       }
 
@@ -152,10 +154,7 @@ export default function ImageManagementPage() {
       }, 100);
 
       console.log('✅ Download initiated successfully!');
-      toast({
-        title: "Download Started",
-        description: `Downloading ${image.originalName || 'image'}...`,
-      });
+      showNotification(`Downloading ${image.originalName || 'image'}...`, "info");
       
     } catch (error) {
       console.error('❌ Download failed:', error);
@@ -167,24 +166,13 @@ export default function ImageManagementPage() {
           // Open in new tab for manual download
           window.open(image.url, '_blank');
           console.log('✅ Opened image in new tab for manual download');
-          toast({
-            title: "Alternative Download",
-            description: "Image opened in new tab for manual download",
-          });
+          showNotification("Image opened in new tab for manual download", "info");
         } catch (altError) {
           console.error('❌ Alternative method also failed:', altError);
-          toast({
-            title: "Download Failed",
-            description: "Please right-click the image and 'Save image as...'",
-            variant: "destructive"
-          });
+          showNotification("Download Failed. Please right-click the image and 'Save image as...'.", "error");
         }
       } else {
-        toast({
-          title: "Download Failed",
-          description: "Please try again or contact support",
-          variant: "destructive"
-        });
+        showNotification("Download Failed. Please try again or contact support.", "error");
       }
     } finally {
       setDownloadingImage(null);
@@ -195,18 +183,11 @@ export default function ImageManagementPage() {
   const downloadAllImages = async () => {
     try {
       if (images.length === 0) {
-        toast({
-          title: "No Images",
-          description: "No images available for download",
-          variant: "destructive"
-        });
+        showNotification("No images available for download", "error");
         return;
       }
 
-      toast({
-        title: "Creating ZIP File",
-        description: `Preparing ${images.length} images for compression...`,
-      });
+      showNotification("Preparing images for compression...", "info");
 
       // Initialize JSZip
       const zip = new JSZip();
@@ -251,18 +232,11 @@ export default function ImageManagementPage() {
       }
 
       if (processedCount === 0) {
-        toast({
-          title: "No Images Processed",
-          description: "Failed to process any images for ZIP creation",
-          variant: "destructive"
-        });
+        showNotification("Failed to process any images for ZIP creation", "error");
         return;
       }
 
-      toast({
-        title: "Compressing ZIP File",
-        description: `Compressing ${processedCount} images...`,
-      });
+      showNotification("Compressing ZIP File...", "info");
 
       // Generate ZIP file
       const zipBlob = await zip.generateAsync({ 
@@ -295,18 +269,11 @@ export default function ImageManagementPage() {
         URL.revokeObjectURL(url);
       }, 100);
 
-      toast({
-        title: "ZIP Download Complete!",
-        description: `Successfully downloaded ${processedCount} images in compressed ZIP file`,
-      });
+      showNotification(`Successfully downloaded ${processedCount} images in compressed ZIP file`, "success");
 
     } catch (error) {
       console.error('Bulk download failed:', error);
-      toast({
-        title: "ZIP Creation Failed",
-        description: "Failed to create ZIP file. Please try individual downloads.",
-        variant: "destructive"
-      });
+      showNotification("ZIP Creation Failed. Failed to create ZIP file. Please try individual downloads.", "error");
     } finally {
       setBulkDownloadProgress(null);
     }
@@ -316,11 +283,7 @@ export default function ImageManagementPage() {
   const exportImageData = async (format: 'csv' | 'json') => {
     try {
       if (images.length === 0) {
-        toast({
-          title: "No Data",
-          description: "No images available for export",
-          variant: "destructive"
-        });
+        showNotification("No data available for export", "error");
         return;
       }
 
@@ -389,10 +352,7 @@ export default function ImageManagementPage() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        toast({
-          title: "Export Successful",
-          description: "Image data exported as CSV file",
-        });
+        showNotification("Image data exported as CSV file", "success");
       } else {
         // Export as JSON
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -405,18 +365,11 @@ export default function ImageManagementPage() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        toast({
-          title: "Export Successful",
-          description: "Image data exported as JSON file",
-        });
+        showNotification("Image data exported as JSON file", "success");
       }
     } catch (error) {
       console.error('Export failed:', error);
-      toast({
-        title: "Export Failed",
-        description: "Failed to export image data",
-        variant: "destructive"
-      });
+      showNotification("Failed to export image data", "error");
     } finally {
       setExportingData(false);
     }
@@ -565,19 +518,11 @@ export default function ImageManagementPage() {
         setModerationNotes('');
       } else {
         console.error('Failed to moderate image:', response.status);
-        toast({
-          title: "Moderation Failed",
-          description: "Failed to moderate image. Please try again.",
-          variant: "destructive"
-        });
+        showNotification("Failed to moderate image. Please try again.", "error");
       }
     } catch (error) {
       console.error('Error moderating image:', error);
-      toast({
-        title: "Moderation Error",
-        description: "Error moderating image. Please try again.",
-        variant: "destructive"
-      });
+      showNotification("Error moderating image. Please try again.", "error");
     }
   };
 
@@ -620,19 +565,11 @@ export default function ImageManagementPage() {
         setSelectedImage(null);
       } else {
         console.error('Failed to delete image:', response.status);
-        toast({
-          title: "Delete Failed",
-          description: "Failed to delete image. Please try again.",
-          variant: "destructive"
-        });
+        showNotification("Failed to delete image. Please try again.", "error");
       }
     } catch (error) {
       console.error('Error deleting image:', error);
-      toast({
-        title: "Delete Error",
-        description: "Error deleting image. Please try again.",
-        variant: "destructive"
-      });
+      showNotification("Error deleting image. Please try again.", "error");
     }
   };
 
@@ -739,7 +676,25 @@ export default function ImageManagementPage() {
                  </div>
        </div>
 
-       {/* Bulk Download Progress */}
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Download Progress */}
        {bulkDownloadProgress && (
          <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
            <CardContent className="pt-4">

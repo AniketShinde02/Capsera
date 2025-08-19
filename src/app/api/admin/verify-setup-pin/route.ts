@@ -4,18 +4,11 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    const { pin, email } = await request.json();
+    const { pin } = await request.json();
 
     if (!pin) {
       return NextResponse.json(
         { success: false, message: 'PIN is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!email) {
-      return NextResponse.json(
-        { success: false, message: 'Email is required' },
         { status: 400 }
       );
     }
@@ -44,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Setup PIN verified successfully for:', email);
+    console.log('✅ Setup PIN verified successfully');
     
     return NextResponse.json({
       success: true,

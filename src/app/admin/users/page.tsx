@@ -1,25 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Users, 
   Search, 
   Filter, 
-  MoreHorizontal, 
-  UserPlus,
-  Shield,
-  Calendar,
+  Plus, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  Shield, 
+  UserCheck, 
+  UserX,
   Mail,
-  Edit,
-  Trash2,
-  Eye,
-  MoreVertical,
-  Download
+  Phone,
+  Calendar,
+  MapPin,
+  Activity,
+  RefreshCw,
+  Download,
+  Upload,
+  Archive,
+  RotateCcw,
+  CheckCircle,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -38,19 +50,22 @@ interface User {
 }
 
 export default function UsersPage() {
-  const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
+  const { data: session } = useSession();
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
     username: '',
     role: '',
     isActive: true
   });
-  const [viewingUser, setViewingUser] = useState<User | null>(null);
+  const [viewingUser, setViewingUser] = useState<any>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createFormData, setCreateFormData] = useState({
@@ -60,6 +75,14 @@ export default function UsersPage() {
     role: 'user',
     isAdmin: false
   });
+
+  // Plain text notification system
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,11 +93,7 @@ export default function UsersPage() {
   const exportUserData = async (format: 'csv' | 'json') => {
     try {
       if (!users || users.length === 0) {
-        toast({
-          title: "No Data",
-          description: "No users to export",
-          variant: "destructive"
-        });
+        showNotification("No Data", "info");
         return;
       }
 
@@ -126,10 +145,7 @@ export default function UsersPage() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        toast({
-          title: "Export Successful",
-          description: "User data exported as CSV file",
-        });
+        showNotification("Export Successful", "success");
       } else {
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -141,18 +157,11 @@ export default function UsersPage() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        toast({
-          title: "Export Successful",
-          description: "User data exported as JSON file",
-        });
+        showNotification("Export Successful", "success");
       }
     } catch (error) {
       console.error('Export error:', error);
-      toast({
-        title: "Export Failed",
-        description: "Failed to export user data",
-        variant: "destructive"
-      });
+      showNotification("Export Failed", "error");
     }
   };
 
@@ -201,25 +210,14 @@ export default function UsersPage() {
         setUsers([...users, data.user]);
         setShowCreateModal(false);
         setCreateFormData({ email: '', username: '', password: '', role: 'user', isAdmin: false });
-        toast({
-          title: "Success",
-          description: "User created successfully",
-        });
+        showNotification("User created successfully", "success");
       } else {
         const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: `Failed to create user: ${errorData.error}`,
-          variant: "destructive"
-        });
+        showNotification(`Failed to create user: ${errorData.error}`, "error");
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      toast({
-        title: "Error",
-        description: "Error creating user",
-        variant: "destructive"
-      });
+      showNotification("Error creating user", "error");
     }
   };
 
@@ -260,24 +258,13 @@ export default function UsersPage() {
         ));
         setShowEditModal(false);
         setEditingUser(null);
-        toast({
-          title: "Success",
-          description: "User updated successfully",
-        });
+        showNotification("User updated successfully", "success");
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to update user",
-          variant: "destructive"
-        });
+        showNotification("Failed to update user", "error");
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      toast({
-        title: "Error",
-        description: "Error updating user",
-        variant: "destructive"
-      });
+      showNotification("Error updating user", "error");
     }
   };
 
@@ -291,24 +278,13 @@ export default function UsersPage() {
         if (response.ok) {
                   // Remove user from local state
         setUsers(users.filter(u => u._id !== user._id));
-        toast({
-          title: "Success",
-          description: "User deleted successfully",
-        });
+        showNotification("User deleted successfully", "success");
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to delete user",
-          variant: "destructive"
-        });
+        showNotification("Failed to delete user", "error");
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast({
-        title: "Error",
-        description: "Error deleting user",
-        variant: "destructive"
-      });
+      showNotification("Error deleting user", "error");
     }
     }
   };
@@ -335,31 +311,20 @@ export default function UsersPage() {
         setUsers(users.map(u => 
           u._id === user._id ? { ...u, isActive: !u.isActive } : u
         ));
-        toast({
-          title: "Success",
-          description: `User ${user.isActive ? 'deactivated' : 'activated'} successfully`,
-        });
+        showNotification(`User ${user.isActive ? 'deactivated' : 'activated'} successfully`, "success");
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to update user status",
-          variant: "destructive"
-        });
+        showNotification("Failed to update user status", "error");
       }
     } catch (error) {
       console.error('Error updating user status:', error);
-      toast({
-        title: "Error",
-        description: "Error updating user status",
-        variant: "destructive"
-      });
+      showNotification("Error updating user status", "error");
     }
   };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (user.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
-    const matchesRole = filterRole === 'all' || user.role?.name === filterRole;
+    const matchesRole = roleFilter === 'all' || user.role?.name === roleFilter;
     return matchesSearch && matchesRole;
   });
 
@@ -403,10 +368,9 @@ export default function UsersPage() {
             <h1 className="text-2xl sm:text-3xl font-bold">User Management</h1>
             <p className="text-muted-foreground text-sm sm:text-base">Manage user accounts and permissions</p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)} className="h-10 sm:h-9 text-sm">
-            <UserPlus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Add User</span>
-            <span className="sm:hidden">Add</span>
+          <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add User
           </Button>
         </div>
 
@@ -451,12 +415,30 @@ export default function UsersPage() {
             📈 Export JSON
           </Button>
           <Button onClick={() => setShowCreateModal(true)} className="h-10 sm:h-9 text-sm">
-            <UserPlus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Add User</span>
             <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
+
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards - Mobile First */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
@@ -527,8 +509,8 @@ export default function UsersPage() {
             
             <div className="flex gap-2">
               <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
                 className="px-3 py-2 border border-input rounded-md bg-background h-10 sm:h-9 text-sm"
               >
                 <option value="all">All Roles</option>

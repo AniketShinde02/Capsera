@@ -86,7 +86,7 @@ export async function sendFeatureUpdateNotification(
       </div>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${process.env.NEXTAUTH_URL || 'https://ai-caption-generator-pied.vercel.app'}" 
+        <a href="${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '#'}" 
            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
           🎉 Try It Now
         </a>

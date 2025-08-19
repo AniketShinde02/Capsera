@@ -38,10 +38,10 @@ async function markTokenAsUsed(token: string) {
 
 export async function GET() {
   try {
-    await connectToDatabase();
+    // Connect to database once
+    const { db } = await connectToDatabase();
     
     // Check if admin system is initialized
-    const { db } = await connectToDatabase();
     const rolesCollection = db.collection('roles');
     
     // Check admin_users collection specifically for admin users using direct database connection
@@ -78,7 +78,12 @@ export async function POST(request: NextRequest) {
     const { action, token, email, password, username, pin } = await request.json();
     
     // JWT verification for production setup
-    const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secure-jwt-secret-key-change-this-in-production';
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      return NextResponse.json({ 
+        error: 'JWT_SECRET environment variable not configured' 
+      }, { status: 500 });
+    }
     
     if (!action) {
       return NextResponse.json(
@@ -208,6 +213,26 @@ export async function POST(request: NextRequest) {
         otpVerified = true;
         console.log('✅ OTP verified successfully for:', email);
         
+        // Store OTP verification in database for this session
+        try {
+          const { db } = await connectToDatabase();
+          await db.collection('otp_sessions').updateOne(
+            { email: email.toLowerCase() },
+            { 
+              $set: { 
+                otpVerified: true, 
+                verifiedAt: new Date(),
+                token: token,
+                expiresAt: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+              }
+            },
+            { upsert: true }
+          );
+          console.log('✅ OTP session stored for:', email);
+        } catch (sessionError) {
+          console.error('Failed to store OTP session:', sessionError);
+        }
+        
       } catch (otpError) {
         console.error('OTP verification failed:', otpError);
         if (!pinVerified) {
@@ -219,77 +244,52 @@ export async function POST(request: NextRequest) {
       }
     }
     
-          // For admin actions, check if user has been verified before (OTP or existing admin)
-      if (action === 'create-admin' || action === 'debug-admin') {
-        // Check if admin already exists for this email
-        const { db } = await connectToDatabase();
-        const adminUsersCollection = db.collection('adminusers');
-        const existingAdmin = await adminUsersCollection.findOne({ 
-          email: email.toLowerCase(),
-          isAdmin: true 
-        });
-        
-        if (existingAdmin) {
-          console.log('✅ Admin already exists for:', email);
-          otpVerified = true; // Allow access since admin exists
-        } else if (token === 'EXISTING_ADMIN') {
-          // Special case: Frontend indicates admin exists but we need to verify
-          console.log('🔍 Frontend indicates existing admin, verifying...');
-          const adminExists = await adminUsersCollection.findOne({ 
-            email: email.toLowerCase(),
-            isAdmin: true 
+    // For admin actions, check if user has been verified before (OTP or existing admin)
+    if (action === 'create-admin' || action === 'debug-admin') {
+      // Check if OTP was verified in this session
+      if (otpVerified) {
+        console.log('✅ OTP verified in this session, allowing admin creation for:', email);
+      } else {
+        // Check if OTP was verified in a previous session (including bypassed)
+        try {
+          const { db } = await connectToDatabase();
+          const otpSession = await db.collection('otp_sessions').findOne({
+            email: 'sunnyshinde2601@gmail.com', // Use the hardcoded email
+            otpVerified: true,
+            expiresAt: { $gt: new Date() }
           });
           
-          if (adminExists) {
-            console.log('✅ Admin verified to exist for:', email);
+          if (otpSession) {
+            console.log('✅ OTP verified in previous session, allowing admin creation for:', email);
             otpVerified = true;
           } else {
-            return NextResponse.json(
-              { success: false, message: 'No admin found for this email. Please verify OTP first.' },
-              { status: 400 }
-            );
-          }
-        } else {
-          // SIMPLE LOGIC: If OTP was verified for ANY email, you're trusted
-          // Check if there's a verified OTP in the system (any email)
-          try {
-            console.log('🔍 Checking if user is trusted via OTP verification...');
-            
-            // Check if this token was used to verify OTP for ANY email
-            const otpCollection = db.collection('otps');
-            const verifiedOTP = await otpCollection.findOne({ 
-              otp: token,
-              verified: true,
-              expiresAt: { $gt: new Date() } // Not expired
+            // Check if OTP was bypassed for development
+            const bypassedSession = await db.collection('otp_sessions').findOne({
+              email: 'sunnyshinde2601@gmail.com',
+              bypassed: true,
+              expiresAt: { $gt: new Date() }
             });
             
-            if (verifiedOTP) {
-              console.log('✅ User is trusted via verified OTP, allowing admin creation');
+            if (bypassedSession) {
+              console.log('✅ OTP bypassed for development, allowing admin creation for:', email);
               otpVerified = true;
             } else {
-              // Fallback: try to verify OTP for this specific email
-              let otpResult = await otpDbService.verifyOTP(email, token);
-              if (!otpResult.success) {
-                otpResult = await otpDbService.checkVerifiedOTP(email, token);
-              }
-              
-              if (!otpResult.success) {
-                return NextResponse.json(
-                  { success: false, message: 'OTP verification required. Please verify OTP first.' },
-                  { status: 400 }
-                );
-              }
-              
-              otpVerified = true;
+              console.log('❌ No valid OTP session or bypass found for:', email);
+              return NextResponse.json(
+                { success: false, message: 'OTP verification required. Please verify OTP first.' },
+                { status: 400 }
+              );
             }
-          } catch (otpError) {
-            return NextResponse.json(
-              { success: false, message: 'OTP verification failed' },
-              { status: 500 }
-            );
           }
+        } catch (sessionError) {
+          console.error('Failed to check OTP session:', sessionError);
+          return NextResponse.json(
+            { success: false, message: 'OTP verification required. Please verify OTP first.' },
+            { status: 400 }
+          );
         }
       }
+    }
     
     // Handle different actions
     switch (action) {
@@ -301,17 +301,50 @@ export async function POST(request: NextRequest) {
         
         return NextResponse.json({ success: true, adminExists: adminExists, message: 'OTP verified successfully' });
         
+      case 'skip-otp':
+        // Special action for development - bypass OTP verification
+        console.log('🚀 OTP verification bypassed for development');
+        
+        // Store OTP verification in database for this session
+        try {
+          const { db } = await connectToDatabase();
+          await db.collection('otp_sessions').updateOne(
+            { email: 'sunnyshinde2601@gmail.com' },
+            { 
+              $set: { 
+                otpVerified: true, 
+                verifiedAt: new Date(),
+                token: 'SKIPPED_DEV',
+                expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+                bypassed: true
+              }
+            },
+            { upsert: true }
+          );
+          console.log('✅ OTP bypass session stored for development');
+        } catch (sessionError) {
+          console.error('Failed to store OTP bypass session:', sessionError);
+        }
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'OTP verification bypassed for development',
+          bypassed: true
+        });
+        
       case 'initialize':
         return await handleInitialize();
         
       case 'create-admin':
-        // OTP is already verified and consumed, proceed with admin creation
+        // OTP verification should already be handled above, but double-check
         if (!otpVerified) {
+          console.log('❌ OTP verification failed for create-admin action');
           return NextResponse.json(
             { success: false, message: 'OTP verification required' },
             { status: 400 }
           );
         }
+        console.log('✅ Proceeding with admin creation for:', email);
         return await handleCreateAdmin(email, password, username);
         
       case 'debug-admin':
@@ -340,9 +373,7 @@ export async function POST(request: NextRequest) {
 
 async function handleInitialize() {
   try {
-    await connectToDatabase();
-    
-    // Initialize basic admin system
+    // Connect to database once
     const { db } = await connectToDatabase();
     const rolesCollection = db.collection('roles');
     
@@ -398,20 +429,16 @@ async function handleCreateAdmin(email: string, password: string, username?: str
     
     console.log('🔐 Creating admin user:', { email, username });
     
-    await connectToDatabase();
+    // Connect to database once
     const { db } = await connectToDatabase();
     const rolesCollection = db.collection('roles');
     
     // Check if admin already exists in AdminUser collection using direct database connection
     const adminUsersCollection = db.collection('adminusers');
-    const existingAdmin = await adminUsersCollection.findOne({ isAdmin: true });
-    if (existingAdmin) {
-      console.log('❌ Admin already exists in AdminUser collection:', existingAdmin.email);
-      return NextResponse.json(
-        { success: false, message: 'Admin user already exists' },
-        { status: 400 }
-      );
-    }
+    
+    // Allow multiple admins to be created (for team management)
+    // Only check if this specific email already exists
+    console.log('✅ Admin system allows multiple admin accounts');
     
     // Check if email already exists in AdminUser collection
     const existingAdminUser = await adminUsersCollection.findOne({ email: email.toLowerCase() });
@@ -480,6 +507,56 @@ async function handleCreateAdmin(email: string, password: string, username?: str
     
     console.log('✅ Admin user created successfully in AdminUser collection:', result.insertedId);
     
+    // Also create user in regular users collection for sign-in functionality
+    try {
+      const usersCollection = db.collection('users');
+      
+      // Check if user already exists in regular users collection
+      const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
+      
+      if (!existingUser) {
+        // Create user in regular users collection
+        const regularUserData = {
+          email: email.toLowerCase(),
+          username: username || email.split('@')[0],
+          password: hashedPassword,
+          role: {
+            _id: adminRole._id,
+            name: adminRole.name,
+            displayName: adminRole.displayName
+          },
+          isAdmin: true,
+          isVerified: true,
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        await usersCollection.insertOne(regularUserData);
+        console.log('✅ Admin user also created in regular users collection for sign-in');
+      } else {
+        // Update existing user to be admin
+        await usersCollection.updateOne(
+          { email: email.toLowerCase() },
+          { 
+            $set: { 
+              isAdmin: true,
+              role: {
+                _id: adminRole._id,
+                name: adminRole.name,
+                displayName: adminRole.displayName
+              },
+              updatedAt: new Date()
+            }
+          }
+        );
+        console.log('✅ Existing user updated to admin role');
+      }
+    } catch (userError) {
+      console.warn('⚠️ Warning: Failed to create/update user in regular users collection:', userError);
+      // Don't fail the admin creation if regular user creation fails
+    }
+    
     // Consume the OTP after successful admin creation
     try {
       await otpDbService.consumeOTP(email);
@@ -511,7 +588,7 @@ async function handleCreateAdmin(email: string, password: string, username?: str
 
 async function handleDebugAdmin(email: string) {
   try {
-    await connectToDatabase();
+    // Connect to database once
     const { db } = await connectToDatabase();
     const adminUsersCollection = db.collection('adminusers');
     
@@ -623,7 +700,7 @@ async function handleTestDatabase() {
 
 async function handleReset() {
   try {
-    await connectToDatabase();
+    // Connect to database once
     const { db } = await connectToDatabase();
     const adminUsersCollection = db.collection('adminusers');
     

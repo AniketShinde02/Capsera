@@ -19,7 +19,8 @@ import {
   Zap,
   Menu,
   X,
-  TrendingUp
+  TrendingUp,
+  Wrench
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -125,6 +126,12 @@ const adminNavItems = [
     href: '/admin/system-lock',
     icon: Lock,
     description: 'Manage system lock PIN and security settings'
+  },
+  {
+    title: 'Maintenance Mode',
+    href: '/admin/maintenance',
+    icon: Wrench,
+    description: 'Control site maintenance mode and access'
   }
 ];
 

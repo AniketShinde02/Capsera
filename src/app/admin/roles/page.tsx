@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,9 @@ import {
   CheckCircle,
   XCircle,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -106,33 +108,35 @@ const AVAILABLE_ACTIONS = [
 ];
 
 export default function RolesPage() {
-  const { toast } = useToast();
-  const [roles, setRoles] = useState<Role[]>([]);
+  const { data: session } = useSession();
+  const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
-  // Enhanced role creation form with auto user creation
+  const [editingRole, setEditingRole] = useState<any>(null);
   const [createForm, setCreateForm] = useState({
     name: '',
     displayName: '',
     description: '',
-    permissions: [] as Array<{ resource: string; actions: string[] }>,
+    permissions: [] as any[],
     isSystem: false,
     isActive: true,
-    // Auto user creation fields
     autoCreateUsers: false,
-    usersToCreate: [] as Array<{
-      email: string;
-      username: string;
-      firstName?: string;
-      lastName?: string;
-      phone?: string;
-      department?: string;
-    }>,
+    usersToCreate: [] as any[],
     sendEmailNotifications: true
   });
+  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set());
+  const [bulkImportText, setBulkImportText] = useState('');
+
+  // Plain text notification system
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
 
   // User creation form state
   const [userForm, setUserForm] = useState({
@@ -171,8 +175,6 @@ export default function RolesPage() {
   };
 
   // Bulk import users from CSV/text
-  const [bulkImportText, setBulkImportText] = useState('');
-  
   const importBulkUsers = () => {
     if (!bulkImportText.trim()) return;
     
@@ -199,10 +201,7 @@ export default function RolesPage() {
         usersToCreate: [...prev.usersToCreate, ...users]
       }));
       setBulkImportText('');
-      toast({
-        title: "Users Imported",
-        description: `${users.length} users added to creation list`,
-      });
+      showNotification("Users Imported", "success");
     }
   };
 
@@ -230,11 +229,7 @@ export default function RolesPage() {
 
   const handleQuickCreate = async () => {
     if (!quickCreateForm.email || !quickCreateForm.username || !quickCreateForm.tier) {
-      toast({
-        title: "Validation Error",
-        description: "Email, Username, and Tier are required for quick create.",
-        variant: "destructive"
-      });
+      showNotification("Email, Username, and Tier are required for quick create.", "error");
       return;
     }
 
@@ -263,11 +258,7 @@ export default function RolesPage() {
 
   const handleQuickDelete = async () => {
     if (!quickDeleteForm.identifier || quickDeleteForm.confirm !== 'yes') {
-      toast({
-        title: "Validation Error",
-        description: "Please confirm deletion by selecting 'Yes, delete immediately'.",
-        variant: "destructive"
-      });
+      showNotification("Please confirm deletion by selecting 'Yes, delete immediately'.", "error");
       return;
     }
 
@@ -296,11 +287,7 @@ export default function RolesPage() {
 
   const handleBulkOperation = async () => {
     if (!bulkTierForm.emails.trim() || !bulkTierForm.operation) {
-      toast({
-        title: "Validation Error",
-        description: "Emails and operation are required for bulk operations.",
-        variant: "destructive"
-      });
+      showNotification("Emails and operation are required for bulk operations.", "error");
       return;
     }
 
@@ -400,7 +387,7 @@ export default function RolesPage() {
         if (permission.resource === resourceKey) {
           const newActions = checked
             ? [...permission.actions, actionKey]
-            : permission.actions.filter(action => action !== actionKey);
+            : permission.actions.filter((action: string) => action !== actionKey);
           return { ...permission, actions: newActions };
         }
         return permission;
@@ -436,44 +423,28 @@ export default function RolesPage() {
   const handleCreateRole = async () => {
     // Validate form
     if (!createForm.name.trim() || !createForm.displayName.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Role name and display name are required",
-        variant: "destructive"
-      });
+      showNotification("Role name and display name are required", "error");
       return;
     }
 
     // Validate role name format (allow more characters, just no spaces)
     const roleNameRegex = /^[a-zA-Z0-9_-]+$/;
     if (!roleNameRegex.test(createForm.name.trim())) {
-      toast({
-        title: "Validation Error",
-        description: "Role name can contain letters, numbers, hyphens, and underscores. No spaces allowed.",
-        variant: "destructive"
-      });
+      showNotification("Role name can contain letters, numbers, hyphens, and underscores. No spaces allowed.", "error");
       return;
     }
 
     // Check if role name already exists
     const existingRole = roles.find(role => role.name === createForm.name.trim());
     if (existingRole) {
-      toast({
-        title: "Validation Error",
-        description: "A role with this name already exists",
-        variant: "destructive"
-      });
+      showNotification("A role with this name already exists", "error");
       return;
     }
 
     // Check if at least one permission is selected
     const hasPermissions = createForm.permissions.some(p => p.actions.length > 0);
     if (!hasPermissions) {
-      toast({
-        title: "Validation Error",
-        description: "Please select at least one permission",
-        variant: "destructive"
-      });
+      showNotification("Please select at least one permission", "error");
       return;
     }
 
@@ -497,27 +468,16 @@ export default function RolesPage() {
         setShowCreateModal(false);
                  setCreateForm({ name: '', displayName: '', description: '', permissions: [], isSystem: false, isActive: true, autoCreateUsers: false, usersToCreate: [], sendEmailNotifications: true });
         setExpandedResources(new Set());
-        toast({
-          title: "Success",
-          description: "Role created successfully",
-        });
+        showNotification("Role created successfully", "success");
         // Refresh the roles list to show the new role
         fetchRoles();
       } else {
         const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: `Failed to create role: ${errorData.error}`,
-          variant: "destructive"
-        });
+        showNotification(`Failed to create role: ${errorData.error}`, "error");
       }
     } catch (error) {
       console.error('Error creating role:', error);
-      toast({
-        title: "Error",
-        description: "Error creating role",
-        variant: "destructive"
-      });
+      showNotification("Error creating role", "error");
     }
   };
 
@@ -546,37 +506,22 @@ export default function RolesPage() {
       if (response.ok) {
         setShowEditModal(false);
         setEditingRole(null);
-        toast({
-          title: "Success",
-          description: "Role updated successfully",
-        });
+        showNotification("Role updated successfully", "success");
         // Refresh the roles list to show updated data
         fetchRoles();
       } else {
         const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: `Failed to update role: ${errorData.error}`,
-          variant: "destructive"
-        });
+        showNotification(`Failed to update role: ${errorData.error}`, "error");
       }
     } catch (error) {
       console.error('Error updating role:', error);
-      toast({
-        title: "Error",
-        description: "Error updating role",
-        variant: "destructive"
-      });
+      showNotification("Error updating role", "error");
     }
   };
 
   const handleDeleteRole = async (role: Role) => {
     if (role.isSystem) {
-      toast({
-        title: "Cannot Delete",
-        description: "System roles cannot be deleted",
-        variant: "destructive"
-      });
+      showNotification("System roles cannot be deleted", "error");
       return;
     }
 
@@ -588,27 +533,16 @@ export default function RolesPage() {
         });
 
         if (response.ok) {
-          toast({
-            title: "Success",
-            description: "Role deleted successfully",
-          });
+          showNotification("Role deleted successfully", "success");
           // Refresh the roles list to show updated data
           fetchRoles();
         } else {
           const errorData = await response.json();
-          toast({
-            title: "Error",
-            description: `Failed to delete role: ${errorData.error}`,
-            variant: "destructive"
-          });
+          showNotification(`Failed to delete role: ${errorData.error}`, "error");
         }
       } catch (error) {
         console.error('Error deleting role:', error);
-        toast({
-          title: "Error",
-          description: "Error deleting role",
-          variant: "destructive"
-        });
+        showNotification("Error deleting role", "error");
       }
     }
   };
@@ -629,7 +563,7 @@ export default function RolesPage() {
   const activeRoles = roles.filter(role => role.isActive).length;
   const systemRoles = roles.filter(role => role.isSystem).length;
   const totalPermissions = roles.reduce((sum, role) => {
-    return sum + role.permissions.reduce((permSum, perm) => permSum + (perm.actions?.length || 0), 0);
+    return sum + role.permissions.reduce((permSum: number, perm: any) => permSum + (perm.actions?.length || 0), 0);
   }, 0);
 
   return (
@@ -658,6 +592,24 @@ export default function RolesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Tier Management */}
       <Card className="border-border bg-card">
@@ -914,7 +866,7 @@ export default function RolesPage() {
                           <span className="text-sm text-muted-foreground">No permissions</span>
                         ) : (
                           <div className="space-y-2">
-                            {role.permissions.map((permission, index) => {
+                            {role.permissions.map((permission: any, index: number) => {
                               // Defensive programming: ensure permission has the expected structure
                               if (!permission || typeof permission !== 'object') {
                                 return (
@@ -942,7 +894,7 @@ export default function RolesPage() {
                                     {resourceInfo?.label || resource}
                                   </div>
                                   <div className="flex flex-wrap gap-1">
-                                    {actions.map(action => (
+                                    {actions.map((action: string) => (
                                       <Badge key={action} variant="secondary" className="text-xs">
                                         {AVAILABLE_ACTIONS.find(a => a.key === action)?.label || action}
                                       </Badge>
@@ -1282,13 +1234,13 @@ export default function RolesPage() {
                   
                   return (
                     <div className="space-y-2">
-                      {selectedPermissions.map(permission => {
+                      {selectedPermissions.map((permission: any) => {
                         const resource = AVAILABLE_RESOURCES.find(r => r.key === permission.resource);
                         return (
                           <div key={permission.resource} className="flex items-center justify-between">
                             <span className="text-xs font-medium">{resource?.label || permission.resource}</span>
                             <div className="flex gap-1">
-                              {permission.actions.map(action => (
+                              {permission.actions.map((action: string) => (
                                 <Badge key={action} variant="secondary" className="text-xs">
                                   {AVAILABLE_ACTIONS.find(a => a.key === action)?.label || action}
                                 </Badge>
@@ -1327,7 +1279,7 @@ export default function RolesPage() {
                 <Input
                   id="edit-display-name"
                   value={editingRole.displayName}
-                  onChange={(e) => setEditingRole(prev => prev ? { ...prev, displayName: e.target.value } : null)}
+                  onChange={(e) => setEditingRole((prev: any) => prev ? { ...prev, displayName: e.target.value } : null)}
                   className="mt-1 h-9"
                 />
               </div>
@@ -1336,7 +1288,7 @@ export default function RolesPage() {
                 <Input
                   id="edit-description"
                   value={editingRole.description}
-                  onChange={(e) => setEditingRole(prev => prev ? { ...prev, description: e.target.value } : null)}
+                  onChange={(e) => setEditingRole((prev: any) => prev ? { ...prev, description: e.target.value } : null)}
                   className="mt-1 h-9"
                 />
               </div>
@@ -1351,7 +1303,7 @@ export default function RolesPage() {
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {AVAILABLE_RESOURCES.map(resource => {
-                      const rolePermission = editingRole.permissions.find(p => p.resource === resource.key);
+                      const rolePermission = editingRole.permissions.find((p: any) => p.resource === resource.key);
                       const hasActions = rolePermission && rolePermission.actions.length > 0;
                       
                       return (
@@ -1369,7 +1321,7 @@ export default function RolesPage() {
                           </div>
                           {hasActions ? (
                             <div className="flex flex-wrap gap-1">
-                              {rolePermission.actions.map(action => (
+                              {rolePermission.actions.map((action: string) => (
                                 <Badge key={action} variant="secondary" className="text-xs">
                                   {AVAILABLE_ACTIONS.find(a => a.key === action)?.label || action}
                                 </Badge>

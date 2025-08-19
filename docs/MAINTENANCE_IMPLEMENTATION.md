@@ -30,6 +30,281 @@ npm run maintenance:check
 
 ---
 
+## 🔧 **Maintenance Mode System Implementation**
+
+### **Overview**
+The maintenance mode system provides complete site-wide protection when enabled, while preserving admin access for system management. This section covers the complete implementation details.
+
+### **System Architecture**
+
+#### **Components Implemented:**
+1. **Maintenance API** (`/api/maintenance`): Controls maintenance state
+2. **Maintenance Check Components**: Enforce maintenance mode across all pages
+3. **Server-Side Functions**: Handle server component redirects
+4. **Client-Side Logic**: Handle client component redirects
+5. **Admin Bypass**: Exclude admin pages from maintenance checks
+
+#### **Database Structure:**
+```json
+{
+  "key": "maintenance_mode",
+  "value": {
+    "enabled": true/false,
+    "message": "Custom maintenance message",
+    "estimatedTime": "Time estimate (e.g., '2 hours')",
+    "allowedIPs": ["127.0.0.1", "192.168.1.1"],
+    "allowedEmails": ["admin@example.com"],
+    "updatedAt": "2025-08-19T10:59:37.328Z"
+  }
+}
+```
+
+### **Implementation Steps**
+
+#### **Step 1: Create Server-Side Maintenance Functions**
+```typescript
+// src/lib/server-maintenance-check.ts
+import { redirect } from 'next/navigation';
+import { connectToDatabase } from './db';
+
+export async function checkMaintenanceMode() {
+  try {
+    const { db } = await connectToDatabase();
+    
+    const maintenanceDoc = await db.collection('system_settings').findOne({ 
+      key: 'maintenance_mode' 
+    });
+    
+    if (maintenanceDoc && maintenanceDoc.value && maintenanceDoc.value.enabled) {
+      console.log('🔧 Server: Maintenance mode is enabled, redirecting to maintenance page');
+      redirect('/maintenance');
+    }
+  } catch (error) {
+    console.error('❌ Server: Error checking maintenance status:', error);
+  }
+}
+
+export async function isMaintenanceModeEnabled(): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase();
+    
+    const maintenanceDoc = await db.collection('system_settings').findOne({ 
+      key: 'maintenance_mode' 
+    });
+    
+    return !!(maintenanceDoc && maintenanceDoc.value && maintenanceDoc.value.enabled);
+  } catch (error) {
+    console.error('❌ Server: Error checking maintenance status:', error);
+    return false;
+  }
+}
+```
+
+#### **Step 2: Create Layout-Level Maintenance Check Component**
+```typescript
+// src/components/maintenance-check.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+
+interface MaintenanceStatus {
+  enabled: boolean;
+  message: string;
+  estimatedTime: string;
+  allowedIPs: string[];
+  allowedEmails: string[];
+}
+
+export default function MaintenanceCheck() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // Skip maintenance check for certain pages to avoid infinite loops
+    if (pathname === '/maintenance' || 
+        pathname.startsWith('/api/') || 
+        pathname.startsWith('/admin/')) {
+      setIsLoading(false);
+      return;
+    }
+
+    checkMaintenanceStatus();
+  }, [pathname]);
+
+  const checkMaintenanceStatus = async () => {
+    try {
+      const response = await fetch('/api/maintenance');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMaintenanceStatus(data.status);
+        
+        // If maintenance mode is enabled, redirect to maintenance page
+        if (data.status.enabled) {
+          router.push('/maintenance');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking maintenance status:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Don't render anything - this component just handles redirects
+  return null;
+}
+```
+
+#### **Step 3: Add Maintenance Check to Root Layout**
+```typescript
+// src/app/layout.tsx
+import MaintenanceCheck from '@/components/maintenance-check';
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>
+          <MaintenanceCheck />  {/* Add this line */}
+          <ServerHeader />
+          <main className="flex-grow w-full overflow-x-hidden">
+            {children}
+          </main>
+          <Footer />
+          <AuthModal />
+          <Toaster />
+        </Providers>
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  );
+}
+```
+
+#### **Step 4: Integrate with Server Components**
+```typescript
+// src/app/features/page.tsx
+import { checkMaintenanceMode } from '@/lib/server-maintenance-check';
+
+export default async function FeaturesPage() {
+  // Check maintenance mode before rendering the page
+  await checkMaintenanceMode();
+  
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Page content */}
+    </div>
+  );
+}
+```
+
+#### **Step 5: Integrate with Client Components**
+```typescript
+// src/app/contact/page.tsx
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function ContactPage() {
+  const router = useRouter();
+
+  // Maintenance check
+  useEffect(() => {
+    checkMaintenanceStatus();
+  }, []);
+
+  const checkMaintenanceStatus = async () => {
+    try {
+      const response = await fetch('/api/maintenance');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status.enabled) {
+          router.push('/maintenance');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking maintenance status:', error);
+    }
+  };
+
+  return (
+    <div>
+      {/* Page content */}
+    </div>
+  );
+}
+```
+
+### **Testing the Implementation**
+
+#### **Test Commands:**
+```bash
+# 1. Enable maintenance mode
+curl -X POST http://localhost:3000/api/maintenance \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "message": "System maintenance in progress",
+    "estimatedTime": "2 hours",
+    "allowedIPs": ["127.0.0.1"],
+    "allowedEmails": ["admin@test.com"]
+  }'
+
+# 2. Test public page access (should redirect)
+curl -L http://localhost:3000/features
+
+# 3. Test admin page access (should work)
+curl http://localhost:3000/admin/maintenance
+
+# 4. Disable maintenance mode
+curl -X POST http://localhost:3000/api/maintenance \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": false,
+    "message": "Maintenance complete",
+    "estimatedTime": "0",
+    "allowedIPs": [],
+    "allowedEmails": []
+  }'
+
+# 5. Verify normal access restored
+curl http://localhost:3000/features
+```
+
+#### **Expected Results:**
+- **Maintenance Enabled**: All public pages redirect to `/maintenance`
+- **Admin Access**: Admin pages remain accessible
+- **Maintenance Disabled**: All pages accessible normally
+- **No Infinite Loops**: Maintenance page excluded from checks
+
+### **Troubleshooting Common Issues**
+
+#### **Issue: Pages Not Redirecting**
+**Solution**: Check that maintenance check components are properly imported and rendered
+
+#### **Issue: Admin Pages Also Redirecting**
+**Solution**: Verify admin bypass logic in maintenance check components
+
+#### **Issue: Infinite Redirects**
+**Solution**: Ensure `/maintenance` page is excluded from maintenance checks
+
+#### **Issue: Database Connection Errors**
+**Solution**: Check MongoDB connection and `system_settings` collection
+
+---
+
 ## 🎯 1. Update Feature Changelog with Each New Release
 
 ### **When to Do This**

@@ -13,6 +13,7 @@ import { Providers } from '@/components/providers'
 import { AuthModal } from '@/components/auth-modal'
 import ServerHeader from '@/components/server-header'
 import Footer from '@/components/footer'
+import MaintenanceCheck from '@/components/maintenance-check'
 
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
     default: 'Capsera - AI-Powered Instagram Caption Generator',
     template: '%s | Capsera'
   },
-  description: 'Generate engaging, viral Instagram captions with AI. Create perfect captions for any mood, style, or image. Free to use, no signup required for basic generation.',
+  description: 'Generate engaging, viral Social Media captions with AI. Create perfect captions for any mood, style, or image. Free to use, no signup required for basic generation.',
   keywords: ['Instagram captions', 'AI caption generator', 'social media captions', 'viral captions', 'caption writing', 'social media marketing'],
   authors: [{ name: 'Capsera Team' }],
   creator: 'Capsera',
@@ -52,13 +53,13 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://capsera.vercel.app'),
+  metadataBase: new URL(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://capsera.vercel.app'),
   alternates: {
     canonical: '/',
   },
   icons: {
     icon: [
-      { url: '/favicon-optimized.svg', type: 'image/svg+xml' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/favicon.ico' },
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
@@ -67,12 +68,12 @@ export const metadata: Metadata = {
     apple: [
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/favicon-optimized.svg',
+    shortcut: '/favicon.svg?v=2',
   },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-            url: 'https://capsera.vercel.app',
+            url: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://capsera.vercel.app',
     title: 'Capsera - AI-Powered Instagram Caption Generator',
     description: 'Generate engaging, viral Instagram captions with AI. Create perfect captions for any mood, style, or image.',
             siteName: 'Capsera',
@@ -122,7 +123,7 @@ const structuredData = {
   "@type": "WebApplication",
   "name": "Capsera",
   "description": "AI-powered Instagram caption generator that creates engaging, viral captions for any mood or image",
-          "url": "https://capsera.vercel.app",
+          "url": process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://capsera.vercel.app",
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "Web Browser",
   "offers": {
@@ -133,7 +134,7 @@ const structuredData = {
   "creator": {
     "@type": "Organization",
     "name": "Capsera",
-              "url": "https://capsera.vercel.app"
+              "url": process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://capsera.vercel.app"
   },
   "featureList": [
     "AI-powered caption generation",
@@ -166,6 +167,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${poppins.variable} font-sans antialiased min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden`} style={satoshi.style}>
         <Providers>
+          <MaintenanceCheck />
           <ServerHeader />
           <main className="flex-grow w-full overflow-x-hidden">
             {children}

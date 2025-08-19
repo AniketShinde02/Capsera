@@ -24,12 +24,18 @@ class SimpleRateLimiter {
         const User = (await import('@/models/User')).default;
         const user = await User.findById(userId);
         if (user?.isAdmin) {
-          console.log(`👑 Admin user ${userId} - bypassing simple rate limits`);
+          console.log(`👑 Admin user ${userId} (${user.email}) - bypassing rate limits completely`);
           return false; // Admin users are never rate limited
+        } else {
+          console.log(`👤 Regular user ${userId} - applying rate limits`);
         }
       } catch (error) {
         console.error('Error checking admin status:', error);
+        // If we can't determine admin status, apply rate limits for safety
+        console.log(`⚠️ Could not determine admin status for ${userId}, applying rate limits`);
       }
+    } else {
+      console.log(`🌐 Anonymous user (IP: ${ip}) - applying rate limits`);
     }
 
     const now = Date.now();
@@ -112,6 +118,18 @@ class SimpleRateLimiter {
   // Reset all rate limits (useful for testing)
   public resetAll() {
     this.limits.clear();
+  }
+
+  // Helper function to check if user is admin
+  private async checkIfUserIsAdmin(userId: string): Promise<boolean> {
+    try {
+      const User = (await import('@/models/User')).default;
+      const user = await User.findById(userId);
+      return user?.isAdmin === true;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false; // Default to false for safety
+    }
   }
 }
 

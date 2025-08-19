@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Facebook, Instagram, Mail, MapPin, Twitter, Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ interface FormErrors {
 }
 
 export default function ContactPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -36,6 +38,26 @@ export default function ContactPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
+
+  // Maintenance check
+  useEffect(() => {
+    checkMaintenanceStatus();
+  }, []);
+
+  const checkMaintenanceStatus = async () => {
+    try {
+      const response = await fetch('/api/maintenance');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status.enabled) {
+          router.push('/maintenance');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking maintenance status:', error);
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};

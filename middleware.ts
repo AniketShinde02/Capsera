@@ -1,50 +1,25 @@
-import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export default withAuth(
-  function middleware(req) {
-    const { pathname } = req.nextUrl;
-    
-    // Always allow setup page to pass through
-    if (pathname === '/admin/setup') {
-      return NextResponse.next();
-    }
-
-    // For all other routes, let NextAuth handle authentication
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const { pathname } = req.nextUrl;
-        
-        // Always allow setup page
-        if (pathname === '/admin/setup') {
-          return true;
-        }
-        
-        // ONLY protect admin routes - allow all other routes to pass through
-        if (pathname.startsWith('/admin')) {
-          return !!token;
-        }
-        
-        // Allow all other routes without authentication requirement
-        return true;
-      },
-    },
-    pages: { 
-      signIn: '/401',
-      error: '/401',
-    },
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  console.log(`🛡️ Middleware executing for path: ${pathname}`);
+  
+  // Simple test: redirect /test to /maintenance
+  if (pathname === '/test') {
+    console.log('🧪 Test redirect working!');
+    return NextResponse.redirect(new URL('/maintenance', request.url));
   }
-);
+  
+  // For all other routes, just continue
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
-    // ONLY protect admin routes - remove profile, settings, etc.
-    '/admin/:path*',
-    '/api/admin/:path*'
-  ]
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 };
 
 

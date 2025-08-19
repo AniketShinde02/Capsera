@@ -98,6 +98,96 @@ npm run migrate-password-security
 # Verify database exists and is accessible
 ```
 
+---
+
+## 🔧 **Maintenance Mode System Issues**
+
+### **10. "Maintenance mode not working" - Pages not redirecting**
+```bash
+# Check maintenance mode status
+curl http://localhost:3000/api/maintenance
+
+# Verify maintenance check components are imported
+# Check browser console for JavaScript errors
+# Ensure maintenance check is in root layout
+```
+
+#### **Common Causes & Solutions:**
+- **Component not rendering**: Verify `MaintenanceCheck` is in `src/app/layout.tsx`
+- **API errors**: Check MongoDB connection and `system_settings` collection
+- **Client-side issues**: Clear browser cache and refresh page
+- **Build errors**: Restart development server and check console
+
+### **11. "Infinite redirects" - Page keeps redirecting to maintenance**
+```bash
+# Check if maintenance page is excluded from checks
+# Verify pathname exclusions in maintenance check component
+# Check browser network tab for redirect loops
+```
+
+#### **Solution:**
+```typescript
+// Ensure these paths are excluded in maintenance check
+if (pathname === '/maintenance' || 
+    pathname.startsWith('/api/') || 
+    pathname.startsWith('/admin/')) {
+  return; // Skip maintenance check
+}
+```
+
+### **12. "Admin pages also redirecting" - Can't access admin during maintenance**
+```bash
+# Verify admin bypass logic is working
+# Check if admin pages are properly excluded
+# Test admin access to /admin/maintenance
+```
+
+#### **Solution:**
+```typescript
+// Ensure admin paths are excluded
+if (pathname.startsWith('/admin/')) {
+  setIsLoading(false);
+  return; // Skip maintenance check for admin pages
+}
+```
+
+### **13. "Maintenance toggle not working" - Can't enable/disable maintenance**
+```bash
+# Check admin authentication
+# Verify admin user has proper permissions
+# Check browser console for API errors
+# Test API endpoint directly
+```
+
+#### **Test Commands:**
+```bash
+# Enable maintenance mode
+curl -X POST http://localhost:3000/api/maintenance \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true, "message": "Testing", "estimatedTime": "1 hour"}'
+
+# Check status
+curl http://localhost:3000/api/maintenance
+
+# Disable maintenance mode
+curl -X POST http://localhost:3000/api/maintenance \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false, "message": "Complete", "estimatedTime": "0"}'
+```
+
+### **14. "Maintenance page not loading" - Error or blank page**
+```bash
+# Check if /maintenance route exists
+# Verify maintenance page component is working
+# Check for JavaScript errors in console
+# Test maintenance page directly
+```
+
+#### **Solution:**
+- Ensure `/app/maintenance/page.tsx` exists and is properly configured
+- Check for component errors or missing dependencies
+- Verify the page is not being caught by maintenance checks
+
 ## 🚀 **Production Issues**
 
 ### **10. Vercel Deployment Problems**

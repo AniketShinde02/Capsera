@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Archive, 
@@ -17,9 +18,10 @@ import {
   User,
   Calendar,
   HardDrive,
-  AlertTriangle
+  AlertTriangle,
+  Info,
+  CheckCircle
 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
 
 interface ArchiveStats {
   totalArchived: number;
@@ -61,6 +63,7 @@ interface ArchivedImage {
 }
 
 export default function AdminArchivesPage() {
+  const { data: session } = useSession();
   const [stats, setStats] = useState<ArchiveStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -73,7 +76,12 @@ export default function AdminArchivesPage() {
   const [selectedImage, setSelectedImage] = useState<ArchivedImage | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
-  const { toast } = useToast();
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
 
   // Fetch archive statistics
   const fetchStats = async () => {
@@ -85,19 +93,11 @@ export default function AdminArchivesPage() {
       if (data.success) {
         setStats(data.stats);
       } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to fetch archive statistics",
-          variant: "destructive"
-        });
+        showNotification("Error", "error");
       }
     } catch (error) {
       console.error('Error fetching archive stats:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch archive statistics",
-        variant: "destructive"
-      });
+      showNotification("Failed to fetch archive statistics", "error");
     } finally {
       setLoading(false);
     }
@@ -123,26 +123,15 @@ export default function AdminArchivesPage() {
       const data = await response.json();
       
       if (data.success) {
-        toast({
-          title: "Success",
-          description: data.message,
-        });
+        showNotification("Success", "success");
         // Refresh stats after cleanup
         fetchStats();
       } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to cleanup old archives",
-          variant: "destructive"
-        });
+        showNotification("Error", "error");
       }
     } catch (error) {
       console.error('Error during cleanup:', error);
-      toast({
-        title: "Error",
-        description: "Failed to cleanup old archives",
-        variant: "destructive"
-      });
+      showNotification("Failed to cleanup old archives", "error");
     } finally {
       setCleanupLoading(false);
     }
@@ -165,30 +154,18 @@ export default function AdminArchivesPage() {
         console.log('✅ Set archived images:', data.archives?.length || 0);
       } else {
         console.error('❌ API Error:', data.error);
-        toast({
-          title: "Error",
-          description: data.error || "Failed to fetch archived images",
-          variant: "destructive"
-        });
+        showNotification("Failed to fetch archived images", "error");
       }
     } catch (error) {
       console.error('Error fetching archived images:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch archived images",
-        variant: "destructive"
-      });
+      showNotification("Failed to fetch archived images", "error");
     }
   };
 
   // Search user archives
   const handleSearchUserArchives = async () => {
     if (!searchUserId.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a user ID to search",
-        variant: "destructive"
-      });
+      showNotification("Please enter a user ID to search", "error");
       return;
     }
 
@@ -207,25 +184,14 @@ export default function AdminArchivesPage() {
       
       if (data.success) {
         setUserArchives(data.archives);
-        toast({
-          title: "Success",
-          description: `Found ${data.count} archived images for user ${searchUserId}`,
-        });
+        showNotification(`Found ${data.count} archived images for user ${searchUserId}`, "success");
       } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to fetch user archives",
-          variant: "destructive"
-        });
+        showNotification("Failed to fetch user archives", "error");
         setUserArchives([]);
       }
     } catch (error) {
       console.error('Error searching user archives:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch user archives",
-        variant: "destructive"
-      });
+      showNotification("Failed to fetch user archives", "error");
       setUserArchives([]);
     } finally {
       setSearchLoading(false);
@@ -260,28 +226,17 @@ export default function AdminArchivesPage() {
       const data = await response.json();
       
       if (data.success) {
-        toast({
-          title: "Success",
-          description: "Archived image permanently deleted",
-        });
+        showNotification("Archived image permanently deleted", "success");
         // Remove from local state
         setArchivedImages(prev => prev.filter(img => img.publicId !== image.publicId));
         // Refresh stats
         fetchStats();
       } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to delete archived image",
-          variant: "destructive"
-        });
+        showNotification("Failed to delete archived image", "error");
       }
     } catch (error) {
       console.error('Error deleting archived image:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete archived image",
-        variant: "destructive"
-      });
+      showNotification("Failed to delete archived image", "error");
     }
   };
 
@@ -305,28 +260,17 @@ export default function AdminArchivesPage() {
       const data = await response.json();
       
       if (data.success) {
-        toast({
-          title: "Success",
-          description: "Archived image restored successfully",
-        });
+        showNotification("Archived image restored successfully", "success");
         // Remove from local state
         setArchivedImages(prev => prev.filter(img => img.publicId !== image.publicId));
         // Refresh stats
         fetchStats();
       } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to restore archived image",
-          variant: "destructive"
-        });
+        showNotification("Failed to restore archived image", "error");
       }
     } catch (error) {
       console.error('Error restoring archived image:', error);
-      toast({
-        title: "Error",
-        description: "Failed to restore archived image",
-        variant: "destructive"
-      });
+      showNotification("Failed to restore archived image", "error");
     }
   };
 
@@ -360,6 +304,24 @@ export default function AdminArchivesPage() {
           Refresh
         </Button>
       </div>
+
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Archive Statistics */}
       <Card>

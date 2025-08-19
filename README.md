@@ -36,6 +36,33 @@ Capsera isn't just another caption generator – it's your **AI-powered creative
 - **🛡️ Robust Error Handling**: Graceful fallback for all failure scenarios
 - **🎨 Rich UI/UX**: Professional design with reduced eye strain and smooth animations
 - **👑 Admin Unlimited Access**: No generation limits for admin users
+- **🔧 Site-Wide Maintenance Mode**: Complete system protection with admin bypass capabilities
+
+---
+
+## 🔧 **Maintenance Mode System**
+
+Capsera includes a **comprehensive maintenance mode system** that provides complete site-wide protection when enabled, while preserving admin access for system management.
+
+### **🛡️ How It Works:**
+- **Complete Site Protection**: When enabled, ALL public pages redirect to a professional maintenance page
+- **Admin Access Preserved**: Admins can still access admin panels and manage the system
+- **Real-Time Control**: Toggle maintenance mode on/off instantly from the admin dashboard
+- **Customizable Messages**: Set custom maintenance messages and estimated completion times
+- **Database-Driven**: Maintenance state is stored in MongoDB for persistence across deployments
+
+### **🎯 Key Features:**
+- **Page-Level Enforcement**: Both server and client components check maintenance status
+- **Smart Redirects**: Users are immediately redirected to maintenance page
+- **Professional UI**: Beautiful maintenance page with system status and progress indicators
+- **IP Whitelisting**: Configure allowed IPs for emergency access during maintenance
+- **Email Notifications**: Alert specific users about maintenance status
+
+### **📱 Maintenance Page Features:**
+- **System Status Display**: Real-time maintenance information and progress
+- **Estimated Completion**: Show users when the system will be back online
+- **Professional Design**: Dark theme with animated system logs and status indicators
+- **Mobile Responsive**: Perfect experience across all devices
 
 ---
 
@@ -679,6 +706,30 @@ npm run setup-super-admin
 npm run test-super-admin
 ```
 
+### **🛡️ Enhanced Security Features**
+- **System Lock PIN**: Multi-layer security requiring PIN verification before admin setup
+- **OTP Verification**: One-time password sent to authorized email for additional security
+- **Dual Authentication**: PIN + OTP required for initial admin system access
+- **Secure Admin Creation**: After security verification, any email can create admin accounts
+- **Existing Admin Login**: Direct login option for users who already have admin credentials
+
+### **🔐 Admin Creation Flow**
+1. **System Verification**: Enter system security PIN
+2. **OTP Generation**: Generate OTP sent to authorized email
+3. **OTP Verification**: Verify the received OTP
+4. **Admin Choice**: Choose between creating new admin or logging in as existing admin
+5. **Account Creation**: Create admin account with any email (after security verification)
+6. **Dashboard Access**: Redirect to admin dashboard with full privileges
+
+### **👑 Admin System Capabilities**
+- **Unlimited Caption Generation**: No rate limits for admin users
+- **User Management**: Create, edit, delete, and manage user accounts
+- **Role Management**: Assign and manage user roles and permissions
+- **System Monitoring**: Real-time analytics and system health monitoring
+- **Content Moderation**: Moderate posts, images, and user content
+- **Data Recovery**: Restore deleted profiles and manage archives
+- **Performance Analytics**: Monitor system performance and usage statistics
+
 ---
 
 ## 🎯 **AI Caption Generation Features**
@@ -871,6 +922,7 @@ SMTP_FROM=your-from-email@domain.com
 - **docs/SETUP.md** - Detailed setup instructions
 - **docs/help.md** - User documentation & troubleshooting
 - **docs/ADMIN_SETUP.md** - Admin system setup guide
+- **docs/ENHANCED_ADMIN_SYSTEM.md** - PIN + OTP security system
 - **docs/API_DOCUMENTATION.md** - Complete API reference
 - **docs/TROUBLESHOOTING.md** - Comprehensive troubleshooting guide
 

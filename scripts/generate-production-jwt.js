@@ -17,7 +17,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 // JWT Secret - CHANGE THIS IN PRODUCTION!
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secure-jwt-secret-key-change-this-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET environment variable not set');
+  console.error('Please set JWT_SECRET in your environment before running this script');
+  process.exit(1);
+}
 
 function generateProductionJWT() {
   // Generate unique JWT ID
@@ -47,12 +52,9 @@ function main() {
   console.log('================================================');
   console.log('');
   
-  // Check if JWT_SECRET is default
-  if (JWT_SECRET === 'your-super-secure-jwt-secret-key-change-this-in-production') {
-    console.log('⚠️  WARNING: Using default JWT_SECRET!');
-    console.log('   Change this in production for security!');
-    console.log('');
-  }
+  // Security check passed - JWT_SECRET is properly configured
+  console.log('✅ JWT_SECRET environment variable is properly configured');
+  console.log('');
   
   // Generate JWT token
   const { token, payload, expiresAt } = generateProductionJWT();

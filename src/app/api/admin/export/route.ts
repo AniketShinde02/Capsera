@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { canManageAdmins } from '@/lib/init-admin';
 import { connectToDatabase } from '@/lib/db';
+import * as XLSX from 'xlsx';
+import PDFDocument from 'pdfkit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -198,13 +200,21 @@ export async function POST(request: NextRequest) {
         });
 
       case 'pdf':
-        const pdfData = await convertToPDF(reportData);
-        return new NextResponse(pdfData, {
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.pdf"`
-          }
-        });
+        try {
+          const pdfData = await convertToPDF(reportData);
+          return new NextResponse(pdfData, {
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.pdf"`
+            }
+          });
+        } catch (pdfError) {
+          console.error('PDF generation failed:', pdfError);
+          return NextResponse.json(
+            { error: 'Failed to generate PDF. Please try again or use a different format.' }, 
+            { status: 500 }
+          );
+        }
 
       case 'enhanced-json':
         // Enhanced JSON with better formatting and metadata
@@ -266,17 +276,207 @@ function convertToCSV(data: any): string {
 }
 
 async function convertToExcel(data: any): Promise<Buffer> {
-  // For now, return a simple Excel-like structure
-  // In production, you'd use a library like 'xlsx' or 'exceljs'
-  const csvData = convertToCSV(data);
-  return Buffer.from(csvData, 'utf-8');
+  const workbook = XLSX.utils.book_new();
+  
+  if (data.reportType === 'User Summary Report') {
+    const worksheet = XLSX.utils.json_to_sheet([{
+      'Report Type': data.reportType,
+      'Generated At': data.generatedAt,
+      'Total Users': data.summary.totalUsers,
+      'Regular Users': data.summary.regularUsers,
+      'Admin Users': data.summary.adminUsers,
+      'Active Users': data.summary.activeUsers,
+      'Inactive Users': data.summary.inactiveUsers
+    }]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'User Summary');
+  } else if (data.reportType === 'Role Summary Report') {
+    const worksheet = XLSX.utils.json_to_sheet(data.roles.map((role: any) => ({
+      'Role Name': role.roleName,
+      'Display Name': role.displayName,
+      'Total Users': role.totalUsers,
+      'Regular Users': role.regularUsers,
+      'Admin Users': role.adminUsers,
+      'Is System': role.isSystem ? 'Yes' : 'No',
+      'Is Active': role.isActive ? 'Yes' : 'No'
+    })));
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Role Summary');
+  } else if (data.reportType === 'System Status Report') {
+    const worksheet = XLSX.utils.json_to_sheet([{
+      'Report Type': data.reportType,
+      'Generated At': data.generatedAt,
+      'Database': data.systemStats.database,
+      'Total Users': data.systemStats.collections.users,
+      'Total Admin Users': data.systemStats.collections.adminusers,
+      'Total Roles': data.systemStats.collections.roles,
+      'Total Deleted Profiles': data.systemStats.collections.deletedprofiles,
+      'Last Backup': data.systemStats.lastBackup,
+      'System Load': `${data.systemStats.systemLoad}%`,
+      'Uptime': data.systemStats.uptime
+    }]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'System Status');
+  } else if (data.reportType === 'Comprehensive Dashboard Report') {
+    const worksheet = XLSX.utils.json_to_sheet([{
+      'Report Type': data.reportType,
+      'Generated At': data.generatedAt,
+      'Total Users': data.overview.totalUsers,
+      'Total Posts': data.overview.totalPosts,
+      'Total Images': data.overview.totalImages,
+      'System Status': data.overview.systemStatus,
+      'Users Collection': data.collections.users,
+      'Admin Users Collection': data.collections.adminusers,
+      'Roles Collection': data.collections.roles,
+      'Posts Collection': data.collections.posts,
+      'Contacts Collection': data.collections.contacts,
+      'Deleted Profiles Collection': data.collections.deletedprofiles
+    }]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Dashboard Overview');
+  } else if (data.reportType === 'Comprehensive Analytics Report') {
+    const worksheet = XLSX.utils.json_to_sheet([{
+      'Report Type': data.reportType,
+      'Generated At': data.generatedAt,
+      'Total Users': data.overview.totalUsers,
+      'Total Posts': data.overview.totalPosts,
+      'Total Images': data.overview.totalImages,
+      'New Users This Week': data.overview.newUsersThisWeek,
+      'New Posts This Week': data.overview.newPostsThisWeek,
+      'User Growth Rate': `${data.overview.userGrowthRate}%`,
+      'Post Growth Rate': `${data.overview.postGrowthRate}%`,
+      'Users Collection': data.collections.users,
+      'Admin Users Collection': data.collections.adminusers,
+      'Roles Collection': data.collections.roles,
+      'Posts Collection': data.collections.posts,
+      'Contacts Collection': data.collections.contacts,
+      'Deleted Profiles Collection': data.collections.deletedprofiles
+    }]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Analytics Overview');
+  }
+  
+  const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  return excelBuffer;
 }
 
 async function convertToPDF(data: any): Promise<Buffer> {
-  // For now, return a simple text-based PDF structure
-  // In production, you'd use a library like 'pdfkit' or 'puppeteer'
-  const textContent = formatForPDF(data);
-  return Buffer.from(textContent, 'utf-8');
+  return new Promise((resolve, reject) => {
+    try {
+      // Validate required data
+      if (!data || !data.reportType) {
+        throw new Error('Invalid report data provided');
+      }
+
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks: Buffer[] = [];
+      
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+      
+      // Add header
+      doc.fontSize(20).text('CAPSERA ADMIN REPORT', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(14).text(data.reportType || 'Unknown Report', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(10).text(`Generated: ${new Date(data.generatedAt || Date.now()).toLocaleString()}`, { align: 'center' });
+      doc.moveDown(2);
+      
+      // Add content based on report type
+      if (data.reportType === 'User Summary Report') {
+        doc.fontSize(16).text('USER SUMMARY', { underline: true });
+        doc.moveDown();
+        const summary = data.summary || {};
+        doc.fontSize(12).text(`Total Users: ${summary.totalUsers || 0}`);
+        doc.text(`Regular Users: ${summary.regularUsers || 0}`);
+        doc.text(`Admin Users: ${summary.adminUsers || 0}`);
+        doc.text(`Active Users: ${summary.activeUsers || 0}`);
+        doc.text(`Inactive Users: ${summary.inactiveUsers || 0}`);
+      } else if (data.reportType === 'Role Summary Report') {
+        doc.fontSize(16).text('ROLE SUMMARY', { underline: true });
+        doc.moveDown();
+        const roles = data.roles || [];
+        if (roles.length === 0) {
+          doc.fontSize(12).text('No roles found');
+        } else {
+          roles.forEach((role: any, index: number) => {
+            doc.fontSize(12).text(`Role ${index + 1}: ${role.roleName || 'Unknown'}`);
+            doc.fontSize(10).text(`Display Name: ${role.displayName || 'N/A'}`);
+            doc.text(`Total Users: ${role.totalUsers || 0}`);
+            doc.text(`Regular Users: ${role.regularUsers || 0}`);
+            doc.text(`Admin Users: ${role.adminUsers || 0}`);
+            doc.text(`System Role: ${role.isSystem ? 'Yes' : 'No'}`);
+            doc.text(`Active: ${role.isActive ? 'Yes' : 'No'}`);
+            if (index < roles.length - 1) doc.moveDown();
+          });
+        }
+      } else if (data.reportType === 'System Status Report') {
+        doc.fontSize(16).text('SYSTEM STATUS', { underline: true });
+        doc.moveDown();
+        const systemStats = data.systemStats || {};
+        const collections = systemStats.collections || {};
+        doc.fontSize(12).text(`Database: ${systemStats.database || 'Unknown'}`);
+        doc.text(`Total Users: ${collections.users || 0}`);
+        doc.text(`Total Admin Users: ${collections.adminusers || 0}`);
+        doc.text(`Total Roles: ${collections.roles || 0}`);
+        doc.text(`Total Deleted Profiles: ${collections.deletedprofiles || 0}`);
+        doc.text(`Last Backup: ${systemStats.lastBackup || 'Never'}`);
+        doc.text(`System Load: ${systemStats.systemLoad || 0}%`);
+        doc.text(`Uptime: ${systemStats.uptime || 'Unknown'}`);
+      } else if (data.reportType === 'Comprehensive Dashboard Report') {
+        doc.fontSize(16).text('DASHBOARD OVERVIEW', { underline: true });
+        doc.moveDown();
+        const overview = data.overview || {};
+        const collections = data.collections || {};
+        doc.fontSize(12).text(`Total Users: ${overview.totalUsers || 0}`);
+        doc.text(`Total Posts: ${overview.totalPosts || 0}`);
+        doc.text(`Total Images: ${overview.totalImages || 0}`);
+        doc.text(`System Status: ${overview.systemStatus || 'Unknown'}`);
+        doc.moveDown();
+        doc.fontSize(14).text('COLLECTION STATISTICS', { underline: true });
+        doc.fontSize(12).text(`Users Collection: ${collections.users || 0}`);
+        doc.text(`Admin Users Collection: ${collections.adminusers || 0}`);
+        doc.text(`Roles Collection: ${collections.roles || 0}`);
+        doc.text(`Posts Collection: ${collections.posts || 0}`);
+        doc.text(`Contacts Collection: ${collections.contacts || 0}`);
+        doc.text(`Deleted Profiles Collection: ${collections.deletedprofiles || 0}`);
+      } else if (data.reportType === 'Comprehensive Analytics Report') {
+        doc.fontSize(16).text('ANALYTICS OVERVIEW', { underline: true });
+        doc.moveDown();
+        const overview = data.overview || {};
+        const collections = data.collections || {};
+        doc.fontSize(12).text(`Total Users: ${overview.totalUsers || 0}`);
+        doc.text(`Total Posts: ${overview.totalPosts || 0}`);
+        doc.text(`Total Images: ${overview.totalImages || 0}`);
+        doc.text(`New Users This Week: ${overview.newUsersThisWeek || 0}`);
+        doc.text(`New Posts This Week: ${overview.newPostsThisWeek || 0}`);
+        doc.text(`User Growth Rate: ${overview.userGrowthRate || 0}%`);
+        doc.text(`Post Growth Rate: ${overview.postGrowthRate || 0}%`);
+        doc.moveDown();
+        doc.fontSize(14).text('COLLECTION STATISTICS', { underline: true });
+        doc.fontSize(12).text(`Users Collection: ${collections.users || 0}`);
+        doc.text(`Admin Users Collection: ${collections.adminusers || 0}`);
+        doc.text(`Roles Collection: ${collections.roles || 0}`);
+        doc.text(`Posts Collection: ${collections.posts || 0}`);
+        doc.text(`Contacts Collection: ${collections.contacts || 0}`);
+        doc.text(`Deleted Profiles Collection: ${collections.deletedprofiles || 0}`);
+      } else {
+        // Generic report for unknown types
+        doc.fontSize(16).text('REPORT DATA', { underline: true });
+        doc.moveDown();
+        doc.fontSize(12).text('Report Type: ' + (data.reportType || 'Unknown'));
+        doc.text('Generated: ' + new Date(data.generatedAt || Date.now()).toLocaleString());
+        doc.moveDown();
+        doc.fontSize(10).text('Raw Data:');
+        doc.text(JSON.stringify(data, null, 2));
+      }
+      
+      // Add footer
+      doc.moveDown(3);
+      doc.fontSize(8).text('Capsera Admin System - Generated Report', { align: 'center' });
+      
+      doc.end();
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      reject(new Error(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+    }
+  });
 }
 
 function formatForPDF(data: any): string {

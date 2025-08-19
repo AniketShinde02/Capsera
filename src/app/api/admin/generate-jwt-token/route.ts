@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase } from '@/lib/db';
 
-// JWT secret - in production, this should be a secure secret
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secure-jwt-secret-key-change-this-in-production';
-
 export async function POST(request: NextRequest) {
   try {
+    // JWT secret - in production, this should be a secure secret
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      return NextResponse.json({ 
+        error: 'JWT_SECRET environment variable not configured' 
+      }, { status: 500 });
+    }
     // Check if admin system is already set up
     const { db } = await connectToDatabase();
     const adminExists = await db.collection('users').countDocuments({ isAdmin: true });

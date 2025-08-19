@@ -99,6 +99,99 @@ Validate reset token before showing form.
 - `token` - Reset token
 - `email` - User email
 
+---
+
+### **3. Maintenance Mode Endpoints**
+
+#### **GET /api/maintenance**
+Get current maintenance mode status.
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": {
+    "enabled": true,
+    "message": "System maintenance in progress",
+    "estimatedTime": "2 hours",
+    "allowedIPs": ["127.0.0.1", "192.168.1.1"],
+    "allowedEmails": ["admin@example.com"],
+    "updatedAt": "2025-08-19T10:59:37.328Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Maintenance status retrieved successfully
+- `500` - Server error
+
+#### **POST /api/maintenance**
+Enable or disable maintenance mode.
+
+**Request Body:**
+```json
+{
+  "enabled": true,
+  "message": "System maintenance in progress",
+  "estimatedTime": "2 hours",
+  "allowedIPs": ["127.0.0.1", "192.168.1.1"],
+  "allowedEmails": ["admin@example.com"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Maintenance mode enabled",
+  "status": {
+    "enabled": true,
+    "message": "System maintenance in progress",
+    "estimatedTime": "2 hours",
+    "allowedIPs": ["127.0.0.1", "192.168.1.1"],
+    "allowedEmails": ["admin@example.com"],
+    "updatedAt": "2025-08-19T10:59:37.328Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Maintenance mode updated successfully
+- `400` - Invalid request body
+- `401` - Unauthorized (admin access required)
+- `500` - Server error
+
+#### **POST /api/maintenance/emergency-access**
+Emergency access control during maintenance.
+
+**Request Body:**
+```json
+{
+  "email": "admin@example.com",
+  "ipAddress": "192.168.1.100"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "access": true,
+  "message": "Emergency access granted"
+}
+```
+
+**Status Codes:**
+- `200` - Emergency access granted
+- `403` - Access denied
+- `400` - Invalid request
+- `500` - Server error
+
+**Notes:**
+- Only works when maintenance mode is enabled
+- Requires valid email and IP address in allowed lists
+- Used for emergency system access during maintenance
+
 **Response:**
 ```json
 {
@@ -107,7 +200,7 @@ Validate reset token before showing form.
 }
 ```
 
-### **2. Caption Generation Endpoints**
+### **4. Caption Generation Endpoints**
 
 #### **POST /api/generate-captions**
 Generate AI-powered captions from image.
@@ -158,7 +251,7 @@ mood: [string] - Caption mood/style
 - 🏛️ Classic / Timeless
 - 🎨 Minimalist / Simple
 
-### **3. User Management Endpoints**
+### **5. User Management Endpoints**
 
 #### **GET /api/user**
 Get current user profile.
@@ -217,7 +310,7 @@ Delete user account.
 }
 ```
 
-### **4. Content Management Endpoints**
+### **6. Content Management Endpoints**
 
 #### **GET /api/posts**
 Get user's generated captions.
@@ -248,7 +341,7 @@ Delete a specific caption post.
 }
 ```
 
-### **5. Rate Limiting Endpoints**
+### **7. Rate Limiting Endpoints**
 
 #### **GET /api/rate-limit-info**
 Get current rate limit status.

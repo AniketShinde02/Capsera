@@ -2,8 +2,11 @@ import { Sparkles,Users, Zap, Heart} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
+import { checkMaintenanceMode } from '@/lib/server-maintenance-check';
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  // Check maintenance mode before rendering the page
+  await checkMaintenanceMode();
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
       <main className="flex-grow">

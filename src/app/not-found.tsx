@@ -1,135 +1,128 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+'use client';
+
+import { Search, Home, ArrowLeft, MapPin } from 'lucide-react';
 import Link from 'next/link';
-import { 
-  Home, ArrowLeft, Bot, Sparkles, 
-   BookOpen, HelpCircle 
-} from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="max-w-2xl mx-auto text-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-bounce"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-bounce animation-delay-1000"></div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 max-w-2xl mx-auto text-center">
         {/* 404 Icon */}
-        <div className="mb-8">
-          <div className="relative inline-block">
-            <div className="text-8xl md:text-9xl font-extrabold text-primary/20 select-none">
-              404
-            </div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="p-4 rounded-full bg-primary/10 border-2 border-primary/20">
-                <Bot className="w-12 h-12 text-primary" />
-              </div>
-            </div>
-          </div>
+        <div className="inline-flex items-center justify-center w-32 h-32 bg-blue-100 rounded-full mb-8 shadow-2xl">
+          <Search className="w-16 h-16 text-blue-600" />
         </div>
 
-        {/* Main Content */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
-            Oops! Page Not Found
-          </h1>
-          <p className="text-lg text-muted-foreground mb-2">
-            It looks like the page you're looking for doesn't exist or has been moved.
+        {/* 404 Title */}
+        <h1 className="text-6xl md:text-8xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent mb-6">
+          404
+        </h1>
+
+        {/* Subtitle */}
+        <h2 className="text-2xl md:text-4xl font-bold text-white mb-6">
+          Page Not Found
+        </h2>
+
+        {/* Message */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 p-6 mb-8">
+          <p className="text-lg text-gray-300 mb-4">
+            The page you're looking for doesn't exist or has been moved.
           </p>
-          <p className="text-muted-foreground">
-            Don't worry though - our AI is still here to help you create amazing captions!
+          <p className="text-gray-400">
+            Don't worry, you can always find your way back to our amazing content!
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <Button size="lg" asChild className="bg-primary hover:bg-primary/90">
-            <Link href="/">
-              <Home className="w-5 h-5 mr-2" />
-              Back to Home
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="javascript:history.back()">
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Go Back
-            </Link>
-          </Button>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <Link
+            href="/"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
+          >
+            <Home className="w-5 h-5 mr-2" />
+            Go Home
+          </Link>
+
+          <button
+            onClick={() => window.history.back()}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Go Back
+          </button>
         </div>
 
-        {/* Helpful Links */}
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6 text-center">
-              <div className="mb-4 p-3 rounded-full bg-blue-500/10 text-blue-600 w-fit mx-auto">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Generate Captions</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create AI-powered captions for your content
-              </p>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/">Start Creating</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6 text-center">
-              <div className="mb-4 p-3 rounded-full bg-emerald-500/10 text-emerald-600 w-fit mx-auto">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Features</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Discover all our amazing features
-              </p>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/features">Explore Features</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6 text-center">
-              <div className="mb-4 p-3 rounded-full bg-purple-500/10 text-purple-600 w-fit mx-auto">
-                <HelpCircle className="w-6 h-6" />
-              </div>
-              <h3 className="font-semibold mb-2">Get Help</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Need assistance? We're here to help
-              </p>
-              <Button variant="ghost" size="sm" asChild>
-                <a href="mailto:ai.captioncraft@outlook.com">Contact Us</a>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search Suggestion */}
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            Looking for something specific? Try searching or check out our most popular features:
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            <Button variant="secondary" size="sm" asChild>
-              <Link href="/">AI Caption Generator</Link>
-            </Button>
-            <Button variant="secondary" size="sm" asChild>
-              <Link href="/features">All Features</Link>
-            </Button>
-            <Button variant="secondary" size="sm" asChild>
-              <Link href="/profile">My Profile</Link>
-            </Button>
-            <Button variant="secondary" size="sm" asChild>
-              <Link href="/about">About Us</Link>
-            </Button>
+        {/* Quick Links */}
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center justify-center">
+            <MapPin className="w-5 h-5 mr-2" />
+            Popular Pages
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Link
+              href="/features"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-all duration-300 text-sm"
+            >
+              Features
+            </Link>
+            <Link
+              href="/pricing"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-all duration-300 text-sm"
+            >
+              Pricing
+            </Link>
+            <Link
+              href="/about"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-all duration-300 text-sm"
+            >
+              About Us
+            </Link>
+            <Link
+              href="/contact"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-all duration-300 text-sm"
+            >
+              Contact
+            </Link>
           </div>
         </div>
 
-        {/* Footer Message */}
-        <div className="mt-12 pt-8 border-t border-border/50">
-          <p className="text-sm text-muted-foreground">
-            If you believe this is an error or you're looking for a specific page, 
-            please <Link href="/contact" className="text-primary hover:underline">contact our support team</Link>.
-          </p>
+        {/* Help Text */}
+        <div className="mt-8 text-gray-400 text-sm">
+          <p>Can't find what you're looking for? Try our search or contact support.</p>
         </div>
       </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes bounce {
+          0%, 20%, 53%, 80%, 100% {
+            transform: translate3d(0,0,0);
+          }
+          40%, 43% {
+            transform: translate3d(0, -30px, 0);
+          }
+          70% {
+            transform: translate3d(0, -15px, 0);
+          }
+          90% {
+            transform: translate3d(0, -4px, 0);
+          }
+        }
+        
+        .animate-bounce {
+          animation: bounce 2s infinite;
+        }
+        
+        .animation-delay-1000 {
+          animation-delay: 1s;
+        }
+      `}</style>
     </div>
   );
 }

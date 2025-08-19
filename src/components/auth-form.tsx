@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signIn } from "next-auth/react";
-import { Loader2, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Loader2, LogIn, UserPlus, Eye, EyeOff, Crown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,708 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthModal } from "@/context/AuthModalContext";
 
+// Admin Registration Modal Component
+const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) => {
+  const [step, setStep] = useState<'system-password' | 'otp' | 'admin-choice' | 'admin-create' | 'admin-login'>('system-password');
+  const [systemPassword, setSystemPassword] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [pinVerified, setPinVerified] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpToken, setOtpToken] = useState(''); // Store the OTP token for admin actions
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log('🔍 State Debug:', { step, pinVerified, otpVerified });
+  }, [step, pinVerified, otpVerified]);
+
+  // Ensure otpVerified state is maintained when navigating between admin steps
+  useEffect(() => {
+    if ((step === 'admin-create' || step === 'admin-login') && !otpVerified) {
+      console.log('⚠️ OTP not verified, redirecting back to admin-choice');
+      setStep('admin-choice');
+    }
+  }, [step, otpVerified]);
+
+  // System password verification
+  const handleSystemPassword = async () => {
+    if (!systemPassword.trim()) {
+      setError('System password is required');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/api/admin/verify-setup-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          pin: systemPassword
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setPinVerified(true);
+        setStep('otp');
+        setSuccess('System verified! Now verify OTP to unlock admin creation.');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Invalid system password');
+      }
+    } catch (error) {
+      setError('Failed to verify system password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate OTP
+  const generateOTP = async () => {
+    if (otpCooldown > 0) {
+      setError(`Please wait ${otpCooldown} seconds before requesting another OTP`);
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/api/admin/request-setup-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'sunnyshinde2601@gmail.com' })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setSuccess('OTP generated and sent! Please check your email: sunnyshinde2601@gmail.com');
+        setTimeout(() => setSuccess(''), 3000);
+        
+        // Set 60-second cooldown
+        setOtpCooldown(60);
+        const cooldownInterval = setInterval(() => {
+          setOtpCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(cooldownInterval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setError(data.message || 'Failed to generate OTP');
+      }
+    } catch (error) {
+      setError('Failed to generate OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // OTP verification
+  const handleOTPVerification = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 6) {
+      setError('Please enter 6-digit OTP');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/api/admin/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-token',
+          token: otpString,
+          email: 'sunnyshinde2601@gmail.com'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        console.log('✅ OTP verification successful, setting otpVerified to true');
+        setOtpVerified(true);
+        setOtpToken(otpString); // Store the verified OTP token
+        setStep('admin-choice');
+        setSuccess('OTP verified! Admin system unlocked. Choose your action.');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      setError('Failed to verify OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Admin creation
+  const handleAdminCreation = async () => {
+    console.log('🔍 handleAdminCreation called with otpVerified:', otpVerified);
+    
+    if (!email.trim() || !password.trim() || !username.trim()) {
+      setError('All fields are required');
+      return;
+    }
+    
+    // Check if OTP is verified
+    if (!otpVerified) {
+      console.log('❌ OTP not verified, current state:', { otpVerified, step });
+      setError('OTP verification required. Please verify OTP first.');
+      return;
+    }
+    
+    console.log('✅ OTP verified, proceeding with admin creation');
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
+    // Username validation
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+    
+    if (username.trim().length > 20) {
+      setError('Username must be less than 20 characters');
+      return;
+    }
+    
+    // Password validation
+    if (password.trim().length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    
+    if (password.trim().length > 50) {
+      setError('Password must be less than 50 characters');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Use stored OTP token or compute from OTP array
+      const tokenToUse = otpToken || otp.join('');
+      console.log('🔍 Using token for admin creation:', tokenToUse);
+      
+      const verifyResponse = await fetch('/api/admin/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-token',
+          token: tokenToUse,
+          email: 'sunnyshinde2601@gmail.com'
+        })
+      });
+      
+      const verifyData = await verifyResponse.json();
+      
+      if (!verifyResponse.ok || !verifyData.success) {
+        console.log('❌ OTP re-verification failed:', verifyData);
+        setError('OTP verification expired. Please verify OTP again.');
+        setOtpVerified(false);
+        setStep('otp');
+        return;
+      }
+      
+      console.log('✅ OTP re-verification successful, creating admin...');
+      
+      // Now create the admin
+      const response = await fetch('/api/admin/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-admin',
+          email: email.trim(),
+          password: password.trim(),
+          username: username.trim(),
+          token: tokenToUse
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setSuccess('Admin created successfully! You can now access admin features from your profile.');
+        setTimeout(() => {
+          // Close modal and stay on home page
+          onClose();
+        }, 2000);
+      } else {
+        setError(data.message || 'Failed to create admin');
+      }
+    } catch (error) {
+      console.error('Admin creation error:', error);
+      setError('Failed to create admin account');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Admin login
+  const handleAdminLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Use NextAuth signIn function for proper authentication
+      const { signIn } = await import('next-auth/react');
+      
+      const result = await signIn('admin-credentials', {
+        email: email.trim(),
+        password: password.trim(),
+        redirect: false // Don't redirect automatically
+      });
+      
+      if (result?.ok) {
+        setSuccess('Login successful! You can now access admin features from your profile.');
+        setTimeout(() => {
+          // Close modal and stay on home page
+          onClose();
+          // Refresh page to update session state
+          window.location.reload();
+        }, 2000);
+      } else {
+        console.log('Login failed:', result?.error);
+        setError(result?.error === 'CredentialsSignin' ? 'Invalid admin credentials' : 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Failed to login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // OTP input handling
+  const handleOtpChange = (index: number, value: string) => {
+    // Only allow numbers
+    if (!/^[0-9]*$/.test(value)) return;
+    
+    if (value.length > 1) return;
+    
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-input-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+    
+    // Auto-focus previous input on backspace
+    if (!value && index > 0) {
+      const prevInput = document.getElementById(`otp-input-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  // Skip OTP and auto-verify
+  const handleSkipOTP = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 6) {
+      setError('Please enter 6-digit OTP');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/admin/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-token',
+          token: otpString,
+          email: 'sunnyshinde2601@gmail.com'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('✅ OTP verification successful (skipped), setting otpVerified to true');
+        setOtpVerified(true);
+        setStep('admin-choice');
+        setSuccess('OTP verified! Admin system unlocked. Choose your action.');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      setError('Failed to verify OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Skip OTP completely for development/testing
+  const handleSkipOTPCompletely = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      console.log('🔍 Checking if admin already exists...');
+      
+      // First check if admin exists (like setup page does)
+      const response = await fetch('/api/admin/setup', {
+        method: 'GET'
+      });
+      const data = await response.json();
+      
+      if (data.existingAdmin) {
+        console.log('✅ Admin exists, skipping OTP verification');
+        setOtpVerified(true);
+        setOtpToken('EXISTING_ADMIN'); // Set the token like setup page
+        setStep('admin-choice');
+        setSuccess('Admin account found! Skipping OTP verification.');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        console.log('🔍 No existing admin, using bypass for development...');
+        
+        // If no admin exists, use the bypass method
+        const bypassResponse = await fetch('/api/admin/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'skip-otp',
+            email: 'sunnyshinde2601@gmail.com'
+          })
+        });
+        
+        const bypassData = await bypassResponse.json();
+        
+        if (bypassResponse.ok && bypassData.success) {
+          console.log('✅ OTP bypass successful:', bypassData);
+          setOtpVerified(true);
+          setOtpToken('SKIPPED_DEV'); // Set a token for bypassed OTP
+          setStep('admin-choice');
+          setSuccess('OTP verification bypassed for development. Proceeding to admin choice.');
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          console.log('❌ OTP bypass failed:', bypassData);
+          setError(bypassData.message || 'Failed to bypass OTP verification');
+        }
+      }
+    } catch (error) {
+      console.error('Skip OTP error:', error);
+      setError('Failed to skip OTP verification');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin System Access</h2>
+          <button
+            onClick={() => {
+              // Reset all state when closing
+              setStep('system-password');
+              setSystemPassword('');
+              setOtp(['', '', '', '', '', '']);
+              setEmail('');
+              setPassword('');
+              setUsername('');
+              setError('');
+              setSuccess('');
+              setPinVerified(false);
+              setOtpVerified(false);
+              onClose();
+            }}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* System Password Step */}
+          {step === 'system-password' && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">System Verification</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Enter system password to unlock admin access</p>
+              </div>
+              
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">System Password</label>
+                <input
+                  type="password"
+                  value={systemPassword}
+                  onChange={(e) => setSystemPassword(e.target.value)}
+                  placeholder="Enter system password"
+                  aria-label="System password"
+                  aria-describedby="system-password-help"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                />
+                <p id="system-password-help" className="text-xs text-gray-500 dark:text-gray-400">
+                  Enter the system PIN to verify admin access
+                </p>
+              </div>
+              
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+              
+              <Button
+                onClick={handleSystemPassword}
+                disabled={isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl"
+              >
+                {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Verify System'}
+              </Button>
+            </div>
+          )}
+
+          {/* OTP Step */}
+          {step === 'otp' && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">OTP Verification</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Enter the 6-digit OTP sent to sunnyshinde2601@gmail.com</p>
+                {pinVerified && <p className="text-xs text-green-600 mt-1">✅ System PIN Verified</p>}
+              </div>
+              
+              {/* Simple Skip OTP Text */}
+              <div className="text-center">
+                <button
+                  onClick={handleSkipOTPCompletely}
+                  className="text-blue-600 hover:text-blue-700 underline text-lg font-medium cursor-pointer"
+                >
+                  Skip OTP
+                </button>
+              </div>
+              
+              {/* OTP Input Fields */}
+              <div className="flex justify-center space-x-2">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`otp-input-${index}`}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    placeholder="0"
+                  />
+                ))}
+              </div>
+              
+              {/* OTP Actions */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handleOTPVerification}
+                  disabled={isLoading || otp.join('').length !== 6}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Verify OTP'}
+                </Button>
+                
+                <Button
+                  onClick={generateOTP}
+                  disabled={isLoading || otpCooldown > 0}
+                  variant="outline"
+                  className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium py-2 rounded-xl"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 
+                   otpCooldown > 0 ? `Wait ${otpCooldown}s` : 'Generate New OTP'}
+                </Button>
+              </div>
+              
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+            </div>
+          )}
+
+          {/* Admin Choice Step */}
+          {step === 'admin-choice' && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Admin System Unlocked</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Choose your action</p>
+                {otpVerified && <p className="text-xs text-green-600 mt-1">✅ OTP Verified</p>}
+              </div>
+              
+              <div className="space-y-3">
+                <Button
+                  onClick={() => setStep('admin-create')}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" /> Create New Admin Account
+                </Button>
+                
+                <Button
+                  onClick={() => setStep('admin-login')}
+                  variant="outline"
+                  className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-semibold py-3 rounded-xl"
+                >
+                  <LogIn className="mr-2 h-4 w-4" /> Login as Existing Admin
+                </Button>
+              </div>
+              
+              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+            </div>
+          )}
+
+          {/* Admin Creation Step */}
+          {step === 'admin-create' && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Create Admin Account</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Create admin account with any email</p>
+                {otpVerified && <p className="text-xs text-green-600 mt-1">✅ OTP Verified</p>}
+              </div>
+              
+              {/* Back Button */}
+              <Button
+                onClick={() => setStep('admin-choice')}
+                variant="outline"
+                className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium py-2 rounded-xl"
+              >
+                ← Back to Admin Choice
+              </Button>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="any@email.com"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="admin"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
+              
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+              
+              <Button
+                onClick={handleAdminCreation}
+                disabled={isLoading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl"
+              >
+                {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Create Admin Account'}
+              </Button>
+            </div>
+          )}
+
+          {/* Admin Login Step */}
+          {step === 'admin-login' && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Admin Login</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Login with existing admin credentials</p>
+                {otpVerified && <p className="text-xs text-green-600 mt-1">✅ OTP Verified</p>}
+              </div>
+              
+              {/* Back Button */}
+              <Button
+                onClick={() => setStep('admin-choice')}
+                variant="outline"
+                className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium py-2 rounded-xl"
+              >
+                ← Back to Admin Choice
+              </Button>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@email.com"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
+              
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+              
+              <Button
+                onClick={handleAdminLogin}
+                disabled={isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl"
+              >
+                {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Login as Admin'}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const signUpSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z
@@ -35,7 +737,7 @@ const signUpSchema = z.object({
 });
 
 const signInSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
+  email: z.string().email({ message: "Password is required." }),
   password: z.string().min(1, { message: "Password is required." }),
 });
 
@@ -48,6 +750,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
   const [signUpSuccess, setSignUpSuccess] = useState('');
   const [forgotPasswordError, setForgotPasswordError] = useState('');
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState('');
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const router = useRouter();
   const { setOpen } = useAuthModal();
   const [activeTab, setActiveTab] = useState("sign-in");
@@ -252,12 +955,12 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
       {/* Sign In Tab - Compact Design with Rich Whites */}
       <TabsContent value="sign-in" className="mt-3 sm:mt-4">
         <div className="space-y-3 sm:space-y-4">
-          {/* Admin Login Note */}
+          {/* Admin Login Note
           <div className="text-center p-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
             <p className="text-xs text-purple-700 dark:text-purple-300">
               👑 <strong>Admin users:</strong> Use your admin credentials to access unlimited features
             </p>
-          </div>
+          </div> */}
           
           <Form {...signInForm}>
             <form
@@ -480,6 +1183,15 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
                   </>
                 )}
               </Button>
+
+              {/* Admin Registration Button - Same Theme Style */}
+              <Button 
+                type="button" 
+                onClick={() => setShowAdminModal(true)}
+                className="w-full h-10 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg border-0"
+              >
+                <Crown className="mr-2 h-4 w-4" /> Register as Admin
+              </Button>
             </form>
           </Form>
 
@@ -529,6 +1241,19 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
           </div>
         </div>
       </TabsContent>
+
+      {/* Admin Registration Modal */}
+      {showAdminModal && (
+        <AdminRegistrationModal 
+          onClose={() => setShowAdminModal(false)}
+          onSuccess={() => {
+            setShowAdminModal(false);
+            setOpen(false);
+            // Redirect to admin dashboard after successful admin creation/login
+            router.push('/admin/dashboard');
+          }}
+        />
+      )}
     </Tabs>
   );
 }

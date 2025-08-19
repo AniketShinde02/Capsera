@@ -3,7 +3,6 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,7 +42,9 @@ import {
   Search,
   Image,
   Mail,
-  RotateCcw
+  RotateCcw,
+  CheckCircle,
+  Info
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -128,7 +129,6 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
@@ -140,6 +140,14 @@ export default function AdminDashboard() {
   });
   const [liveMode, setLiveMode] = useState(false);
   const [liveUpdateInterval, setLiveUpdateInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Plain text notification system
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
 
   // Check if user is authenticated as admin
   useEffect(() => {
@@ -331,19 +339,12 @@ export default function AdminDashboard() {
   const exportDashboardData = async (format: 'excel' | 'csv' | 'pdf' | 'enhanced-json') => {
     try {
       if (!stats) {
-        toast({
-          title: "No Data",
-          description: "Please wait for data to load",
-          variant: "destructive"
-        });
+        showNotification("Please wait for data to load", "error");
         return;
       }
 
-      // Show loading toast
-      toast({
-        title: "Generating Report",
-        description: `Creating ${format.toUpperCase()} report...`,
-      });
+      // Show loading notification
+      showNotification(`Creating ${format.toUpperCase()} report...`, "info");
 
       const response = await fetch('/api/admin/export', {
         method: 'POST',
@@ -371,10 +372,7 @@ export default function AdminDashboard() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        toast({
-          title: "Export Successful",
-          description: `Dashboard data exported as ${format.toUpperCase()} file`,
-        });
+        showNotification(`Dashboard data exported as ${format.toUpperCase()} file`, "success");
       } else {
         // Fallback to JSON
         const data = await response.json();
@@ -388,18 +386,11 @@ export default function AdminDashboard() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        toast({
-          title: "Export Successful",
-          description: "Dashboard data exported as JSON file",
-        });
+        showNotification("Dashboard data exported as JSON file", "success");
       }
     } catch (error) {
       console.error('Export error:', error);
-      toast({
-        title: "Export Failed",
-        description: "Failed to generate report. Please try again.",
-        variant: "destructive"
-      });
+      showNotification("Failed to generate report. Please try again.", "error");
     }
   };
 
@@ -408,44 +399,27 @@ export default function AdminDashboard() {
   // Create system backup
   const createBackup = async () => {
     try {
-      toast({
-        title: "Creating Backup",
-        description: "System backup in progress...",
-      });
+      showNotification("Creating Backup", "info");
 
       // Simulate backup process
       setTimeout(() => {
-        toast({
-          title: "Backup Complete",
-          description: "System backup created successfully",
-        });
+        showNotification("Backup Complete", "success");
       }, 2000);
     } catch (error) {
-      toast({
-        title: "Backup Failed",
-        description: "Failed to create system backup",
-        variant: "destructive"
-      });
+      showNotification("Backup Failed", "error");
     }
   };
 
   // Lock system (placeholder for now)
   const lockSystem = async () => {
-    toast({
-      title: "System Lock",
-      description: "System lock feature coming soon! 🔒",
-    });
+    showNotification("System Lock", "info");
   };
 
   // Generate comprehensive report
   const generateReport = async () => {
     try {
       if (!stats) {
-        toast({
-          title: "No Data",
-          description: "Please wait for data to load",
-          variant: "destructive"
-        });
+        showNotification("No Data", "error");
         return;
       }
 
@@ -477,16 +451,9 @@ export default function AdminDashboard() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      toast({
-        title: "Report Generated",
-        description: "Comprehensive admin report exported successfully",
-      });
+      showNotification("Report Generated", "success");
     } catch (error) {
-      toast({
-        title: "Report Failed",
-        description: "Failed to generate admin report",
-        variant: "destructive"
-      });
+      showNotification("Report Failed", "error");
     }
   };
 
@@ -555,24 +522,13 @@ export default function AdminDashboard() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
-        toast({
-          title: "Export Successful",
-          description: `${reportType} report has been downloaded.`,
-        });
+        showNotification(`${reportType} report has been downloaded.`, "success");
       } else {
-        toast({
-          title: "Export Failed",
-          description: "Failed to export report. Please try again.",
-          variant: "destructive"
-        });
+        showNotification("Failed to export report. Please try again.", "error");
       }
     } catch (error) {
       console.error('Error exporting report:', error);
-      toast({
-        title: "Export Error",
-        description: "An error occurred while exporting the report.",
-        variant: "destructive"
-      });
+      showNotification("An error occurred while exporting the report.", "error");
     }
   };
 
@@ -671,6 +627,24 @@ export default function AdminDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions & Export Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

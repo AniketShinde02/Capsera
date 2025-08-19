@@ -58,13 +58,11 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 32px; text-align: center;">
               <div style="display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px;">
                 <div style="background: rgba(255, 255, 255, 0.2); padding: 8px; border-radius: 8px;">
-                  <img 
-                    src="https://ai-caption-generator-pied.vercel.app/favicon.svg" 
-                    alt="Capsera Logo" 
-                    width="24" 
-                    height="24" 
-                    style="filter: brightness(0) invert(1);"
-                  />
+                  <div 
+                    style="background: rgba(255, 255, 255, 0.2); padding: 8px; border-radius: 8px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;"
+                  >
+                    <span style="color: white; font-weight: bold; font-size: 16px;">C</span>
+                  </div>
                 </div>
                 <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 700;">Capsera</h1>
               </div>

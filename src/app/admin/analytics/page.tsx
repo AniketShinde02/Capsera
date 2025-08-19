@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +13,7 @@ import {
   Users, TrendingUp, TrendingDown, Activity, Clock, BarChart3, 
   Download, RefreshCw, Smartphone, Monitor,
   Globe, Target, MapPin, AlertTriangle, Lightbulb, ArrowUpRight,
-  Minus, Play, Pause, Eye, MousePointer, Zap
+  Minus, Play, Pause, Eye, MousePointer, Zap, CheckCircle, Info
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
@@ -95,12 +94,19 @@ interface AnalyticsData {
 export default function AdminAnalytics() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { toast } = useToast();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'24h' | '7d' | '30d' | '90d' | '1y'>('7d');
   const [realTimeMode, setRealTimeMode] = useState(true);
+
+  // Plain text notification system
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+  };
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -144,11 +150,7 @@ export default function AdminAnalytics() {
       }
     } catch (error) {
       console.error('❌ Error fetching analytics data:', error);
-      toast({
-        title: "Analytics Error",
-        description: "Failed to fetch analytics data. Please try again.",
-        variant: "destructive"
-      });
+      showNotification("Failed to fetch analytics data. Please try again.", "error");
     } finally {
       setIsFetching(false);
       setLoading(false);
@@ -170,19 +172,11 @@ export default function AdminAnalytics() {
   const handleExport = async (format: 'pdf' | 'csv' | 'xlsx' | 'enhanced-json') => {
     try {
       if (!analyticsData) {
-        toast({
-          title: "No Data",
-          description: "Please wait for analytics data to load",
-          variant: "destructive"
-        });
+        showNotification("Please wait for analytics data to load", "info");
         return;
       }
 
-      // Show loading toast
-      toast({
-        title: "Generating Report",
-        description: `Creating ${format.toUpperCase()} report...`,
-      });
+      showNotification(`Creating ${format.toUpperCase()} report...`, "info");
 
       const response = await fetch('/api/admin/export', {
         method: 'POST',
@@ -208,17 +202,10 @@ export default function AdminAnalytics() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast({
-        title: "Export Successful",
-        description: `Analytics data exported as ${format.toUpperCase()} file`,
-      });
+      showNotification(`Analytics data exported as ${format.toUpperCase()} file`, "success");
     } catch (error) {
       console.error('Export error:', error);
-      toast({
-        title: "Export Failed",
-        description: "Failed to generate report. Please try again.",
-        variant: "destructive"
-      });
+      showNotification("Failed to generate report. Please try again.", "error");
     }
   };
 
@@ -293,6 +280,24 @@ export default function AdminAnalytics() {
           </Select>
         </div>
       </div>
+
+      {/* Plain Text Notification Display */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+            : notification.type === 'error'
+            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
+            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
+            {notification.type === 'info' && <Info className="w-4 h-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Key Metrics Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

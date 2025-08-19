@@ -7,6 +7,7 @@ import AdminThemeProvider from '@/components/admin/AdminThemeProvider';
 import AdminLayoutWrapper from '@/components/admin/AdminLayoutWrapper';
 import { Toaster } from '@/components/ui/toaster';
 import AdminHeader from '@/components/admin/AdminHeader';
+import AdminMaintenanceCheck from '@/components/admin-maintenance-check';
 
 export default async function AdminLayout({
   children,
@@ -45,6 +46,7 @@ export default async function AdminLayout({
   return (
     <AdminThemeProvider>
       <AdminLayoutWrapper>
+        <AdminMaintenanceCheck />
         <div className="flex h-screen bg-background overflow-hidden">
           {/* Sidebar - Mobile First */}
           <div className="w-0 lg:w-64 flex-shrink-0">

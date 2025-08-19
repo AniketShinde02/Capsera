@@ -7,8 +7,11 @@ import {
   Users, Heart, TrendingUp, Smartphone, Cloud, CheckCircle,
   ArrowRight, Lightbulb, Target, MessageSquare, Globe
 } from 'lucide-react';
+import { checkMaintenanceMode } from '@/lib/server-maintenance-check';
 
-export default function FeaturesPage() {
+export default async function FeaturesPage() {
+  // Check maintenance mode before rendering the page
+  await checkMaintenanceMode();
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}

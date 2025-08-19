@@ -46,7 +46,7 @@ class AutoUserManager {
    */
   async createUserWithRole(userData: AutoUserData, adminEmail: string): Promise<UserCreationResult> {
     try {
-      const db = await connectToDatabase();
+      const { db } = await connectToDatabase();
       
       // Check if user already exists in both collections
       const existingUserInUsers = await db.collection('users').findOne({ 
@@ -127,7 +127,7 @@ class AutoUserManager {
       console.log(`✅ User created successfully in adminusers collection: ${userData.email}`);
 
       // Send welcome email with credentials
-      const loginUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login`;
+      const loginUrl = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '#'}/login`;
       const emailSent = await this.emailService.sendUserAccountCreationEmail({
         email: userData.email,
         username: userData.username,
@@ -230,7 +230,7 @@ class AutoUserManager {
     error?: string;
   }> {
     try {
-      const db = await connectToDatabase();
+      const { db } = await connectToDatabase();
       
       // Find user in adminusers collection first (for tier accounts)
       let user = await db.collection('adminusers').findOne({ 
@@ -294,7 +294,7 @@ class AutoUserManager {
       }
 
       // Send role assignment email
-      const loginUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login`;
+      const loginUrl = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '#'}/login`;
       await this.emailService.sendRoleAssignmentEmail({
         email: user.email,
         username: user.username,

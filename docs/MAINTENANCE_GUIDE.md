@@ -11,6 +11,7 @@ This guide provides detailed instructions for maintaining and updating your Capt
 5. [Keep Deployment Guides Current](#keep-deployment-guides-current)
 6. [Automated Maintenance Scripts](#automated-maintenance-scripts)
 7. [Quality Assurance Checklist](#quality-assurance-checklist)
+8. [Maintenance Mode System Management](#maintenance-mode-system-management)
 
 ---
 
@@ -647,6 +648,152 @@ checkDocumentation();
 - [ ] Test deployment process
 - [ ] Validate all features
 - [ ] Performance testing
+
+---
+
+## 8. Maintenance Mode System Management
+
+### Overview
+Capsera includes a comprehensive maintenance mode system that provides complete site-wide protection when enabled, while preserving admin access for system management.
+
+### 🔧 **System Architecture**
+
+#### **Components:**
+- **Maintenance API** (`/api/maintenance`): Controls maintenance state
+- **Maintenance Check Components**: Enforce maintenance mode across all pages
+- **Server-Side Functions**: Handle server component redirects
+- **Client-Side Logic**: Handle client component redirects
+- **Admin Bypass**: Exclude admin pages from maintenance checks
+
+#### **Database Storage:**
+- **Collection**: `system_settings`
+- **Key**: `maintenance_mode`
+- **Structure**: 
+  ```json
+  {
+    "key": "maintenance_mode",
+    "value": {
+      "enabled": true/false,
+      "message": "Custom message",
+      "estimatedTime": "Time estimate",
+      "allowedIPs": ["IP addresses"],
+      "allowedEmails": ["email addresses"],
+      "updatedAt": "timestamp"
+    }
+  }
+  ```
+
+### 🛡️ **How It Works**
+
+#### **Page-Level Enforcement:**
+1. **Server Components** (Features, About): Use `checkMaintenanceMode()` function
+2. **Client Components** (Contact, Home): Use client-side maintenance check
+3. **Layout Protection**: `MaintenanceCheck` component in root layout
+
+#### **Redirect Logic:**
+- **Maintenance Enabled**: All public pages redirect to `/maintenance`
+- **Admin Pages**: Remain accessible during maintenance
+- **API Routes**: Excluded from maintenance checks
+- **Maintenance Page**: Excluded to prevent infinite loops
+
+### 📱 **Maintenance Page Features**
+
+#### **UI Components:**
+- **Professional Design**: Dark theme with animated elements
+- **System Status**: Real-time maintenance information
+- **Progress Indicators**: Animated system logs and status
+- **Mobile Responsive**: Perfect experience across devices
+
+#### **Customization Options:**
+- **Custom Messages**: Set specific maintenance reasons
+- **Time Estimates**: Show expected completion time
+- **Branding**: Maintain site identity during maintenance
+
+### 🔐 **Admin Management**
+
+#### **Access Control:**
+- **Admin Dashboard**: `/admin/maintenance` for system control
+- **Real-Time Toggle**: Instant enable/disable functionality
+- **Status Monitoring**: View current maintenance state
+- **Configuration**: Set messages, times, and access rules
+
+#### **Emergency Access:**
+- **IP Whitelisting**: Configure allowed IP addresses
+- **Email Notifications**: Alert specific users
+- **Admin Bypass**: Maintain system access during maintenance
+
+### 🚀 **Implementation Details**
+
+#### **Files Modified:**
+- `src/components/maintenance-check.tsx`: Layout-level maintenance check
+- `src/components/admin-maintenance-check.tsx`: Admin bypass logic
+- `src/lib/server-maintenance-check.ts`: Server-side functions
+- `src/app/features/page.tsx`: Server component integration
+- `src/app/about/page.tsx`: Server component integration
+- `src/app/contact/page.tsx`: Client component integration
+- `src/app/page.tsx`: Home page integration
+
+#### **API Endpoints:**
+- `GET /api/maintenance`: Check current maintenance status
+- `POST /api/maintenance`: Enable/disable maintenance mode
+- `POST /api/maintenance/emergency-access`: Emergency access control
+
+### 📋 **Maintenance Procedures**
+
+#### **Enabling Maintenance Mode:**
+1. Navigate to `/admin/maintenance`
+2. Toggle switch to "Enabled"
+3. Set custom message and estimated time
+4. Configure allowed IPs if needed
+5. Save changes
+
+#### **During Maintenance:**
+1. **Public Users**: Automatically redirected to maintenance page
+2. **Admins**: Can access admin panels and manage system
+3. **Monitoring**: Check logs for any access attempts
+4. **Updates**: Modify maintenance message as needed
+
+#### **Disabling Maintenance Mode:**
+1. Go to `/admin/maintenance`
+2. Toggle switch to "Disabled"
+3. Verify all pages are accessible
+4. Test normal functionality
+
+### 🧪 **Testing the System**
+
+#### **Test Scenarios:**
+1. **Enable Maintenance Mode**: Verify all public pages redirect
+2. **Admin Access**: Confirm admin pages remain accessible
+3. **Custom Messages**: Test message customization
+4. **Disable Mode**: Verify normal access is restored
+5. **Edge Cases**: Test with various user scenarios
+
+#### **Validation Commands:**
+```bash
+# Check maintenance status
+curl http://localhost:3000/api/maintenance
+
+# Test page access (should redirect)
+curl http://localhost:3000/features
+
+# Test admin access (should work)
+curl http://localhost:3000/admin/maintenance
+```
+
+### ⚠️ **Important Notes**
+
+#### **Best Practices:**
+- **Always test** maintenance mode before production use
+- **Monitor logs** during maintenance periods
+- **Keep messages clear** and informative
+- **Set realistic time estimates** for user expectations
+- **Have emergency access** configured before enabling
+
+#### **Common Issues:**
+- **Infinite Redirects**: Ensure maintenance page is excluded from checks
+- **Admin Lockout**: Verify admin bypass logic is working
+- **Cache Issues**: Clear browser cache if redirects don't work
+- **Database Errors**: Check MongoDB connection during maintenance
 
 ---
 

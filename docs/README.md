@@ -12,8 +12,10 @@ Welcome to the comprehensive documentation for Capsera! This hub provides organi
 
 ### **🔐 Admin Setup (System Administrators)**
 1. **[Admin Setup Guide](ADMIN_SETUP.md)** - Complete admin system setup
-2. **[Security Configuration](ADMIN_SETUP.md#security-features)** - Security best practices
-3. **[Role Management](ADMIN_SETUP.md#role-based-access-control)** - User permissions setup
+2. **[Enhanced Admin System](ENHANCED_ADMIN_SYSTEM.md)** - PIN + OTP security system
+3. **[Security Configuration](ADMIN_SETUP.md#security-features)** - Security best practices
+4. **[Role Management](ADMIN_SETUP.md#role-based-access-control)** - User permissions setup
+5. **[Admin Creation Flow](ENHANCED_ADMIN_SYSTEM.md#admin-creation-flow)** - Step-by-step admin setup process
 
 ## 📖 **Core Documentation**
 
@@ -64,8 +66,11 @@ The admin dashboard has been completely transformed into a **fully operational, 
 - **Session Validation**: Automatic redirect for authenticated admins
 - **Compact UI Design**: Streamlined setup forms with better hierarchy
 - **OTP & PIN Management**: Improved verification flow
+- **Multi-Layer Security**: PIN + OTP verification required for admin setup
+- **Secure Admin Creation**: Any email can create admin after security verification
+- **Existing Admin Login**: Direct login option for users with admin credentials
 
-**📁 Key Files**: [Setup Page](../src/app/setup/page.tsx), [PIN Verification API](../src/app/api/admin/verify-setup-pin/route.ts)
+**📁 Key Files**: [Setup Page](../src/app/setup/page.tsx), [PIN Verification API](../src/app/api/admin/verify-setup-pin/route.ts), [Admin Setup API](../src/app/api/admin/setup/route.ts)
 
 ### **🎨 UI/UX Improvements - COMPLETED**
 **Status**: ✅ **Enhanced user experience across all components**

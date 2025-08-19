@@ -6,14 +6,17 @@ import { Button } from "@/components/ui/button";
 import {  Bot, Palette, Hash, Pencil, Copy, Share, RefreshCcw, ArrowRight, Sparkles, Sun, Zap, Shield } from "lucide-react";
 import Link from "next/link";
 import CookieConsent from "@/components/CookieConsent";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuthModal } from '@/context/AuthModalContext';
 
 export default function Home() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { setOpen, setInitialEmail } = useAuthModal();
   const [isShaking, setIsShaking] = useState(false);
+
+
 
   // Handle automatic login modal opening with email pre-filled
   useEffect(() => {

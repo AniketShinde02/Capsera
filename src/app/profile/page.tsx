@@ -56,6 +56,7 @@ export default function ProfilePage() {
     });
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [inlineMessage, setInlineMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+    const [userData, setUserData] = useState<any>(null);
     
     // Pagination state for captions
     const [currentPage, setCurrentPage] = useState(1);
@@ -135,6 +136,7 @@ export default function ProfilePage() {
                     
                     if (userRes.ok) {
                         const userData = await userRes.json();
+                        setUserData(userData); // Store user data in state
                         setUsername(userData.username || '');
                         setTitle(userData.title || '');
                         setBio(userData.bio || '');
@@ -195,7 +197,11 @@ export default function ProfilePage() {
     const userEmail = sessionData?.user?.email || 'user@example.com';
     const fallbackName = userEmail ? userEmail.split('@')[0] : 'User';
     const displayName = username || fallbackName;
-    const userJoined = '2022'; // Default year since createdAt might not be available
+    
+    // Get real user creation date
+    const userJoined = userData?.createdAt 
+        ? format(new Date(userData.createdAt), 'MMM yyyy')
+        : 'Loading...';
 
     // Profile functions
     const handleSaveProfile = async () => {

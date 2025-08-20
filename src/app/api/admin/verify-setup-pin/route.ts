@@ -4,11 +4,18 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    const { pin } = await request.json();
+    const { pin, email } = await request.json();
 
     if (!pin) {
       return NextResponse.json(
         { success: false, message: 'PIN is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!email) {
+      return NextResponse.json(
+        { success: false, message: 'Email is required' },
         { status: 400 }
       );
     }
@@ -20,24 +27,37 @@ export async function POST(request: NextRequest) {
       key: 'system_lock_pin' 
     });
 
+    // If no system lock is configured, allow access for authorized admin email
     if (!lockDoc || !lockDoc.isActive) {
-      return NextResponse.json(
-        { success: false, message: 'System lock not configured. Please set up PIN protection first.' },
-        { status: 400 }
-      );
+      // Check if this is the authorized admin email
+      const authorizedEmail = 'sunnyshinde2601@gmail.com';
+      
+      if (email === authorizedEmail) {
+        console.log('✅ System lock not configured, allowing access for authorized admin:', email);
+        return NextResponse.json({
+          success: true,
+          message: 'Access granted for authorized admin (system lock not configured)'
+        });
+      } else {
+        return NextResponse.json(
+          { success: false, message: 'System lock not configured and email not authorized' },
+          { status: 403 }
+        );
+      }
     }
 
-    // Verify the PIN against the stored hashed PIN
+    // If system lock is enabled, verify the PIN
     const isValid = await bcrypt.compare(pin, lockDoc.value);
     
     if (!isValid) {
+      console.log('❌ Invalid PIN attempt for email:', email);
       return NextResponse.json(
         { success: false, message: 'Invalid PIN' },
         { status: 400 }
       );
     }
 
-    console.log('✅ Setup PIN verified successfully');
+    console.log('✅ Setup PIN verified successfully for email:', email);
     
     return NextResponse.json({
       success: true,
@@ -47,7 +67,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Setup PIN verification failed:', error);
     return NextResponse.json(
-      { success: false, message: 'PIN verification failed' },
+      { success: false, message: 'PIN verification failed. Please try again.' },
       { status: 500 }
     );
   }

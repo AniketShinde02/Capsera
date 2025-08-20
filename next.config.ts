@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import type { NextConfig } from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -8,14 +9,13 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: [],
+  serverExternalPackages: ['@genkit-ai/core', 'genkit'],
   env: {
     PORT: '3000',
   },
   
-  // Performance optimizations
+  // Performance optimizations - removed problematic ones
   experimental: {
-    optimizeCss: true,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   
@@ -23,19 +23,50 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   
-  webpack: (config, { dev, isServer }) => {
+  // Add cache busting and better asset handling
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
+  },
+  
+  // Improve static asset handling
+  assetPrefix: process.env.NODE_ENV === 'production' ? undefined : '',
+  
+  webpack: (config, { dev, isServer, webpack }) => {
+    // Add better module resolution
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+
+    // Improve module cache handling with absolute path
+    config.cache = {
+      type: 'filesystem',
+      buildDependencies: {
+        config: [__filename],
+      },
+      cacheDirectory: path.resolve(process.cwd(), '.next/cache'),
+      compression: 'gzip',
+      maxAge: 172800000, // 2 days
+    };
+
     if (dev) {
       // Suppress optional dependency warnings in development
       config.ignoreWarnings = [
         /Module not found: Can't resolve '@opentelemetry\/exporter-jaeger'/,
-        /Module not found: Can't resolve '@genkit-ai\/firebase'/,
         /require\.extensions is not supported by webpack/,
         /Can't resolve '@opentelemetry\/exporter-jaeger'/,
-        /Can't resolve '@genkit-ai\/firebase'/
+        /Module not found: Can't resolve '@genkit-ai\/firebase'/,
       ];
+      
+      // Improve HMR stability
+      config.plugins.push(
+        new webpack.HotModuleReplacementPlugin()
+      );
     }
     
-    // Optimize bundle splitting
+    // Optimize bundle splitting with better cache handling
     if (!isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',
@@ -45,14 +76,29 @@ const nextConfig: NextConfig = {
             name: 'vendors',
             chunks: 'all',
             priority: 10,
+            reuseExistingChunk: true,
           },
           common: {
             name: 'common',
             minChunks: 2,
             chunks: 'all',
             priority: 5,
+            reuseExistingChunk: true,
+          },
+          // Add specific handling for problematic packages
+          genkit: {
+            test: /[\\/]node_modules[\\/](@genkit-ai|genkit)[\\/]/,
+            name: 'genkit',
+            chunks: 'all',
+            priority: 20,
+            reuseExistingChunk: true,
           },
         },
+      };
+      
+      // Improve runtime chunk handling
+      config.optimization.runtimeChunk = {
+        name: 'runtime',
       };
     }
     

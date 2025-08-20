@@ -22,7 +22,7 @@ class SimpleRateLimiter {
     if (userId) {
       try {
         const User = (await import('@/models/User')).default;
-        const user = await User.findById(userId);
+        const user = await (User as any).findById(userId);
         if (user?.isAdmin) {
           console.log(`👑 Admin user ${userId} (${user.email}) - bypassing rate limits completely`);
           return false; // Admin users are never rate limited
@@ -124,7 +124,7 @@ class SimpleRateLimiter {
   private async checkIfUserIsAdmin(userId: string): Promise<boolean> {
     try {
       const User = (await import('@/models/User')).default;
-      const user = await User.findById(userId);
+      const user = await (User as any).findById(userId);
       return user?.isAdmin === true;
     } catch (error) {
       console.error('Error checking admin status:', error);

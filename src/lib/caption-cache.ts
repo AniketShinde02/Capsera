@@ -62,7 +62,7 @@ export class CaptionCacheService {
         mood: mood
       });
       
-      const cacheEntry = await CaptionCache.findOne({
+      const cacheEntry = await (CaptionCache as any).findOne({
         imageHash: cacheKey,
         prompt: normalizedPrompt,
         mood
@@ -70,7 +70,7 @@ export class CaptionCacheService {
       
       if (cacheEntry) {
         // Increment usage count manually
-        await CaptionCache.findByIdAndUpdate(cacheEntry._id, {
+        await (CaptionCache as any).findByIdAndUpdate(cacheEntry._id, {
           $inc: { usageCount: 1 },
           $set: { lastUsed: new Date() }
         });
@@ -147,7 +147,7 @@ export class CaptionCacheService {
       const normalizedPrompt = prompt || 'default';
       
       // First try to find existing entry
-      let cacheEntry = await CaptionCache.findOne({
+      let cacheEntry = await (CaptionCache as any).findOne({
         imageHash: cacheKey,
         prompt: normalizedPrompt,
         mood
@@ -155,7 +155,7 @@ export class CaptionCacheService {
 
       if (cacheEntry) {
         // Update existing entry
-        cacheEntry = await CaptionCache.findByIdAndUpdate(
+        cacheEntry = await (CaptionCache as any).findByIdAndUpdate(
           cacheEntry._id,
           {
             $set: {
@@ -169,7 +169,7 @@ export class CaptionCacheService {
         );
       } else {
         // Create new entry
-        cacheEntry = await CaptionCache.create({
+        cacheEntry = await (CaptionCache as any).create({
           imageHash: cacheKey,
           prompt: normalizedPrompt,
           mood,
@@ -239,7 +239,7 @@ export class CaptionCacheService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
       
-      const result = await CaptionCache.deleteMany({
+      const result = await (CaptionCache as any).deleteMany({
         createdAt: { $lt: cutoffDate },
         usageCount: { $lt: 2 } // Only delete entries used less than 2 times
       });
@@ -278,7 +278,7 @@ export class CaptionCacheService {
       }
       if (criteria.minUsage) query.usageCount = { $gte: criteria.minUsage };
       
-      const results = await CaptionCache.find(query)
+      const results = await (CaptionCache as any).find(query)
         .sort({ lastUsed: -1 })
         .limit(100);
       
@@ -295,7 +295,7 @@ export class CaptionCacheService {
    */
   static async getCacheById(id: string): Promise<ICaptionCache | null> {
     try {
-      return await CaptionCache.findById(id);
+      return await (CaptionCache as any).findById(id);
     } catch (error) {
       console.error('❌ Cache get by ID error:', error);
       return null;
@@ -307,7 +307,7 @@ export class CaptionCacheService {
    */
   static async deleteCacheEntry(id: string): Promise<boolean> {
     try {
-      const result = await CaptionCache.findByIdAndDelete(id);
+      const result = await (CaptionCache as any).findByIdAndDelete(id);
       return !!result;
     } catch (error) {
       console.error('❌ Cache delete error:', error);

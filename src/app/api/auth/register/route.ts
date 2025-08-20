@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const userExists = await User.findOne({ email });
+    const userExists = await (User as any).findOne({ email });
 
     if (userExists) {
         return NextResponse.json(
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     // Generate unsubscribe token for promotional emails
     const unsubscribeToken = crypto.randomBytes(32).toString('hex');
 
-    const user = await User.create({
+    const user = await (User as any).create({
       email,
       password: hashedPassword,
       passwordHistory: [],

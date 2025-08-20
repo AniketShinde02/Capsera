@@ -13,7 +13,11 @@ export function PerformanceOptimizer() {
             console.log('LCP:', entry.startTime);
           }
           if (entry.entryType === 'first-input') {
-            console.log('FID:', entry.processingStart - entry.startTime);
+            // Cast to PerformanceEventTiming for FID calculation
+            const firstInputEntry = entry as PerformanceEventTiming;
+            if (firstInputEntry.processingStart) {
+              console.log('FID:', firstInputEntry.processingStart - firstInputEntry.startTime);
+            }
           }
         }
       });

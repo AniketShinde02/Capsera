@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   }
   await dbConnect();
-  const user = await User.findById(session.user.id).select('email username title bio image createdAt');
+  const user = await (User as any).findById(session.user.id).select('email username title bio image createdAt');
   if (!user) {
     return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
   }
@@ -32,7 +32,7 @@ export async function PUT(req: Request) {
   if (typeof bio !== 'undefined') updates.bio = bio;
   if (typeof image !== 'undefined') updates.image = image;
 
-  const user = await User.findByIdAndUpdate(
+  const user = await (User as any).findByIdAndUpdate(
     session.user.id,
     { $set: updates },
     { new: true, runValidators: true, fields: 'email username title bio image createdAt' }

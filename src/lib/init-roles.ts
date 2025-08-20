@@ -70,11 +70,11 @@ export async function initializeDefaultRoles() {
 
     // Check and create default roles
     for (const roleData of defaultRoles) {
-      const existingRole = await Role.findOne({ name: roleData.name });
+      const existingRole = await (Role as any).findOne({ name: roleData.name });
       
       if (!existingRole) {
         console.log(`Creating default role: ${roleData.name}`);
-        await Role.create(roleData);
+        await (Role as any).create(roleData);
       } else {
         // Update existing role permissions if needed (but preserve isSystem flag)
         if (existingRole.isSystem) {
@@ -83,7 +83,7 @@ export async function initializeDefaultRoles() {
           
           if (needsUpdate) {
             console.log(`Updating permissions for system role: ${roleData.name}`);
-            await Role.findByIdAndUpdate(existingRole._id, {
+            await (Role as any).findByIdAndUpdate(existingRole._id, {
               permissions: roleData.permissions,
               description: roleData.description,
               displayName: roleData.displayName
@@ -104,7 +104,7 @@ export async function initializeDefaultRoles() {
 export async function getRoleByName(roleName: string) {
   try {
     await dbConnect();
-    return await Role.findOne({ name: roleName });
+    return await (Role as any).findOne({ name: roleName });
   } catch (error) {
     console.error(`Error getting role ${roleName}:`, error);
     return null;

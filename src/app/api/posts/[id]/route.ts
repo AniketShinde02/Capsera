@@ -7,7 +7,7 @@ import { archiveCloudinaryImage, extractCloudinaryPublicId } from '@/lib/cloudin
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -31,7 +31,7 @@ export async function DELETE(
 
   try {
     // Find the post first to verify ownership
-    const post = await Post.findById(id);
+    const post = await (Post as any).findById(id);
 
     if (!post) {
       return NextResponse.json(
@@ -66,7 +66,7 @@ export async function DELETE(
     }
 
     // Delete the caption from database
-    await Post.findByIdAndDelete(id);
+    await (Post as any).findByIdAndDelete(id);
 
     // Return appropriate message based on archive status
     let message = 'Caption deleted successfully';
@@ -101,7 +101,7 @@ export async function DELETE(
     if (error.message?.includes('Cloudinary') || error.message?.includes('image')) {
       // Try to delete from database even if Cloudinary fails
       try {
-        await Post.findByIdAndDelete(id);
+        await (Post as any).findByIdAndDelete(id);
         return NextResponse.json(
           { 
             success: true, 
@@ -125,7 +125,7 @@ export async function DELETE(
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -148,7 +148,7 @@ export async function GET(
   await dbConnect();
 
   try {
-    const post = await Post.findById(id);
+    const post = await (Post as any).findById(id);
 
     if (!post) {
       return NextResponse.json(

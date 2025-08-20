@@ -6,7 +6,7 @@ import { connectToDatabase } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -16,7 +16,7 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const reportId = new ObjectId(params.id);
+    const reportId = new ObjectId((await params).id);
 
     // Find the report
     const report = await db.collection('reports').findOne({

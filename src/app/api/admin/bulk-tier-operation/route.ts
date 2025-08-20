@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
 
     // Parse emails
     const emailList = emails.split('\n')
-      .map(email => email.trim())
-      .filter(email => email && email.includes('@'));
+      .map((email: string) => email.trim())
+      .filter((email: string) => email && email.includes('@'));
 
     if (emailList.length === 0) {
       return NextResponse.json({ error: 'No valid emails provided' }, { status: 400 });
@@ -140,7 +140,8 @@ export async function POST(request: NextRequest) {
 
       } catch (error) {
         results.failed++;
-        results.details.push({ email, status: 'failed', reason: error.message });
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.details.push({ email, status: 'failed', reason: errorMessage });
       }
     }
 

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   await dbConnect();
 
   try {
-    const posts = await Post.find({ user: session.user.id }).sort({ createdAt: -1 });
+    const posts = await (Post as any).find({ user: session.user.id }).sort({ createdAt: -1 });
     
     return NextResponse.json({ success: true, data: posts }, { status: 200 });
   } catch (error: any) {

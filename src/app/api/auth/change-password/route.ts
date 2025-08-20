@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.' }, { status: 400 });
   }
   await dbConnect();
-  const user = await User.findById(session.user.id).select('+password +passwordHistory');
+  const user = await (User as any).findById(session.user.id).select('+password +passwordHistory');
   if (!user) return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
 
   const ok = await bcrypt.compare(currentPassword, user.password);

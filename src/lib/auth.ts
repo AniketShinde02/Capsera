@@ -56,7 +56,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Missing email or password.');
         }
 
-        const user = await User.findOne({ email: credentials.email }).select('+password');
+        const user = await (User as any).findOne({ email: credentials.email }).select('+password');
 
         if (!user) {
           // Security best practice: use a generic error message
@@ -74,7 +74,7 @@ export const authOptions: NextAuthOptions = {
         }
         
         // Update user's last login time and status
-        await User.findByIdAndUpdate(user._id, { 
+        await (User as any).findByIdAndUpdate(user._id, { 
           lastLoginAt: new Date(),
           status: 'active' // Ensure user is marked as active on login
         });
@@ -418,7 +418,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'credentials') {
         try {
           await dbConnect();
-          const userExists = await User.findById(user.id);
+          const userExists = await (User as any).findById(user.id);
           return !!userExists; // Only allow sign in if user exists in database
         } catch (error) {
           console.error('Error validating user during sign in:', error);

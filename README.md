@@ -77,22 +77,187 @@ Capsera includes a **comprehensive maintenance mode system** that provides compl
 | **📸 Image Upload & Preview** | ![Image Upload](screenshots/02-image-upload.png) | Drag & drop image upload with preview |
 | **🎭 Mood Selection** | ![Mood Selection](screenshots/03-mood-selection.png) | 41 different mood options for caption generation |
 | **✨ Caption Generation** | ![Caption Generation](screenshots/04-caption-generation.png) | AI-generated captions with variety |
-| **🔄 Regenerate for Variety** | ![Regenerate](screenshots/05-regenerate-variety.png) | Get completely different caption styles |
-| **👤 User Authentication** | ![User Auth](screenshots/06-user-auth.png) | Login, registration, and profile management |
 | **📊 Rate Limiting & Quotas** | ![Rate Limiting](screenshots/07-rate-limiting.png) | Quota display and rate limiting information |
+| **👤 User Authentication** | ![User Auth](screenshots/06-user-auth.png) | Login, registration, and profile management |
+| **🔄 User Profile** | ![Profile page](screenshots/05-regenerate-variety.png) | Get completely access to save you captions  |
 | **🔐 Admin Dashboard** | ![Admin Dashboard](screenshots/08-admin-dashboard.png) | Super admin system with user management |
 | **⚙️ Admin Setup** | ![Admin Setup](screenshots/09-admin-setup.png) | Secure JWT-based admin setup process |
 | **📱 Mobile Responsiveness** | ![Mobile](screenshots/09-mobile-responsive.png) | Mobile-first design across all devices |
 | **🎨 Dark Mode Theme** | ![Dark Mode](screenshots/10-dark-mode.png) | Beautiful dark theme with proper contrast |
+| **🎨 Light Mode Theme** | ![Light Mode](screenshots/11-light-mode.png) | Beautiful dark theme with proper contrast |
 | **📧 Password Reset System** | ![Password Reset](screenshots/08-password-reset.png) | Enhanced password reset with email integration |
-| **🚫 Unauthorized Access** | *Screenshot needed* | Creative unauthorized access page |
+| **🚫 Unauthorized Access** | ![Unauthorized](screenshots/unatuh.png) | Creative unauthorized access page |
 
-> **📸 Note**: Most screenshots are available and working. The following screenshots need to be created:
-> - **Admin Dashboard** (`11-admin-dashboard.png`) - Screenshot of the admin dashboard
-> - **Admin Setup** (`12-admin-setup.png`) - Screenshot of the admin setup process  
-> - **Unauthorized Access** (`13-unauthorized.png`) - Screenshot of the unauthorized access page
->
-> **📊 Screenshot Status**: 10/13 available (77% complete) - All core functionality screenshots are ready!
+---
+
+## 📊 **Project Stats**
+
+![GitHub stars](https://img.shields.io/github/stars/AniketShinde02/capsera)
+![GitHub forks](https://img.shields.io/github/forks/AniketShinde02/capsera)
+![GitHub issues](https://img.shields.io/github/issues/AniketShinde02/capsera)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/AniketShinde02/capsera)
+![GitHub license](https://img.shields.io/github/license/AniketShinde02/capsera)
+![Next.js](https://img.shields.io/badge/Next.js-15.4.6-black)
+![React](https://img.shields.io/badge/React-18.3.1-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+
+---
+
+## 🚀 **Quick Start**
+
+```bash
+# Clone the repository
+git clone https://github.com/AniketShinde02/capsera.git
+cd capsera
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp docs/env.example .env.local
+# Edit .env.local with your API keys
+
+# Run development server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+---
+
+## 🔧 **Available Scripts**
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript checks |
+| `npm run setup-admin` | Set up admin user |
+| `npm run generate-token` | Generate setup token |
+| `npm run maintenance:check` | Check system status |
+
+---
+
+## 🌐 **Live Demo & Links**
+
+- **🚀 Live Site**: [https://capsera.vercel.app](https://capsera.vercel.app)
+- **📖 API Documentation**: [https://capsera.vercel.app/api-docs](https://capsera.vercel.app/api-docs)
+- **🐛 Report Issues**: [GitHub Issues](https://github.com/AniketShinde02/capsera/issues)
+- **💡 Feature Requests**: [GitHub Discussions](https://github.com/AniketShinde02/capsera/discussions)
+- **📧 Support**: [Contact Form](https://capsera.vercel.app/contact)
+
+---
+
+## 🛠️ **Tech Stack**
+
+### **Frontend**
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + CSS Modules
+- **UI Components**: Radix UI + Custom Components
+- **State Management**: React Context + Hooks
+- **Forms**: React Hook Form + Zod Validation
+
+### **Backend & AI**
+- **AI Engine**: Google Gemini AI (Genkit)
+- **Database**: MongoDB + Mongoose
+- **Authentication**: NextAuth.js
+- **Image Storage**: Cloudinary + ImageKit
+- **Email**: Nodemailer + SMTP
+
+### **DevOps & Deployment**
+- **Hosting**: Vercel (Primary) / Netlify
+- **Database**: MongoDB Atlas
+- **Monitoring**: Built-in analytics + health checks
+- **CI/CD**: GitHub Actions (if you have it)
+
+---
+
+## 📱 **Mobile-First Features**
+
+- **Responsive Design**: Mobile-first approach with progressive enhancement
+- **Touch Optimized**: Large touch targets and swipe gestures
+- **PWA Ready**: Service worker and offline capabilities
+- **Fast Loading**: Optimized images and lazy loading
+- **Native Feel**: Smooth animations and transitions
+
+---
+
+## 🔒 **Security Features**
+
+- **Rate Limiting**: IP-based and user-based rate limiting
+- **Input Validation**: Zod schema validation on all inputs
+- **SQL Injection Protection**: Mongoose ODM protection
+- **XSS Protection**: Content Security Policy headers
+- **CSRF Protection**: Built-in Next.js protection
+- **Secure Headers**: Security-focused HTTP headers
+- **Environment Variables**: Secure API key management
+
+---
+
+## ⚡ **Performance Features**
+
+- **Image Optimization**: Next.js Image component with WebP/AVIF
+- **Code Splitting**: Automatic route-based code splitting
+- **Bundle Optimization**: Tree shaking and dead code elimination
+- **Caching**: Strategic caching for static and dynamic content
+- **CDN Integration**: Global content delivery network
+- **Lighthouse Score**: 90+ performance score
+
+---
+
+## 🤝 **Contributing**
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### **Development Setup**
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+### **Code Style**
+- Follow TypeScript best practices
+- Use Prettier for formatting
+- Follow ESLint rules
+- Write meaningful commit messages
+
+---
+
+## 📄 **License**
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚖️ **Legal**
+
+- **Privacy Policy**: [Privacy Policy](https://capsera.vercel.app/privacy)
+- **Terms of Service**: [Terms of Service](https://capsera.vercel.app/terms)
+- **Cookie Policy**: [Cookie Policy](https://capsera.vercel.app/cookies)
+
+---
+
+## 👨‍💻 **About the Creator**
+
+**Aniket Shinde** - A passionate developer from India 🇮🇳 on a journey to build amazing AI-powered applications.
+
+- **GitHub**: [@AniketShinde02](https://github.com/AniketShinde02)
+- **Twitter**: [@24_jinwoo](https://twitter.com/24_jinwoo)
+- **Location**: India (UTC +05:30)
+- **Focus**: AI/ML, Web Development, Open Source
+
+---
+
+## 🌟 **Acknowledgments**
+
+- **Google Gemini AI** for powerful caption generation
+- **Next.js Team** for the amazing framework
+- **Tailwind CSS** for beautiful styling
+- **Vercel** for seamless deployment
+- **MongoDB Atlas** for reliable database hosting
+- **Open Source Community** for inspiration and tools
 
 ---
 

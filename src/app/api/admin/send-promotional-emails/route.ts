@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
+import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import { sendPromotionalEmail } from '@/lib/mail';
 import { getServerSession } from 'next-auth';

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find and update subscription
-    const subscription = await EmailSubscription.findOne({ email: email.toLowerCase() });
+    const subscription = await (EmailSubscription as any).findOne({ email: email.toLowerCase() });
     
     if (!subscription) {
       return NextResponse.json(

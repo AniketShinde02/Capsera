@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function ConfirmSubscriptionPage() {
+function ConfirmSubscriptionContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -106,7 +106,7 @@ export default function ConfirmSubscriptionPage() {
                       🏠 Go to Homepage
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full">
+                  <Button asChild className="w-full outline">
                     <Link href="/features">
                       ✨ Explore Features
                     </Link>
@@ -124,7 +124,7 @@ export default function ConfirmSubscriptionPage() {
                       🔄 Try Again
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full">
+                  <Button asChild className="w-full outline">
                     <Link href="/contact">
                       📧 Contact Support
                     </Link>
@@ -136,5 +136,27 @@ export default function ConfirmSubscriptionPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ConfirmSubscriptionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            </div>
+            <CardTitle>Loading...</CardTitle>
+            <CardDescription>
+              Please wait while we load the confirmation page.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <ConfirmSubscriptionContent />
+    </Suspense>
   );
 }

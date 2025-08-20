@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { canManageAdmins } from '@/lib/init-admin';
 import { connectToDatabase } from '@/lib/db';
 import * as XLSX from 'xlsx';
-import PDFDocument from 'pdfkit';
+// PDF generation temporarily disabled due to compatibility issues
+// import PDFDocument from 'pdfkit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -192,7 +193,7 @@ export async function POST(request: NextRequest) {
       case 'excel':
       case 'xlsx':
         const excelData = await convertToExcel(reportData);
-        return new NextResponse(excelData, {
+        return new NextResponse(excelData as any, {
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.xlsx"`
@@ -202,7 +203,7 @@ export async function POST(request: NextRequest) {
       case 'pdf':
         try {
           const pdfData = await convertToPDF(reportData);
-          return new NextResponse(pdfData, {
+          return new NextResponse(pdfData as any, {
             headers: {
               'Content-Type': 'application/pdf',
               'Content-Disposition': `attachment; filename="${reportType}-${now.toISOString().split('T')[0]}.pdf"`
@@ -356,127 +357,8 @@ async function convertToExcel(data: any): Promise<Buffer> {
 }
 
 async function convertToPDF(data: any): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      // Validate required data
-      if (!data || !data.reportType) {
-        throw new Error('Invalid report data provided');
-      }
-
-      const doc = new PDFDocument({ margin: 50 });
-      const chunks: Buffer[] = [];
-      
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-      
-      // Add header
-      doc.fontSize(20).text('CAPSERA ADMIN REPORT', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(14).text(data.reportType || 'Unknown Report', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(10).text(`Generated: ${new Date(data.generatedAt || Date.now()).toLocaleString()}`, { align: 'center' });
-      doc.moveDown(2);
-      
-      // Add content based on report type
-      if (data.reportType === 'User Summary Report') {
-        doc.fontSize(16).text('USER SUMMARY', { underline: true });
-        doc.moveDown();
-        const summary = data.summary || {};
-        doc.fontSize(12).text(`Total Users: ${summary.totalUsers || 0}`);
-        doc.text(`Regular Users: ${summary.regularUsers || 0}`);
-        doc.text(`Admin Users: ${summary.adminUsers || 0}`);
-        doc.text(`Active Users: ${summary.activeUsers || 0}`);
-        doc.text(`Inactive Users: ${summary.inactiveUsers || 0}`);
-      } else if (data.reportType === 'Role Summary Report') {
-        doc.fontSize(16).text('ROLE SUMMARY', { underline: true });
-        doc.moveDown();
-        const roles = data.roles || [];
-        if (roles.length === 0) {
-          doc.fontSize(12).text('No roles found');
-        } else {
-          roles.forEach((role: any, index: number) => {
-            doc.fontSize(12).text(`Role ${index + 1}: ${role.roleName || 'Unknown'}`);
-            doc.fontSize(10).text(`Display Name: ${role.displayName || 'N/A'}`);
-            doc.text(`Total Users: ${role.totalUsers || 0}`);
-            doc.text(`Regular Users: ${role.regularUsers || 0}`);
-            doc.text(`Admin Users: ${role.adminUsers || 0}`);
-            doc.text(`System Role: ${role.isSystem ? 'Yes' : 'No'}`);
-            doc.text(`Active: ${role.isActive ? 'Yes' : 'No'}`);
-            if (index < roles.length - 1) doc.moveDown();
-          });
-        }
-      } else if (data.reportType === 'System Status Report') {
-        doc.fontSize(16).text('SYSTEM STATUS', { underline: true });
-        doc.moveDown();
-        const systemStats = data.systemStats || {};
-        const collections = systemStats.collections || {};
-        doc.fontSize(12).text(`Database: ${systemStats.database || 'Unknown'}`);
-        doc.text(`Total Users: ${collections.users || 0}`);
-        doc.text(`Total Admin Users: ${collections.adminusers || 0}`);
-        doc.text(`Total Roles: ${collections.roles || 0}`);
-        doc.text(`Total Deleted Profiles: ${collections.deletedprofiles || 0}`);
-        doc.text(`Last Backup: ${systemStats.lastBackup || 'Never'}`);
-        doc.text(`System Load: ${systemStats.systemLoad || 0}%`);
-        doc.text(`Uptime: ${systemStats.uptime || 'Unknown'}`);
-      } else if (data.reportType === 'Comprehensive Dashboard Report') {
-        doc.fontSize(16).text('DASHBOARD OVERVIEW', { underline: true });
-        doc.moveDown();
-        const overview = data.overview || {};
-        const collections = data.collections || {};
-        doc.fontSize(12).text(`Total Users: ${overview.totalUsers || 0}`);
-        doc.text(`Total Posts: ${overview.totalPosts || 0}`);
-        doc.text(`Total Images: ${overview.totalImages || 0}`);
-        doc.text(`System Status: ${overview.systemStatus || 'Unknown'}`);
-        doc.moveDown();
-        doc.fontSize(14).text('COLLECTION STATISTICS', { underline: true });
-        doc.fontSize(12).text(`Users Collection: ${collections.users || 0}`);
-        doc.text(`Admin Users Collection: ${collections.adminusers || 0}`);
-        doc.text(`Roles Collection: ${collections.roles || 0}`);
-        doc.text(`Posts Collection: ${collections.posts || 0}`);
-        doc.text(`Contacts Collection: ${collections.contacts || 0}`);
-        doc.text(`Deleted Profiles Collection: ${collections.deletedprofiles || 0}`);
-      } else if (data.reportType === 'Comprehensive Analytics Report') {
-        doc.fontSize(16).text('ANALYTICS OVERVIEW', { underline: true });
-        doc.moveDown();
-        const overview = data.overview || {};
-        const collections = data.collections || {};
-        doc.fontSize(12).text(`Total Users: ${overview.totalUsers || 0}`);
-        doc.text(`Total Posts: ${overview.totalPosts || 0}`);
-        doc.text(`Total Images: ${overview.totalImages || 0}`);
-        doc.text(`New Users This Week: ${overview.newUsersThisWeek || 0}`);
-        doc.text(`New Posts This Week: ${overview.newPostsThisWeek || 0}`);
-        doc.text(`User Growth Rate: ${overview.userGrowthRate || 0}%`);
-        doc.text(`Post Growth Rate: ${overview.postGrowthRate || 0}%`);
-        doc.moveDown();
-        doc.fontSize(14).text('COLLECTION STATISTICS', { underline: true });
-        doc.fontSize(12).text(`Users Collection: ${collections.users || 0}`);
-        doc.text(`Admin Users Collection: ${collections.adminusers || 0}`);
-        doc.text(`Roles Collection: ${collections.roles || 0}`);
-        doc.text(`Posts Collection: ${collections.posts || 0}`);
-        doc.text(`Contacts Collection: ${collections.contacts || 0}`);
-        doc.text(`Deleted Profiles Collection: ${collections.deletedprofiles || 0}`);
-      } else {
-        // Generic report for unknown types
-        doc.fontSize(16).text('REPORT DATA', { underline: true });
-        doc.moveDown();
-        doc.fontSize(12).text('Report Type: ' + (data.reportType || 'Unknown'));
-        doc.text('Generated: ' + new Date(data.generatedAt || Date.now()).toLocaleString());
-        doc.moveDown();
-        doc.fontSize(10).text('Raw Data:');
-        doc.text(JSON.stringify(data, null, 2));
-      }
-      
-      // Add footer
-      doc.moveDown(3);
-      doc.fontSize(8).text('Capsera Admin System - Generated Report', { align: 'center' });
-      
-      doc.end();
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      reject(new Error(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-    }
-  });
+  // PDF generation temporarily disabled due to Next.js compatibility issues
+  throw new Error('PDF generation is temporarily unavailable. Please use Excel or CSV format instead.');
 }
 
 function formatForPDF(data: any): string {

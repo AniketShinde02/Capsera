@@ -76,7 +76,7 @@ export async function initializeAdminSystem() {
     // Create default roles
     console.log('🎭 Creating default roles...');
     for (const roleData of DEFAULT_ROLES) {
-      const existingRole = await Role.findOne({ name: roleData.name });
+      const existingRole = await (Role as any).findOne({ name: roleData.name });
       if (!existingRole) {
         const role = new Role(roleData);
         await role.save();
@@ -87,7 +87,7 @@ export async function initializeAdminSystem() {
     }
 
     // Check if admin user exists
-    const adminExists = await User.findOne({ isAdmin: true });
+    const adminExists = await (User as any).findOne({ isAdmin: true });
     if (adminExists) {
       console.log('ℹ️ Admin user already exists');
       return { success: true, message: 'Admin system already initialized' };
@@ -108,13 +108,13 @@ export async function createAdminUser(email: string, password: string, username?
     console.log('🔗 Connected to database');
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await (User as any).findOne({ email });
     if (existingUser) {
       return { success: false, message: 'User with this email already exists' };
     }
 
     // Get super-admin role
-    const superAdminRole = await Role.findOne({ name: 'super-admin' });
+    const superAdminRole = await (Role as any).findOne({ name: 'super-admin' });
     if (!superAdminRole) {
       return { success: false, message: 'Super admin role not found. Run initializeAdminSystem first.' };
     }

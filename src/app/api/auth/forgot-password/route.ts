@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     await dbConnect();
-    const user = await User.findOne({ email }).select('+resetPasswordRequests +dailyResetCount +lastResetRequestDate');
+    const user = await (User as any).findOne({ email }).select('+resetPasswordRequests +dailyResetCount +lastResetRequestDate');
 
     // Always return success to avoid revealing whether the email exists
     if (!user) {

@@ -6,7 +6,7 @@ import { connectToDatabase } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -16,7 +16,7 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const imageId = new ObjectId(params.id);
+    const imageId = new ObjectId((await params).id);
     const { action, reason } = await request.json();
 
     // Find the image

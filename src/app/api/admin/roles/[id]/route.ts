@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -22,10 +22,11 @@ export async function GET(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    const { id } = await params;
     const { db } = await connectToDatabase();
 
     // Get role by ID using direct MongoDB
-    const role = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
+    const role = await db.collection('roles').findOne({ _id: new ObjectId(id) });
     
     if (!role) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
@@ -72,7 +73,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -87,13 +88,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { displayName, description, permissions, isActive } = body;
 
     const { db } = await connectToDatabase();
 
     // Check if role exists and is not a system role
-    const existingRole = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
+    const existingRole = await db.collection('roles').findOne({ _id: new ObjectId(id) });
     if (!existingRole) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
@@ -128,7 +130,7 @@ export async function PUT(
     updateData.updatedBy = session.user.id;
 
     const result = await db.collection('roles').updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: updateData }
     );
 
@@ -137,7 +139,11 @@ export async function PUT(
     }
 
     // Get the updated role
-    const updatedRole = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
+    const updatedRole = await db.collection('roles').findOne({ _id: new ObjectId(id) });
+
+    if (!updatedRole) {
+      return NextResponse.json({ error: 'Role not found after update' }, { status: 404 });
+    }
 
     console.log('✅ Role updated successfully:', updatedRole);
 
@@ -167,7 +173,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -182,10 +188,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    const { id } = await params;
     const { db } = await connectToDatabase();
 
     // Check if role exists and is not a system role
-    const existingRole = await db.collection('roles').findOne({ _id: new ObjectId(params.id) });
+    const existingRole = await db.collection('roles').findOne({ _id: new ObjectId(id) });
     if (!existingRole) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
@@ -211,7 +218,7 @@ export async function DELETE(
     }
 
     // Delete role using direct MongoDB
-    const result = await db.collection('roles').deleteOne({ _id: new ObjectId(params.id) });
+    const result = await db.collection('roles').deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });

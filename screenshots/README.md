@@ -1,4 +1,4 @@
-# 📸 CaptionCraft Screenshots
+## **📸  Capsera Screenshots**
 
 This folder contains all the screenshots for the CaptionCraft application. Each screenshot showcases a specific feature or aspect of the application.
 

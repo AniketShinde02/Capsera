@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import RateLimit from '@/models/RateLimit';
 import BlockedCredentials from '@/models/BlockedCredentials';
+import { ObjectId } from 'mongodb';
 
 // Rate limiting configuration - Monthly quotas
 export const RATE_LIMITS = {
@@ -73,7 +74,7 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
         // Use connectToDatabase for consistent connection handling
         const { db } = await connectToDatabase();
         const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ _id: userId });
+        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
         
         if (user?.isAdmin) {
           console.log(`👑 Admin user ${userId} - bypassing rate limits`);
@@ -109,7 +110,7 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
     const windowMs = windowHours * 60 * 60 * 1000;
     
     // Find existing rate limit record
-    let rateLimitRecord = await RateLimit.findOne({ key });
+    let rateLimitRecord = await (RateLimit as any).findOne({ key });
     
     if (!rateLimitRecord || now > rateLimitRecord.resetTime) {
       // First request or window expired, create/update entry
@@ -120,11 +121,12 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
         rateLimitRecord.resetTime = resetTime;
         await rateLimitRecord.save();
       } else {
-        rateLimitRecord = await RateLimit.create({
+        rateLimitRecord = new RateLimit({
           key,
           count: 1,
           resetTime,
         });
+        await rateLimitRecord.save();
       }
       
       return {
@@ -237,7 +239,7 @@ export async function blockCredentials(
     const now = new Date();
     
     // Find existing block record
-    let blockRecord = await BlockedCredentials.findOne({ email: normalizedEmail });
+    let blockRecord = await (BlockedCredentials as any).findOne({ email: normalizedEmail });
     
     // Calculate block duration (escalating)
     const attempts = blockRecord ? blockRecord.attempts + 1 : 1;
@@ -252,7 +254,7 @@ export async function blockCredentials(
       if (userAgent) blockRecord.userAgent = userAgent;
       await blockRecord.save();
     } else {
-      await BlockedCredentials.create({
+      const newBlockRecord = new BlockedCredentials({
         email: normalizedEmail,
         blockedUntil,
         attempts,
@@ -260,6 +262,7 @@ export async function blockCredentials(
         ipAddress,
         userAgent,
       });
+      await newBlockRecord.save();
     }
     
     console.log(`🚫 Blocked credentials: ${email ? 'Email blocked' : 'IP blocked'} for ${blockDurationHours} hours (attempt ${attempts}). Reason: ${reason}`);
@@ -286,12 +289,12 @@ export async function isCredentialsBlocked(email: string): Promise<{
     const normalizedEmail = email.toLowerCase();
     const now = new Date();
     
-    const blockRecord = await BlockedCredentials.findOne({ email: normalizedEmail });
+    const blockRecord = await (BlockedCredentials as any).findOne({ email: normalizedEmail });
     
     if (!blockRecord || now > blockRecord.blockedUntil) {
       // Not blocked or block expired
       if (blockRecord && now > blockRecord.blockedUntil) {
-        await BlockedCredentials.deleteOne({ _id: blockRecord._id });
+        await (BlockedCredentials as any).deleteOne({ _id: blockRecord._id });
       }
       return { blocked: false };
     }
@@ -401,7 +404,7 @@ export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
         
         // First check the regular users collection using direct MongoDB query
         const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ _id: userId });
+        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
         
         // If not found in regular users, check adminusers collection
         if (!user || !user.isAdmin) {
@@ -446,7 +449,7 @@ export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
     await dbConnect();
     
     const now = new Date();
-    const rateLimitRecord = await RateLimit.findOne({ key });
+    const rateLimitRecord = await (RateLimit as any).findOne({ key });
     
     let currentUsage = 0;
     let resetTime = now.getTime();

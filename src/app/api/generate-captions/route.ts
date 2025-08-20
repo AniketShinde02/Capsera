@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const clientIP = getClientIP(req);
 
+  // Get session for user authentication FIRST
+  const session = await getServerSession(authOptions);
+
   try {
-    // Get session for user authentication FIRST
-    const session = await getServerSession(authOptions);
     
     // Check rate limiting AFTER getting session (so we can check admin status)
     const isLimited = await isRateLimited(clientIP, session?.user?.id);

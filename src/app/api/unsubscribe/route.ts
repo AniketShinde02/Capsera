@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     await dbConnect();
 
     // Find user by unsubscribe token
-    const user = await User.findOne({ unsubscribeToken: token });
+    const user = await (User as any).findOne({ unsubscribeToken: token });
 
     if (!user) {
       return NextResponse.json(
@@ -72,9 +72,9 @@ export async function POST(req: NextRequest) {
 
     let user;
     if (token) {
-      user = await User.findOne({ unsubscribeToken: token });
+      user = await (User as any).findOne({ unsubscribeToken: token });
     } else if (email) {
-      user = await User.findOne({ email: email.toLowerCase() });
+              user = await (User as any).findOne({ email: email.toLowerCase() });
     }
 
     if (!user) {

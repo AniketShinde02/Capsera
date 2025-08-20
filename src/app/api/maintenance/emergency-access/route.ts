@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   try {
     const { db } = await connectToDatabase();
     const body = await request.json();
-    const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     
     if (!body.email) {
       return NextResponse.json(

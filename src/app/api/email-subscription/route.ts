@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email already exists
-    const existingSubscription = await EmailSubscription.findOne({ email: email.toLowerCase() });
+    const existingSubscription = await (EmailSubscription as any).findOne({ email: email.toLowerCase() });
     
     if (existingSubscription) {
       if (existingSubscription.status === 'unsubscribed') {
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const subscription = await EmailSubscription.findOne({ email: email.toLowerCase() });
+    const subscription = await (EmailSubscription as any).findOne({ email: email.toLowerCase() });
     
     if (!subscription) {
       return NextResponse.json(

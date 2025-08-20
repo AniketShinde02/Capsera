@@ -1,6 +1,7 @@
 
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const UserSchema = new mongoose.Schema({
   email: {
@@ -243,7 +244,7 @@ UserSchema.methods.markPromotionalEmailSent = function(): void {
 
 // Method to generate unsubscribe token
 UserSchema.methods.generateUnsubscribeToken = function(): string {
-  const token = require('crypto').randomBytes(32).toString('hex');
+  const token = crypto.randomBytes(32).toString('hex');
   this.unsubscribeToken = token;
   return token;
 };

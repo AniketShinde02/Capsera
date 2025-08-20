@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     // Get current user to access existing image URL
-    const currentUser = await User.findById(session.user.id);
+    const currentUser = await (User as any).findById(session.user.id);
     if (!currentUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user's profile image
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedUser = await (User as any).findByIdAndUpdate(
       session.user.id,
       { image: imageUrl },
       { new: true, runValidators: true }
@@ -95,7 +95,7 @@ export async function DELETE(request: NextRequest) {
     await dbConnect();
 
     // Get current user to access existing image URL
-    const currentUser = await User.findById(session.user.id);
+    const currentUser = await (User as any).findById(session.user.id);
     if (!currentUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -117,7 +117,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Remove user's profile image
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedUser = await (User as any).findByIdAndUpdate(
       session.user.id,
       { image: null },
       { new: true }

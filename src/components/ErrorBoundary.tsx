@@ -1,8 +1,15 @@
 'use client';
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import Link from 'next/link';
+import { Component, ErrorInfo, ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, RefreshCw, Home, Wrench } from 'lucide-react';
+import { 
+  isWebpackModuleError, 
+  getWebpackErrorHelp, 
+  attemptModuleRecovery,
+  forceHardRefresh,
+  getWebpackDebugInfo 
+} from '@/lib/module-cache-utils';
 
 interface Props {
   children: ReactNode;
@@ -13,129 +20,162 @@ interface State {
   hasError: boolean;
   error?: Error;
   errorInfo?: ErrorInfo;
+  isRecovering: boolean;
 }
 
-class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, isRecovering: false };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI
-    return { hasError: true, error };
+    return { hasError: true, error, isRecovering: false };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console for debugging
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    this.setState({ error, errorInfo });
     
-    // Update state with error info
-    this.setState({
-      error,
-      errorInfo
-    });
-
-    // You can also log the error to an error reporting service here
-    // logErrorToService(error, errorInfo);
+    // Log to console for debugging
+    console.group('🚨 Error Boundary Error Details');
+    console.error('Error:', error);
+    console.error('Error Info:', errorInfo);
+    console.error('Component Stack:', errorInfo.componentStack);
+    
+    // Log webpack debug info if it's a webpack error
+    if (isWebpackModuleError(error)) {
+      console.log('🔧 Webpack Debug Info:', getWebpackDebugInfo());
+    }
+    
+    console.groupEnd();
   }
+
+  handleRefresh = () => {
+    this.setState({ isRecovering: true });
+    
+    // Try to recover from webpack errors first
+    if (this.state.error && isWebpackModuleError(this.state.error)) {
+      attemptModuleRecovery().then((recovered) => {
+        if (recovered) {
+          console.log('✅ Module recovery successful, refreshing...');
+          window.location.reload();
+        } else {
+          console.log('❌ Module recovery failed, forcing hard refresh...');
+          forceHardRefresh();
+        }
+      });
+    } else {
+      // For non-webpack errors, just reload
+      window.location.reload();
+    }
+  };
+
+  handleGoHome = () => {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+  };
+
+  handleForceRefresh = () => {
+    this.setState({ isRecovering: true });
+    forceHardRefresh();
+  };
 
   render() {
     if (this.state.hasError) {
-      // Custom fallback UI
+      // Check if it's the specific webpack error we're targeting
+      const isWebpackError = this.state.error && isWebpackModuleError(this.state.error);
+      
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      // Default error UI
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-          {/* Animated Background Elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-orange-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-1000"></div>
-          </div>
-
-          {/* Main Error Content */}
-          <div className="relative z-10 max-w-2xl mx-auto text-center">
-            {/* Error Icon */}
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-red-100 rounded-full mb-8 shadow-2xl">
-              <AlertTriangle className="w-12 h-12 text-red-600" />
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <div className="max-w-md w-full space-y-6 text-center">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8 text-destructive" />
+              </div>
             </div>
-
-            {/* Error Title */}
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-red-600 via-orange-600 to-red-800 bg-clip-text text-transparent mb-6">
-              Component Error
-            </h1>
-
-            {/* Error Message */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 p-6 mb-8">
-              <p className="text-lg text-gray-300 mb-4">
-                Something went wrong in this component. Don't worry, the rest of the app is still working!
-              </p>
+            
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-foreground">
+                {isWebpackError ? 'Module Loading Error' : 'Something went wrong'}
+              </h1>
               
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <details className="text-left bg-black/20 rounded-lg p-4 mt-4">
-                  <summary className="cursor-pointer text-sm text-gray-400 font-mono mb-2">
-                    Error Details (Development)
-                  </summary>
-                  <div className="text-xs text-gray-500 font-mono break-all">
-                    <div className="mb-2">
-                      <strong>Message:</strong> {this.state.error.message}
-                    </div>
-                    {this.state.errorInfo && (
-                      <div className="mb-2">
-                        <strong>Component Stack:</strong>
-                      </div>
-                    )}
-                    <pre className="whitespace-pre-wrap text-xs">
-                      {this.state.errorInfo?.componentStack}
-                    </pre>
-                  </div>
-                </details>
+              <p className="text-muted-foreground">
+                {isWebpackError 
+                  ? getWebpackErrorHelp(this.state.error!)
+                  : 'An unexpected error occurred. Please try again.'
+                }
+              </p>
+            </div>
+
+            {isWebpackError && (
+              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+                <p className="font-medium mb-2">💡 Quick Fix:</p>
+                <p>This error often occurs due to cached modules. Try the recovery options below.</p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 justify-center">
+              <Button 
+                onClick={this.handleRefresh}
+                className="flex items-center gap-2"
+                disabled={this.state.isRecovering}
+              >
+                <RefreshCw className={`w-4 h-4 ${this.state.isRecovering ? 'animate-spin' : ''}`} />
+                {this.state.isRecovering ? 'Recovering...' : 'Try Recovery'}
+              </Button>
+              
+              {isWebpackError && (
+                <Button 
+                  onClick={this.handleForceRefresh}
+                  className="flex items-center gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={this.state.isRecovering}
+                >
+                  <Wrench className="w-4 h-4" />
+                  Force Hard Refresh
+                </Button>
               )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => this.setState({ hasError: false, error: undefined, errorInfo: undefined })}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
+              
+              <Button 
+                onClick={this.handleGoHome}
+                className="flex items-center gap-2 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground"
+                disabled={this.state.isRecovering}
               >
-                <RefreshCw className="w-5 h-5 mr-2" />
-                Try Again
-              </button>
-
-              <Link
-                href="/"
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
-              >
-                <Home className="w-5 h-5 mr-2" />
+                <Home className="w-4 h-4" />
                 Go Home
-              </Link>
+              </Button>
             </div>
 
-            {/* Support Information */}
-            <div className="mt-8 text-gray-400 text-sm">
-              <p>If this problem persists, please contact our support team.</p>
-            </div>
+            {process.env.NODE_ENV === 'development' && this.state.error && (
+              <details className="text-left bg-muted/30 rounded-lg p-4">
+                <summary className="cursor-pointer font-medium text-sm">
+                  Error Details (Development)
+                </summary>
+                <div className="mt-2 text-xs font-mono text-muted-foreground space-y-1">
+                  <p><strong>Type:</strong> {isWebpackError ? 'Webpack Module Error' : 'General Error'}</p>
+                  <p><strong>Message:</strong> {this.state.error.message}</p>
+                  <p><strong>Stack:</strong></p>
+                  <pre className="whitespace-pre-wrap break-words">
+                    {this.state.error.stack}
+                  </pre>
+                  
+                  {isWebpackError && (
+                    <div className="mt-2 p-2 bg-background rounded border">
+                      <p><strong>Webpack Info:</strong></p>
+                      <pre className="text-xs">
+                        {JSON.stringify(getWebpackDebugInfo(), null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
           </div>
-
-          {/* Custom CSS for animations */}
-          <style jsx>{`
-            @keyframes pulse {
-              0%, 100% { opacity: 0.2; }
-              50% { opacity: 0.4; }
-            }
-            
-            .animate-pulse {
-              animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-            }
-            
-            .animation-delay-1000 {
-              animation-delay: 1s;
-            }
-          `}</style>
         </div>
       );
     }
@@ -144,4 +184,20 @@ class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-export default ErrorBoundary;
+// Hook for functional components to handle errors
+export function useErrorHandler() {
+  const handleError = (error: Error, errorInfo?: any) => {
+    console.error('Component error caught:', error, errorInfo);
+    
+    // You can add error reporting logic here
+    // Example: Sentry.captureException(error);
+    
+    // For webpack errors, suggest recovery
+    if (isWebpackModuleError(error)) {
+      console.warn('💡 This appears to be a webpack module error. Try using the recovery options.');
+      console.log('🔧 Webpack Debug Info:', getWebpackDebugInfo());
+    }
+  };
+
+  return { handleError };
+}

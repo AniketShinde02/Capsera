@@ -1,4 +1,3 @@
-
 "use client";
 
 import { CaptionGenerator } from "@/components/caption-generator";
@@ -6,36 +5,37 @@ import { Button } from "@/components/ui/button";
 import {  Bot, Palette, Hash, Pencil, Copy, Share, RefreshCcw, ArrowRight, Sparkles, Sun, Zap, Shield } from "lucide-react";
 import Link from "next/link";
 import CookieConsent from "@/components/CookieConsent";
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 import { useAuthModal } from '@/context/AuthModalContext';
 
-export default function Home() {
-  const searchParams = useSearchParams();
+function HomeContent() {
   const router = useRouter();
   const { setOpen, setInitialEmail } = useAuthModal();
   const [isShaking, setIsShaking] = useState(false);
 
-
-
   // Handle automatic login modal opening with email pre-filled
   useEffect(() => {
-    const shouldOpenLogin = searchParams.get('login');
-    const email = searchParams.get('email');
-    
-    if (shouldOpenLogin === 'true' && email) {
-      // Set the email in the auth modal context
-      setInitialEmail(email);
-      // Open the login modal
-      setOpen(true);
+    // Check if we're on the client side to avoid hydration issues
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shouldOpenLogin = urlParams.get('login');
+      const email = urlParams.get('email');
       
-      // Clean up the URL without refreshing the page
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('login');
-      newUrl.searchParams.delete('email');
-      window.history.replaceState({}, '', newUrl.toString());
+      if (shouldOpenLogin === 'true' && email) {
+        // Set the email in the auth modal context
+        setInitialEmail(email);
+        // Open the login modal
+        setOpen(true);
+        
+        // Clean up the URL without refreshing the page
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('login');
+        newUrl.searchParams.delete('email');
+        window.history.replaceState({}, '', newUrl.toString());
+      }
     }
-  }, [searchParams, setOpen, setInitialEmail]);
+  }, [setOpen, setInitialEmail]);
 
   // Function to handle scroll to caption generator
   const scrollToCaptionGenerator = () => {
@@ -192,5 +192,13 @@ export default function Home() {
       {/* Cookie Consent - Only shows on main page */}
       <CookieConsent />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }

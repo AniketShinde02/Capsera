@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
     
     // Find user with the reset token
-    const user = await User.findOne({ 
+    const user = await (User as any).findOne({ 
       email, 
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: new Date() }

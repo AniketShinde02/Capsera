@@ -33,7 +33,7 @@ export async function DELETE(req: NextRequest) {
     const userId = session.user.id;
 
     // Fetch user data
-    const user = await User.findById(userId);
+    const user = await (User as any).findById(userId);
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' }, 
@@ -42,7 +42,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Fetch all user's posts/captions
-    const userPosts = await Post.find({ user: userId });
+    const userPosts = await (Post as any).find({ user: userId });
 
     // Prepare archived user data (exclude sensitive fields like password)
     const userDataToArchive = {
@@ -78,8 +78,8 @@ export async function DELETE(req: NextRequest) {
     await archivedProfile.save();
 
     // 🚀 FAST DELETION: Delete posts and user immediately
-    await Post.deleteMany({ user: userId });
-    await User.findByIdAndDelete(userId);
+    await (Post as any).deleteMany({ user: userId });
+    await (User as any).findByIdAndDelete(userId);
 
     // Return success immediately - user is deleted!
     const response = NextResponse.json({
@@ -103,7 +103,7 @@ export async function DELETE(req: NextRequest) {
           console.log(`📊 Async image archiving complete: ${archiveResult.success} success, ${archiveResult.failed} failed`);
           
           // Update archived profile with archive results
-          await DeletedProfile.findByIdAndUpdate(archivedProfile._id, {
+          await (DeletedProfile as any).findByIdAndUpdate(archivedProfile._id, {
             archiveMetadata: {
               totalImages: imageUrls.length,
               successfullyArchived: archiveResult.success,
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
     await dbConnect();
 
     // Fetch user data to show preview of what will be deleted
-    const user = await User.findById(session.user.id);
+    const user = await (User as any).findById(session.user.id);
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' }, 
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const userPosts = await Post.find({ user: session.user.id });
+    const userPosts = await (Post as any).find({ user: session.user.id });
 
     return NextResponse.json({
       success: true,

@@ -1,0 +1,138 @@
+'use client';
+
+import { useEffect } from 'react';
+import { AlertTriangle, RefreshCw, Home, ArrowLeft, Smartphone, Wifi, Shield } from 'lucide-react';
+import Link from 'next/link';
+
+interface GlobalErrorProps {
+  error: Error & { digest?: string };
+  reset: () => void;
+}
+
+export default function GlobalError({ error, reset }: GlobalErrorProps) {
+  useEffect(() => {
+    // Log the error to console for debugging
+    console.error('Global error caught:', error);
+  }, [error]);
+
+  return (
+    <html>
+      <body>
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-2 sm:p-4">
+          {/* Animated Background Elements - Mobile Optimized */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-20 -right-20 sm:-top-40 sm:-right-40 w-40 h-40 sm:w-80 sm:h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+            <div className="absolute -bottom-20 -left-20 sm:-bottom-40 sm:-left-40 w-40 h-40 sm:w-80 sm:h-80 bg-orange-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-1000"></div>
+          </div>
+
+          {/* Main Error Content - Mobile Optimized */}
+          <div className="relative z-10 max-w-sm sm:max-w-2xl mx-auto text-center px-2 sm:px-4">
+            {/* Error Icon - Smaller on Mobile */}
+            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-24 sm:h-24 bg-red-100 rounded-full mb-4 sm:mb-8 shadow-2xl">
+              <AlertTriangle className="w-8 h-8 sm:w-12 sm:h-12 text-red-600" />
+            </div>
+
+            {/* Error Title - Mobile Responsive */}
+            <h1 className="text-2xl sm:text-4xl md:text-6xl font-bold bg-gradient-to-r from-red-600 via-orange-600 to-red-800 bg-clip-text text-transparent mb-4 sm:mb-6 leading-tight">
+              Critical Error
+            </h1>
+
+            {/* Error Message - Mobile Optimized */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-white/20 p-4 sm:p-6 mb-6 sm:mb-8">
+              <p className="text-base sm:text-lg text-gray-300 mb-3 sm:mb-4 leading-relaxed">
+                A critical error has occurred. Please try refreshing the page or contact support if the problem persists.
+              </p>
+              
+              {/* Quick Tips for Mobile Users */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-400">
+                  <Smartphone className="w-4 h-4" />
+                  <span>Check connection</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-400">
+                  <Wifi className="w-4 h-4" />
+                  <span>Refresh page</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-400">
+                  <Shield className="w-4 h-4" />
+                  <span>Try again</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons - Mobile Optimized Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 justify-center mb-6 sm:mb-8">
+              <button
+                onClick={reset}
+                className="px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center text-sm sm:text-base min-h-[44px] touch-manipulation"
+              >
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                Try Again
+              </button>
+
+              <Link
+                href="/"
+                className="px-4 sm:px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center text-sm sm:text-base min-h-[44px] touch-manipulation"
+              >
+                <Home className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                Go Home
+              </Link>
+
+              <button
+                onClick={() => window.history.back()}
+                className="px-4 sm:px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center text-sm sm:text-base min-h-[44px] touch-manipulation"
+              >
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                Go Back
+              </button>
+            </div>
+
+            {/* Support Information - Mobile Optimized */}
+            <div className="mt-6 sm:mt-8 text-gray-400 text-xs sm:text-sm space-y-2">
+              <p>If this problem persists, please contact our support team.</p>
+              <p className="text-center">
+                Error ID: <span className="font-mono bg-black/20 px-2 py-1 rounded text-xs">
+                  {error.digest || 'N/A'}
+                </span>
+              </p>
+            </div>
+
+            {/* Additional Help for Mobile Users */}
+            <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-white/5 rounded-lg border border-white/10">
+              <p className="text-xs sm:text-sm text-gray-400 mb-2">Quick fixes to try:</p>
+              <ul className="text-xs text-gray-500 space-y-1 text-left max-w-xs mx-auto">
+                <li>• Clear browser cache and cookies</li>
+                <li>• Check your internet connection</li>
+                <li>• Try a different browser</li>
+                <li>• Restart your device</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Custom CSS for animations - Mobile Optimized */}
+          <style jsx>{`
+            @keyframes pulse {
+              0%, 100% { opacity: 0.2; }
+              50% { opacity: 0.4; }
+            }
+            
+            .animate-pulse {
+              animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            
+            .animation-delay-1000 {
+              animation-delay: 1s;
+            }
+
+            /* Mobile-specific optimizations */
+            @media (max-width: 640px) {
+              .animate-pulse {
+                animation-duration: 4s;
+              }
+            }
+          `}</style>
+        </div>
+      </body>
+    </html>
+  );
+}

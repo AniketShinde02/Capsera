@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     const query = status ? { status } : {};
     const skip = (page - 1) * limit;
 
-    const contacts = await Contact.find(query)
+    const contacts = await (Contact as any).find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

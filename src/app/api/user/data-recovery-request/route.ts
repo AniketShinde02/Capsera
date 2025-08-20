@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get user details for email
-    const user = await User.findById(session.user.id).select('name username email emailPreferences');
+    const user = await (User as any).findById(session.user.id).select('name username email emailPreferences');
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create recovery request
-    const recoveryRequest = await DataRecoveryRequest.create({
+    const recoveryRequest = await (DataRecoveryRequest as any).create({
       userId: session.user.id,
       userEmail: session.user.email,
       reason,

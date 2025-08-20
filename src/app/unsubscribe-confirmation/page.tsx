@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Mail, Shield, Home } from 'lucide-react';
 import Link from 'next/link';
 
-export default function UnsubscribeConfirmationPage() {
+function UnsubscribeConfirmationContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
   const [isLoading, setIsLoading] = useState(true);
@@ -113,5 +113,13 @@ export default function UnsubscribeConfirmationPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function UnsubscribeConfirmationPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <UnsubscribeConfirmationContent />
+    </Suspense>
   );
 }

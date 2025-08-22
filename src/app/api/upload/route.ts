@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cloudinary } from '@/lib/cloudinary';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import { checkImageContentSafety, reportInappropriateContent, validateImageForProcessing } from '@/lib/content-safety';
 
 // Vercel API configuration
 export const config = {
@@ -73,6 +74,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'File too large. Please upload an image smaller than 10MB.' }, { status: 413 });
     }
 
+    // Content safety validation
+    const validation = validateImageForProcessing(file, file.name);
+    if (!validation.isValid) {
+      return NextResponse.json({ 
+        success: false, 
+        message: validation.error || 'Image validation failed.' 
+      }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     
     const fileExtension = path.extname(file.name);
@@ -88,6 +98,39 @@ export async function POST(req: Request) {
 
     // Use retry logic for Cloudinary upload
     const response = await uploadWithRetry(uploadParams, 3);
+
+    // Content safety check after successful upload
+    try {
+      console.log(`🔍 Performing content safety check for: ${uniqueFileName}`);
+      const safetyResult = await checkImageContentSafety(response.secure_url);
+      
+      if (!safetyResult.isAppropriate) {
+        console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);
+        
+        // Report inappropriate content for admin review
+        await reportInappropriateContent({
+          imageUrl: response.secure_url,
+          ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+          reason: safetyResult.flagged.includes('adult') ? 'sexual' : 
+                  safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
+          description: `Content flagged as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
+          timestamp: new Date()
+        });
+
+        // Return error to user
+        return NextResponse.json({ 
+          success: false, 
+          message: 'This image contains inappropriate content and cannot be processed. Please upload a family-friendly image.',
+          error: 'content_violation',
+          flagged: safetyResult.flagged
+        }, { status: 400 });
+      }
+      
+      console.log(`✅ Content safety check passed for: ${uniqueFileName}`);
+    } catch (safetyError) {
+      console.error('❌ Content safety check failed:', safetyError);
+      // Continue with upload if safety check fails (fail-safe approach)
+    }
 
     // Sanitized success logging
     console.log(`✅ Cloudinary upload completed successfully for: ${uniqueFileName}`);

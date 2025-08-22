@@ -31,7 +31,9 @@
     "fix-chunks:win": "scripts\\fix-chunk-errors.bat",
     "fix-chunks:unix": "./scripts/fix-chunk-errors.sh",
     "migrate:imagekit": "node scripts/migrate-imagekit-urls.js",
-    "quick-fix:imagekit": "node scripts/quick-fix-imagekit.js"
+    "quick-fix:imagekit": "node scripts/quick-fix-imagekit.js",
+    "test:content-safety": "node scripts/test-content-safety.js",
+    "test:content-safety-simple": "node scripts/simple-content-safety-test.js"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.4.1",

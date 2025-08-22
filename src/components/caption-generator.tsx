@@ -30,6 +30,7 @@ import { generateCaptions } from "@/ai/flows/generate-caption";
 import { CaptionCard } from "./caption-card";
 import { Textarea } from "./ui/textarea";
 import { trackCaptionGeneration, hasConsent, saveFavoriteMood } from "@/lib/cookie-utils";
+import { ContentSafetyGuidelines } from "./content-safety-guidelines";
 
 const formSchema = z.object({
   mood: z.string({
@@ -85,6 +86,7 @@ export function CaptionGenerator() {
   const [currentMood, setCurrentMood] = useState<string>('');
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [isOnline, setIsOnline] = useState(true);
+  const [hasSeenGuidelines, setHasSeenGuidelines] = useState(false);
   const { data: session } = useSession();
 
   // Function to compress image while maintaining quality
@@ -582,12 +584,22 @@ export function CaptionGenerator() {
       setButtonMessage('AI is analyzing your image...');
       setButtonIcon(<Brain className="mr-2 h-4 w-4 animate-pulse" />);
 
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      // ⚡ SPEED OPTIMIZATION: Realistic timeout for AI processing
+      const captionController = new AbortController();
+      const captionTimeout = setTimeout(() => {
+        // Caption generation timeout triggered - aborting AI request
+        captionController.abort();
+      }, 90000); // 90 second timeout - realistic for AI processing, large images, and complex prompts
 
+      // ⚡ USER EXPERIENCE: Show timeout warning at 60 seconds
+      const captionWarningTimeout = setTimeout(() => {
+        setButtonMessage('AI is taking longer than usual...');
+        setButtonIcon(<Clock className="mr-2 h-4 w-4 animate-pulse text-yellow-500" />);
+      }, 60000);
+
+      let captionResponse;
       try {
-        const captionResponse = await fetch('/api/generate-captions', {
+        captionResponse = await fetch('/api/generate-captions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -596,267 +608,252 @@ export function CaptionGenerator() {
             mood: values.mood,
             description: values.description,
             imageUrl: uploadData.url,
-            publicId: uploadData.public_id,
+            publicId: uploadData.public_id, // Store Cloudinary public ID for deletion
           }),
-          signal: controller.signal,
+          signal: captionController.signal,
         });
-
-        clearTimeout(timeoutId); // Clear timeout if request completes
-
-        // Check if caption response is valid
-        if (!captionResponse.ok) {
-          let captionErrorMessage = 'Failed to generate captions.';
-
-          try {
-            const captionErrorData = await captionResponse.json();
-            captionErrorMessage = captionErrorData.message || captionErrorMessage;
-
-            // Handle specific error types - IMPORTANT: Throw error immediately to preserve server message
-            if (captionResponse.status === 429) {
-              // Always preserve the server message for 429 errors
-              throw new Error(captionErrorData.message || 'You have used all your free requests. Please try again later or upgrade your plan.');
-            }
-
-            if (captionResponse.status === 503) {
-              if (captionErrorData.type === 'ai_config_error') {
-                throw new Error('AI service is not configured. Please contact support.');
-              } else if (captionErrorData.type === 'ai_service_error') {
-                throw new Error('AI service is temporarily unavailable. Please try again later.');
-              }
-            }
-
-            // If we reach here, throw the error with the server message
-            throw new Error(captionErrorMessage);
-          } catch (parseError) {
-            console.error('❌ Failed to parse caption error response:', parseError);
-
-            // Only use fallback messages if we couldn't parse the server response
-            if (parseError instanceof Error && parseError.message !== captionErrorMessage) {
-              // This means the server message was successfully parsed and thrown
-              throw parseError; // Re-throw the server message
-            }
-
-            // Fallback to generic messages only if parsing failed
-            if (captionErrorMessage?.includes('invalid') || captionErrorMessage?.includes('malformed')) {
-              captionErrorMessage = 'Invalid request. Please check your input and try again.';
-            } else if (captionErrorMessage?.includes('nsfw') || captionErrorMessage?.includes('inappropriate') || captionErrorMessage?.includes('content safety')) {
-              captionErrorMessage = 'This image contains inappropriate content and cannot be processed. Please upload an appropriate image.';
-            } else if (captionErrorMessage?.includes('quota') || captionErrorMessage?.includes('limit')) {
-              captionErrorMessage = 'You have used all your free requests. Please try again later or upgrade your plan.';
-            } else {
-              captionErrorMessage = 'Server error during caption generation. Please try again later.';
-            }
-
-            throw new Error(captionErrorMessage);
-          }
-        }
-
-        let captionData;
-        try {
-          captionData = await captionResponse.json();
-          // Caption response data received
-        } catch (parseError) {
-          console.error('❌ Failed to parse caption response:', parseError);
-          throw new Error('Failed to process caption response. Please try again.');
-        }
-
-        // Processing caption data
-
-        if (captionData.success && captionData.captions && Array.isArray(captionData.captions) && captionData.captions.length > 0) {
-          // Validate that captions are actually strings and not empty
-          const validCaptions = captionData.captions.filter((caption: any) =>
-            typeof caption === 'string' && caption.trim().length > 0
-          );
-
-          // Valid captions found
-
-          if (validCaptions.length === 0) {
-            throw new Error('Generated captions are invalid. Please try again.');
-          }
-
-          setCaptions(validCaptions);
-
-          // Track analytics if consent given
-          if (hasConsent('analytics')) {
-            // Ensure startTime is defined and accessible in this scope
-            const processingTime = typeof startTime === 'number' ? Date.now() - startTime : 0;
-            trackCaptionGeneration({
-              mood: currentMood,
-              imageSize: uploadedFile?.size || 0,
-              processingTime,
-              success: true
-            });
-          }
-
-          // Save mood preference if personalization consent given
-          if (hasConsent('functional')) {
-            saveFavoriteMood(currentMood);
-          }
-
-          // Refresh quota info after successful generation
-          setRefreshTrigger(prev => prev + 1);
-          // Captions set successfully
-
-          // 🗑️ AUTO-DELETE IMAGE FOR ANONYMOUS USERS
-          if (!quotaData.isAuthenticated && uploadData.public_id) {
-            // Anonymous user - auto-deleting image after caption generation
-
-            // Show auto-deletion message to user
-                    setShowAutoDeleteMessage(true);
-          setTimeout(() => setShowAutoDeleteMessage(false), 5000); // Hide after 5 seconds
-
-            // Auto-delete image in background (don't wait for response)
-            fetch('/api/delete-image', {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                imageUrl: uploadData.url,
-                publicId: uploadData.public_id,
-              }),
-            }).then(response => {
-              if (response.ok) {
-                console.log('✅ Anonymous user image auto-deleted successfully');
-              } else {
-                console.log('❌ Failed to auto-delete anonymous user image');
-              }
-            }).catch(error => {
-              console.log('⚠️ Error during auto-deletion of anonymous user image:', error);
-            });
-          } else if (quotaData.isAuthenticated) {
-            console.log('💾 Authenticated user - image saved permanently in Cloudinary');
-          }
-        } else {
-          console.error('❌ Invalid caption data structure:', captionData);
-          throw new Error("Couldn't generate captions. Please try again.");
-        }
-
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
-        // Handle AbortController timeout
+        console.error('❌ Fetch error during caption generation:', fetchError);
+
+        // Handle different error types properly
         if (fetchError.name === 'AbortError') {
-          throw new Error('Request timed out. Please check your internet connection and try again.');
+          clearTimeout(captionTimeout);
+          throw new Error('AI is taking too long to generate captions. Please try with a simpler image or try again later.');
         }
-        
-        // Re-throw other errors to be handled by the main catch block
-        throw fetchError;
+
+        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
+          clearTimeout(captionTimeout);
+          throw new Error('Network error during caption generation. Please check your internet connection and try again.');
+        }
+
+        clearTimeout(captionTimeout);
+        throw new Error('Caption generation failed. Please try again.');
       }
 
-    } catch (error: any) {
-        console.error('❌ Caption generation error:', error);
-        
-        // Handle network errors specifically
-        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          setErrorWithTimer('Network connection failed. Please check your internet connection and try again.', 10000);
-          return;
+      clearTimeout(captionTimeout);
+      clearTimeout(captionWarningTimeout); // Clear the warning timeout
+
+      // Check if caption response is valid
+      if (!captionResponse.ok) {
+        let captionErrorMessage = 'Failed to generate captions.';
+
+        try {
+          const captionErrorData = await captionResponse.json();
+          captionErrorMessage = captionErrorData.message || captionErrorMessage;
+
+          // Handle specific error types - IMPORTANT: Throw error immediately to preserve server message
+          if (captionResponse.status === 429) {
+            // Always preserve the server message for 429 errors
+            throw new Error(captionErrorData.message || 'You have used all your free requests. Please try again later or upgrade your plan.');
+          }
+
+          if (captionResponse.status === 503) {
+            if (captionErrorData.type === 'ai_config_error') {
+              throw new Error('AI service is not configured. Please contact support.');
+            } else if (captionErrorData.type === 'ai_service_error') {
+              throw new Error('AI service is temporarily unavailable. Please try again later.');
+            }
+          }
+
+          // If we reach here, throw the error with the server message
+          throw new Error(captionErrorMessage);
+        } catch (parseError) {
+          console.error('❌ Failed to parse caption error response:', parseError);
+
+          // Only use fallback messages if we couldn't parse the server response
+          if (parseError instanceof Error && parseError.message !== captionErrorMessage) {
+            // This means the server message was successfully parsed and thrown
+            throw parseError; // Re-throw the server message
+          }
+
+          // Fallback to generic messages only if parsing failed
+          switch (captionResponse.status) {
+            case 400:
+              captionErrorMessage = 'Invalid request. Please check your input and try again.';
+              break;
+            case 429:
+              captionErrorMessage = 'You have used all your free requests. Please try again later or upgrade your plan.';
+              break;
+            case 500:
+              captionErrorMessage = 'Server error during caption generation. Please try again later.';
+              break;
+            case 503:
+              captionErrorMessage = 'AI service is temporarily unavailable. Please try again later.';
+              break;
+            default:
+              captionErrorMessage = `Caption generation failed (${captionResponse.status}). Please try again.`;
+          }
+
+          throw new Error(captionErrorMessage);
+        }
+      }
+
+      let captionData;
+      try {
+        captionData = await captionResponse.json();
+        // Caption response data received
+      } catch (parseError) {
+        console.error('❌ Failed to parse caption response:', parseError);
+        throw new Error('Failed to process caption response. Please try again.');
+      }
+
+      // Processing caption data
+
+      if (captionData.success && captionData.captions && Array.isArray(captionData.captions) && captionData.captions.length > 0) {
+        // Validate that captions are actually strings and not empty
+        const validCaptions = captionData.captions.filter((caption: any) =>
+          typeof caption === 'string' && caption.trim().length > 0
+        );
+
+        // Valid captions found
+
+        if (validCaptions.length === 0) {
+          throw new Error('Generated captions are invalid. Please try again.');
         }
 
-        // Handle quota and rate limit errors
-        if (error.message?.includes('free images this month') ||
-            error.message?.includes('monthly limit') ||
-            error.message?.includes('quota will reset') ||
-            error.message?.includes('hit your monthly limit') ||
-            error.message?.includes('used all your free requests') ||
-            error.message?.includes('used all 5 free images this month') ||
-            error.message?.includes('You\'ve used all') ||
-            error.message?.includes('You\'ve reached your monthly limit')) {
-          setErrorWithTimer(error.message, 10000);
-          return;
-        }
+        setCaptions(validCaptions);
 
-        // Handle NSFW content errors
-        if (error.message?.includes('inappropriate content') || 
-            error.message?.includes('nsfw') || 
-            error.message?.includes('content safety')) {
-          setErrorWithTimer(error.message, 15000); // Longer display for safety warnings
-          return;
-        }
-
-        // Handle other specific errors
-        if (error.message?.includes('upload')) {
-          setError('Image upload timed out. Please check your internet connection and try again.');
-        } else if (error.message?.includes('generation')) {
-          setError('Caption generation timed out. Please try again with a smaller image or better connection.');
-        } else {
-          // Generic error handling
-          setErrorWithTimer(error.message || 'An unexpected error occurred. Please try again.', 8000);
-        }
-
-        // Log error for debugging
-        console.error('💥 Caption generation error details:', {
-          error: error.message,
-          stack: error.stack,
-          timestamp: new Date().toISOString()
-        });
-
-        // Track failed generation analytics if consent given
+        // Track analytics if consent given
         if (hasConsent('analytics')) {
-          const processingTime = Date.now() - startTime;
+          // Ensure startTime is defined and accessible in this scope
+          const processingTime = typeof startTime === 'number' ? Date.now() - startTime : 0;
           trackCaptionGeneration({
             mood: currentMood,
             imageSize: uploadedFile?.size || 0,
             processingTime,
-            success: false,
-            error: error.message
+            success: true
           });
         }
 
-        // Only log non-rate-limit errors to avoid console spam
-        if (!error.message?.includes('free images this month') &&
-          !error.message?.includes('monthly limit') &&
-          !error.message?.includes('quota will reset') &&
-          !error.message?.includes('hit your monthly limit') &&
-          !error.message?.includes('used all your free requests') &&
-          !error.message?.includes('used all 5 free images this month') &&
-          !error.message?.includes('You\'ve used all') &&
-          !error.message?.includes('You\'ve reached your monthly limit')) {
-          console.error("Caption Generation Error:", error);
+        // Save mood preference if personalization consent given
+        if (hasConsent('functional')) {
+          saveFavoriteMood(currentMood);
         }
 
-        // If it's a rate limit error, trigger quota refresh and shake animation
-        if (error.message?.includes('free images this month') ||
-          error.message?.includes('monthly limit') ||
-          error.message?.includes('quota will reset') ||
-          error.message?.includes('hit your monthly limit') ||
-          error.message?.includes('used all your free requests') ||
-          error.message?.includes('used all 5 free images this month') ||
-          error.message?.includes('You\'ve used all') ||
-          error.message?.includes('You\'ve reached your monthly limit')) {
-          // Monthly limit detected, triggering shake animation and quota refresh
-          setRefreshTrigger(prev => prev + 1);
-          setShowLimitShake(true);
-          // Force immediate quota refresh
-          setTimeout(() => {
-            fetch('/api/rate-limit-info')
-              .then(response => response.json())
-              .then(data => {
-                setQuotaInfo({
-                  remaining: data.remaining,
-                  total: data.maxGenerations,
-                  isAuthenticated: data.isAuthenticated,
-                  isAdmin: data.isAdmin
-                });
-                // Forced quota refresh after monthly limit
-              })
-              .catch(err => {
-                // Failed to force refresh quota
-              });
-          }, 100);
-          // Reset shake animation after animation completes
-          setTimeout(() => setShowLimitShake(false), 600);
+        // Refresh quota info after successful generation
+        setRefreshTrigger(prev => prev + 1);
+        // Captions set successfully
 
-          // Set error with timer for monthly limit errors
-          setErrorWithTimer(error.message, 10000);
-        } else {
-          // Set error with timer for other errors
-          setErrorWithTimer(error.message, 10000);
+        // 🗑️ AUTO-DELETE IMAGE FOR ANONYMOUS USERS
+        if (!quotaData.isAuthenticated && uploadData.public_id) {
+          // Anonymous user - auto-deleting image after caption generation
+
+          // Show auto-deletion message to user
+                  setShowAutoDeleteMessage(true);
+        setTimeout(() => setShowAutoDeleteMessage(false), 5000); // Hide after 5 seconds
+
+          // Auto-delete image in background (don't wait for response)
+          fetch('/api/delete-image', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageUrl: uploadData.url,
+              publicId: uploadData.public_id,
+            }),
+          }).then(response => {
+            if (response.ok) {
+              console.log('✅ Anonymous user image auto-deleted successfully');
+            } else {
+              console.log('❌ Failed to auto-delete anonymous user image');
+            }
+          }).catch(error => {
+            console.log('⚠️ Error during auto-deletion of anonymous user image:', error);
+          });
+        } else if (quotaData.isAuthenticated) {
+          console.log('💾 Authenticated user - image saved permanently in Cloudinary');
         }
-      } finally {
-        setIsLoading(false);
-        updateButtonState('idle');
+      } else {
+        console.error('❌ Invalid caption data structure:', captionData);
+        throw new Error("Couldn't generate captions. Please try again.");
       }
+
+    } catch (error: any) {
+      // Handle specific error types
+      if (error.name === 'AbortError') {
+        if (error.message.includes('upload')) {
+          setError('Image upload timed out. Please check your internet connection and try again.');
+        } else {
+          setError('Caption generation timed out. Please try again with a smaller image or better connection.');
+        }
+        return;
+      }
+
+      // Enhanced error logging for debugging
+      console.error("Caption Generation Error:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        cause: error.cause
+      });
+
+      // Track failed generation analytics if consent given
+      if (hasConsent('analytics')) {
+        const processingTime = Date.now() - startTime;
+        trackCaptionGeneration({
+          mood: currentMood,
+          imageSize: uploadedFile?.size || 0,
+          processingTime,
+          success: false,
+          error: error.message
+        });
+      }
+
+      // Only log non-rate-limit errors to avoid console spam
+      if (!error.message?.includes('free images this month') &&
+        !error.message?.includes('monthly limit') &&
+        !error.message?.includes('quota will reset') &&
+        !error.message?.includes('hit your monthly limit') &&
+        !error.message?.includes('used all your free requests') &&
+        !error.message?.includes('used all 5 free images this month') &&
+        !error.message?.includes('You\'ve used all') &&
+        !error.message?.includes('You\'ve reached your monthly limit')) {
+        console.error("Caption Generation Error:", error);
+      }
+
+      // If it's a rate limit error, trigger quota refresh and shake animation
+      if (error.message?.includes('free images this month') ||
+        error.message?.includes('monthly limit') ||
+        error.message?.includes('quota will reset') ||
+        error.message?.includes('hit your monthly limit') ||
+        error.message?.includes('used all your free requests') ||
+        error.message?.includes('used all 5 free images this month') ||
+        error.message?.includes('You\'ve used all') ||
+        error.message?.includes('You\'ve reached your monthly limit')) {
+        // Monthly limit detected, triggering shake animation and quota refresh
+        setRefreshTrigger(prev => prev + 1);
+        setShowLimitShake(true);
+        // Force immediate quota refresh
+        setTimeout(() => {
+          fetch('/api/rate-limit-info')
+            .then(response => response.json())
+            .then(data => {
+              setQuotaInfo({
+                remaining: data.remaining,
+                total: data.maxGenerations,
+                isAuthenticated: data.isAuthenticated,
+                isAdmin: data.isAdmin
+              });
+              // Forced quota refresh after monthly limit
+            })
+            .catch(err => {
+              // Failed to force refresh quota
+            });
+        }, 100);
+        // Reset shake animation after animation completes
+        setTimeout(() => setShowLimitShake(false), 600);
+
+        // Set error with timer for monthly limit errors
+        setErrorWithTimer(error.message, 10000);
+      } else {
+        // Set error with timer for other errors
+        setErrorWithTimer(error.message, 10000);
+      }
+    } finally {
+      setIsLoading(false);
+      updateButtonState('idle');
+    }
   }
 
 
@@ -930,6 +927,21 @@ export function CaptionGenerator() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
+              {/* Content Safety Guidelines */}
+              {!hasSeenGuidelines && (
+                <div className="col-span-full mb-6">
+                  <ContentSafetyGuidelines
+                    onAccept={() => setHasSeenGuidelines(true)}
+                    onDecline={() => {
+                      // User declined guidelines, show error
+                      setError('You must accept our content safety guidelines to use this service.');
+                      setTimeout(() => setError(''), 5000);
+                    }}
+                    showAcceptance={true}
+                  />
+                </div>
+              )}
+
               {/* Responsive Grid Layout - Mobile First */}
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5 items-start">
 
@@ -953,66 +965,93 @@ export function CaptionGenerator() {
                             : uploadStage === 'generating'
                               ? 'border-accent/80 bg-accent/5 animate-generating-sparkle'
                               : uploadStage === 'loading'
-                                ? 'border-muted/80 bg-muted/5'
-                                : 'border-dashed border-2 border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300'
+                                ? 'border-accent/80 bg-accent/5 animate-processing-glow'
+                                : 'bg-[#F2EFE5]/50 dark:bg-background/50 hover:bg-[#E3E1D9]/60 dark:hover:bg-muted/40 hover:shadow-md'
                         }`}
                     >
-                      {/* Upload Icon and Text */}
-                      <div className="flex flex-col items-center justify-center text-center p-4">
-                        {uploadStage === 'uploading' ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs text-primary font-medium">Uploading...</span>
+                      {imagePreview && uploadStage === 'idle' ? (
+                        <div className="relative w-full h-full bg-muted/20">
+                          <Image
+                            src={imagePreview}
+                            alt="Uploaded preview"
+                            fill
+                            style={{ objectFit: "contain" }}
+                          />
+                        </div>
+                      ) : uploadStage !== 'idle' ? (
+                        <div className="flex flex-col items-center justify-center px-3 text-center">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-all duration-300 ${uploadStage === 'uploading'
+                              ? 'bg-primary/20 animate-upload-pulse'
+                              : uploadStage === 'processing'
+                                ? 'bg-secondary/20 animate-processing-glow'
+                                : uploadStage === 'generating'
+                                  ? 'bg-accent/20 animate-generating-sparkle'
+                                  : uploadStage === 'loading'
+                                    ? 'bg-accent/20 animate-processing-glow'
+                                    : 'bg-primary/20'
+                            }`}>
+                            {uploadStage === 'uploading' && (
+                              <UploadCloud className="w-6 h-6 text-primary" />
+                            )}
+                            {uploadStage === 'processing' && (
+                              <ImageIcon className="w-6 h-6 text-secondary" />
+                            )}
+                            {uploadStage === 'generating' && (
+                              <Brain className="w-6 h-6 text-accent" />
+                            )}
+                            {uploadStage === 'loading' && (
+                              <ImageIcon className="w-6 h-6 text-accent" />
+                            )}
                           </div>
-                        ) : uploadStage === 'processing' ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs text-secondary font-medium">Processing...</span>
-                          </div>
-                        ) : uploadStage === 'generating' ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs text-accent font-medium">Generating...</span>
-                          </div>
-                        ) : uploadStage === 'loading' ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs text-muted-foreground">Loading...</span>
-                          </div>
-                        ) : (
-                          <>
-                            <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Click to upload image
-                            </span>
-                            <span className="text-xs text-muted-foreground/70 mt-1">
-                              PNG, JPG, GIF up to 10MB
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </label>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      disabled={isLoading}
-                    />
-
-                    {/* Content Safety Notice */}
-                    <div className="text-xs text-muted-foreground/70 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <span className="text-amber-600 dark:text-amber-400 mt-0.5">⚠️</span>
-                        <div>
-                          <p className="font-medium text-amber-700 dark:text-amber-300 mb-1">Content Guidelines</p>
-                          <p className="text-amber-600 dark:text-amber-400 leading-relaxed">
-                            We prioritize content safety. Images containing explicit sexual content, graphic violence, hate speech, or illegal activities will be rejected and reported.
+                          <p className="text-sm font-medium text-foreground mb-1">
+                            {uploadStage === 'uploading' && 'Uploading Image...'}
+                            {uploadStage === 'processing' && 'Processing Image...'}
+                            {uploadStage === 'generating' && 'Generating Captions...'}
+                            {uploadStage === 'loading' && 'Processing Your Image...'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {uploadStage === 'uploading' && 'Please wait while we upload your image'}
+                            {uploadStage === 'processing' && 'Analyzing your image for caption generation'}
+                            {uploadStage === 'generating' && 'Creating amazing captions for you'}
+                            {uploadStage === 'loading' && 'Please wait while we process your image'}
                           </p>
                         </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center px-3 text-center">
+                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                            <UploadCloud className="w-5 h-5 text-primary" />
+                          </div>
+                                                      <p className="text-xs text-muted-foreground font-medium">Click to upload or drag and drop</p>
+                            <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF - Auto-compression for high-res images</p>
+                        </div>
+                      )}
+                      <input
+                        id="file-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/png, image/jpeg, image/gif"
+                        onChange={handleImageChange}
+                      />
+                    </label>
+
+                    {/* Compact Error Display for Non-Monthly Limit Errors - Mobile Responsive */}
+                    {error && !error.includes('monthly limit') && !error.includes('used all') && !error.includes('quota will reset') && (
+                      <div className="px-2 sm:px-3">
+                        <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 text-center leading-relaxed break-words">
+                          {error}
+                        </p>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Compact Success Message */}
+                    {showSuccessMessage && (
+                      <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg transition-all duration-300">
+                        <CheckCircle2 className="w-3 h-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+                          Ready to continue! 🚀
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Mood Selection - Compact */}
@@ -1315,30 +1354,6 @@ export function CaptionGenerator() {
             <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 text-center leading-relaxed break-words">
               {error}
             </p>
-          </div>
-        )}
-
-        {/* NSFW Content Warning - Prominent Display */}
-        {error && (error.includes('inappropriate content') || error.includes('nsfw') || error.includes('content safety')) && (
-          <div className="mt-4 px-2 sm:px-4 max-w-2xl mx-auto">
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                  <span className="text-red-600 dark:text-red-400 text-lg">🚫</span>
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">
-                    Content Safety Alert
-                  </h4>
-                  <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
-                    {error}
-                  </p>
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                    Please upload an appropriate image that follows our community guidelines.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

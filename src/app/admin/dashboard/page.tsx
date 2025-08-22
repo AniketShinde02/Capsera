@@ -494,28 +494,40 @@ export default function AdminDashboard() {
         </Card>
 
       {/* Quick Actions */}
-      <Card>
+      <Card className="border border-border bg-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-card-foreground">
             <Zap className="w-5 h-5" />
             Quick Actions
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button className="h-auto p-4 flex flex-col items-center gap-2 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
               <Users className="w-5 h-5" />
               <span className="text-sm">Manage Users</span>
             </Button>
-            <Button className="h-auto p-4 flex flex-col items-center gap-2 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
               <Shield className="w-5 h-5" />
               <span className="text-sm">Roles & Permissions</span>
             </Button>
-            <Button className="h-auto p-4 flex flex-col items-center gap-2 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
               <Database className="w-5 h-5" />
               <span className="text-sm">Database</span>
             </Button>
-            <Button className="h-auto p-4 flex flex-col items-center gap-2 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
               <Settings className="w-5 h-5" />
               <span className="text-sm">Settings</span>
             </Button>

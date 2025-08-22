@@ -6,48 +6,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Users, 
-  Shield, 
-  Archive, 
-  FileText, 
-  Settings, 
-  MessageSquare, 
-  AlertTriangle, 
+  Activity, 
+  Bell, 
+  ChevronDown, 
+  ChevronRight, 
+  Clock, 
   Database, 
-  Image as ImageIcon,
-  Plus,
-  Trash2,
-  Eye,
-  Edit,
-  Lock,
-  Unlock,
-  Bell,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Zap,
+  FileText, 
+  Image, 
+  MessageSquare, 
+  RefreshCw, 
+  Settings, 
+  Shield, 
+  Users, 
+  User, 
   UserCheck,
+  UserPlus,
   UserX,
-  Clock,
-  Calendar,
+  Wrench,
+  Zap,
   BarChart3,
-  PieChart,
-  LineChart,
-  Download,
-  RefreshCw,
-  Filter,
-  Search,
-  Image,
-  Mail,
-  RotateCcw,
-  CheckCircle,
-  Info,
-  ChevronDown,
-  ChevronRight,
-  Globe,
-  User,
-  Cog,
-  LogOut
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -70,6 +50,7 @@ interface DashboardStats {
     totalCaptions: string;
     recoveryRequests: string;
     systemAlerts: string;
+    storageUsed: string;
   };
   realTimeData: {
     onlineUsers: number;
@@ -116,12 +97,16 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
     realTimeData: boolean;
     recentActivity: boolean;
     quickActions: boolean;
+    userManagement: boolean;
+    systemTools: boolean;
   }>({
     overview: true,
     systemStatus: false,
     realTimeData: false,
     recentActivity: false,
     quickActions: false,
+    userManagement: false,
+    systemTools: false,
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -142,21 +127,21 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
       case 'offline':
         return 'bg-red-500';
       default:
-        return 'bg-gray-500';
+        return 'bg-muted-foreground';
     }
   };
 
   const getTrendIcon = (trend: string) => {
     if (trend.includes('+')) return <TrendingUp className="w-4 h-4 text-green-500" />;
     if (trend.includes('-')) return <TrendingDown className="w-4 h-4 text-red-500" />;
-    return <Activity className="w-4 h-4 text-gray-500" />;
+    return <Activity className="w-4 h-4 text-muted-foreground" />;
   };
 
   return (
     <div className="space-y-4 p-4 max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
         <Button
           onClick={onRefresh}
           disabled={isLoading}
@@ -170,13 +155,13 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
       </div>
 
       {/* Overview Section */}
-      <Card className="border-2 border-gray-200 dark:border-gray-700">
+      <Card className="border border-border bg-card">
         <CardHeader 
           className="cursor-pointer"
           onClick={() => toggleSection('overview')}
         >
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2 text-card-foreground">
               <BarChart3 className="w-5 h-5" />
               Overview
             </CardTitle>
@@ -191,43 +176,43 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
         {expandedSections.overview && (
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Users className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                <div className="text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
-                <div className="text-sm text-blue-600">Total Users</div>
+              <div className="text-center p-3 bg-primary/10 rounded-lg">
+                <Users className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <div className="text-2xl font-bold text-primary">{stats.totalUsers}</div>
+                <div className="text-sm text-primary">Total Users</div>
                 <div className="flex items-center justify-center gap-1 mt-1">
                   {getTrendIcon(stats.trends.totalUsers)}
-                  <span className="text-xs">{stats.trends.totalUsers}</span>
+                  <span className="text-xs text-muted-foreground">{stats.trends.totalUsers}</span>
                 </div>
               </div>
               
-              <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <UserCheck className="w-8 h-8 mx-auto mb-2 text-green-600" />
-                <div className="text-2xl font-bold text-green-600">{stats.activeUsers}</div>
-                <div className="text-sm text-green-600">Active Users</div>
+              <div className="text-center p-3 bg-accent/10 rounded-lg">
+                <UserCheck className="w-8 h-8 mx-auto mb-2 text-accent" />
+                <div className="text-2xl font-bold text-accent">{stats.activeUsers}</div>
+                <div className="text-sm text-accent">Active Users</div>
                 <div className="flex items-center justify-center gap-1 mt-1">
                   {getTrendIcon(stats.trends.activeUsers)}
-                  <span className="text-xs">{stats.trends.activeUsers}</span>
+                  <span className="text-xs text-muted-foreground">{stats.trends.activeUsers}</span>
                 </div>
               </div>
               
-              <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <MessageSquare className="w-8 h-8 mx-auto mb-2 text-purple-600" />
-                <div className="text-2xl font-bold text-purple-600">{stats.totalCaptions}</div>
-                <div className="text-sm text-purple-600">Total Captions</div>
+              <div className="text-center p-3 bg-secondary/10 rounded-lg">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 text-secondary" />
+                <div className="text-2xl font-bold text-secondary">{stats.totalCaptions}</div>
+                <div className="text-sm text-secondary">Total Captions</div>
                 <div className="flex items-center justify-center gap-1 mt-1">
                   {getTrendIcon(stats.trends.totalCaptions)}
-                  <span className="text-xs">{stats.trends.totalCaptions}</span>
+                  <span className="text-xs text-muted-foreground">{stats.trends.totalCaptions}</span>
                 </div>
               </div>
               
-              <div className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                <FileText className="w-8 h-8 mx-auto mb-2 text-orange-600" />
-                <div className="text-2xl font-bold text-orange-600">{stats.recoveryRequests}</div>
-                <div className="text-sm text-orange-600">Recovery Requests</div>
+              <div className="text-center p-3 bg-muted/20 rounded-lg">
+                <Database className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                <div className="text-2xl font-bold text-muted-foreground">{stats.trends.storageUsed}</div>
+                <div className="text-sm text-muted-foreground">Storage Used</div>
                 <div className="flex items-center justify-center gap-1 mt-1">
-                  {getTrendIcon(stats.trends.recoveryRequests)}
-                  <span className="text-xs">{stats.trends.recoveryRequests}</span>
+                  {getTrendIcon(stats.trends.storageUsed)}
+                  <span className="text-xs text-muted-foreground">{stats.trends.storageUsed}</span>
                 </div>
               </div>
             </div>
@@ -235,15 +220,15 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
         )}
       </Card>
 
-      {/* System Status Section */}
-      <Card className="border-2 border-gray-200 dark:border-gray-700">
+      {/* System Status */}
+      <Card className="border border-border bg-card">
         <CardHeader 
           className="cursor-pointer"
           onClick={() => toggleSection('systemStatus')}
         >
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="w-5 h-5" />
+            <CardTitle className="text-lg flex items-center gap-2 text-card-foreground">
+              <Activity className="w-5 h-5" />
               System Status
             </CardTitle>
             {expandedSections.systemStatus ? (
@@ -256,55 +241,40 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
         
         {expandedSections.systemStatus && (
           <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Database</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(stats.databaseStatus)}`}></div>
-                  <span className="text-sm">{stats.databaseStatus}</span>
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-foreground">Database</span>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Image Storage</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(stats.imageStorageStatus)}`}></div>
-                  <span className="text-sm">{stats.imageStorageStatus}</span>
-                </div>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-foreground">Authentication</span>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">AI Services</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(stats.aiServicesStatus)}`}></div>
-                  <span className="text-sm">{stats.aiServicesStatus}</span>
-                </div>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-foreground">Storage</span>
               </div>
-            </div>
-            
-            <div className="pt-2">
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span>System Load</span>
-                <span>{stats.realTimeData.systemLoad}%</span>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-foreground">Admin User</span>
               </div>
-              <Progress value={stats.realTimeData.systemLoad} className="h-2" />
             </div>
           </CardContent>
         )}
       </Card>
 
-      {/* Real-time Data Section */}
-      <Card className="border-2 border-gray-200 dark:border-gray-700">
+      {/* User Management */}
+      <Card className="border border-border bg-card">
         <CardHeader 
           className="cursor-pointer"
-          onClick={() => toggleSection('realTimeData')}
+          onClick={() => toggleSection('userManagement')}
         >
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Real-time Data
+            <CardTitle className="text-lg flex items-center gap-2 text-card-foreground">
+              <Users className="w-5 h-5" />
+              User Management
             </CardTitle>
-            {expandedSections.realTimeData ? (
+            {expandedSections.userManagement ? (
               <ChevronDown className="w-5 h-5" />
             ) : (
               <ChevronRight className="w-5 h-5" />
@@ -312,45 +282,81 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
           </div>
         </CardHeader>
         
-        {expandedSections.realTimeData && (
+        {expandedSections.userManagement && (
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <Users className="w-6 h-6 mx-auto mb-1 text-green-600" />
-                <div className="text-lg font-bold text-green-600">{stats.realTimeData.onlineUsers}</div>
-                <div className="text-xs text-green-600">Online</div>
-              </div>
-              
-              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Clock className="w-6 h-6 mx-auto mb-1 text-blue-600" />
-                <div className="text-lg font-bold text-blue-600">{stats.realTimeData.activeSessions}</div>
-                <div className="text-xs text-blue-600">Active Sessions</div>
-              </div>
-              
-              <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <Bell className="w-6 h-6 mx-auto mb-1 text-yellow-600" />
-                <div className="text-lg font-bold text-yellow-600">{stats.realTimeData.pendingActions}</div>
-                <div className="text-xs text-yellow-600">Pending</div>
-              </div>
-              
-              <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <Zap className="w-6 h-6 mx-auto mb-1 text-purple-600" />
-                <div className="text-lg font-bold text-purple-600">{stats.realTimeData.systemLoad}%</div>
-                <div className="text-xs text-purple-600">Load</div>
-              </div>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                <span className="text-xs">Add User</span>
+              </Button>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <UserCheck className="w-4 h-4" />
+                <span className="text-xs">Verify User</span>
+              </Button>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <UserX className="w-4 h-4" />
+                <span className="text-xs">Suspend User</span>
+              </Button>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <Users className="w-4 h-4" />
+                <span className="text-xs">View All</span>
+              </Button>
             </div>
           </CardContent>
         )}
       </Card>
 
-      {/* Recent Activity Section */}
-      <Card className="border-2 border-gray-200 dark:border-gray-700">
+      {/* System Tools */}
+      <Card className="border border-border bg-card">
+        <CardHeader 
+          className="cursor-pointer"
+          onClick={() => toggleSection('systemTools')}
+        >
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2 text-card-foreground">
+              <Wrench className="w-5 h-5" />
+              System Tools
+            </CardTitle>
+            {expandedSections.systemTools ? (
+              <ChevronDown className="w-5 h-5" />
+            ) : (
+              <ChevronRight className="w-5 h-5" />
+            )}
+          </div>
+        </CardHeader>
+        
+        {expandedSections.systemTools && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <Database className="w-4 h-4" />
+                <span className="text-xs">Backup DB</span>
+              </Button>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                <span className="text-xs">Clear Cache</span>
+              </Button>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="text-xs">View Logs</span>
+              </Button>
+              <Button variant="outline" className="h-12 flex flex-col items-center justify-center gap-2">
+                <Settings className="w-4 h-4" />
+                <span className="text-xs">Settings</span>
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Recent Activity */}
+      <Card className="border border-border bg-card">
         <CardHeader 
           className="cursor-pointer"
           onClick={() => toggleSection('recentActivity')}
         >
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2 text-card-foreground">
               <Clock className="w-5 h-5" />
               Recent Activity
             </CardTitle>
@@ -365,34 +371,34 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
         {expandedSections.recentActivity && (
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <h4 className="font-medium text-sm text-gray-600 dark:text-gray-400">Recent Users</h4>
+              <h4 className="font-medium text-sm text-muted-foreground">Recent Users</h4>
               {stats.recentActivity.users.slice(0, 3).map((user) => (
-                <div key={user.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                    <Users className="w-4 h-4 text-blue-600" />
+                <div key={user.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Users className="w-4 h-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-medium truncate text-foreground">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
-                  <span className="text-xs text-gray-500">{user.joined}</span>
+                  <span className="text-xs text-muted-foreground">{user.joined}</span>
                 </div>
               ))}
             </div>
             
             <div className="space-y-3">
-              <h4 className="font-medium text-sm text-gray-600 dark:text-gray-400">Recent Posts</h4>
+              <h4 className="font-medium text-sm text-muted-foreground">Recent Posts</h4>
               {stats.recentActivity.posts.slice(0, 3).map((post) => (
-                <div key={post.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                    <MessageSquare className="w-4 h-4 text-purple-600" />
+                <div key={post.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                  <div className="w-8 h-8 bg-secondary/20 rounded-full flex items-center justify-center">
+                    <MessageSquare className="w-4 h-4 text-secondary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{post.title}</p>
-                    <p className="text-xs text-gray-500 truncate">{post.created}</p>
+                    <p className="text-sm font-medium truncate text-foreground">{post.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{post.created}</p>
                   </div>
                   {post.hasImage && (
-                    <Image className="w-4 h-4 text-gray-400" />
+                    <Image className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
               ))}
@@ -402,13 +408,13 @@ export default function MobileDashboard({ stats, onRefresh, isLoading }: MobileD
       </Card>
 
       {/* Quick Actions Section */}
-      <Card className="border-2 border-gray-200 dark:border-gray-700">
+      <Card className="border border-border bg-card">
         <CardHeader 
           className="cursor-pointer"
           onClick={() => toggleSection('quickActions')}
         >
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2 text-card-foreground">
               <Zap className="w-5 h-5" />
               Quick Actions
             </CardTitle>

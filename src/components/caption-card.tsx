@@ -6,6 +6,7 @@ import { Check, Copy } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { InlineMessage } from '@/components/ui/inline-message';
+import { ContentReportModal } from './content-report-modal';
 
 interface CaptionCardProps {
   caption: string;
@@ -115,7 +116,26 @@ export function CaptionCard({ caption, index }: CaptionCardProps) {
             </>
           )}
         </Button>
-        
+
+        {/* Report Button */}
+        <ContentReportModal
+          contentType="caption"
+          contentId={caption}
+          trigger={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full h-9 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors rounded-lg"
+            >
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4a4 4 0 014-4h6a4 4 0 014 4v4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3a9 9 0 00-9 9v6h18v-6a9 9 0 00-9-9z" />
+              </svg>
+              Report
+            </Button>
+          }
+        />
 
 
       </div>

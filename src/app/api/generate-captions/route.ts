@@ -128,6 +128,28 @@ export async function POST(req: NextRequest) {
       ipAddress: clientIP,
     });
 
+    // 🚨 NSFW CONTENT CHECK
+    if (result.isNSFW) {
+      console.log(`🚫 NSFW content detected: ${result.nsfwReason}`);
+      
+      // Log NSFW attempt for monitoring
+      console.error(`🚨 NSFW Content Attempt:`, {
+        clientIP,
+        userEmail: session?.user?.email || 'anonymous',
+        userId: session?.user?.id || 'anonymous',
+        nsfwReason: result.nsfwReason,
+        timestamp: new Date().toISOString()
+      });
+
+      return NextResponse.json({
+        success: false,
+        message: result.contentWarning || 'This image contains inappropriate content and cannot be processed.',
+        error: 'nsfw_content_detected',
+        nsfwReason: result.nsfwReason,
+        note: 'Content safety is our priority. Please upload an appropriate image.'
+      }, { status: 400 });
+    }
+
     // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
     if (result.captions && result.captions.length > 0) {
       console.log(`💾 Storing new captions in cache (async)...`);
@@ -190,6 +212,10 @@ export async function POST(req: NextRequest) {
       errorMessage = 'Invalid request. Please check your input and try again.';
       statusCode = 400;
       errorType = 'invalid_request';
+    } else if (error.message?.includes('nsfw') || error.message?.includes('inappropriate') || error.message?.includes('content safety')) {
+      errorMessage = 'This image contains inappropriate content and cannot be processed. Please upload an appropriate image.';
+      statusCode = 400;
+      errorType = 'nsfw_content_detected';
     }
 
     // Log error details for debugging

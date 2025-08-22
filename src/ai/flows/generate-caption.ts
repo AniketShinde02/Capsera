@@ -34,6 +34,9 @@ export type GenerateCaptionsInput = z.infer<typeof GenerateCaptionsInputSchema>;
 
 const GenerateCaptionsOutputSchema = z.object({
   captions: z.array(z.string()).describe('An array of three unique, engaging captions.'),
+  isNSFW: z.boolean().describe('Whether the image contains inappropriate or NSFW content.'),
+  nsfwReason: z.string().optional().describe('Reason for NSFW classification if applicable.'),
+  contentWarning: z.string().optional().describe('Content warning message for users.'),
 });
 
 export type GenerateCaptionsOutput = z.infer<typeof GenerateCaptionsOutputSchema>;
@@ -49,8 +52,24 @@ const generateCaptionsPrompt = ai.definePrompt({
   output: {schema: GenerateCaptionsOutputSchema},
   prompt: `You are an expert social media content creator and image analyst specializing in viral captions for Gen Z audiences.
 
-  STEP 1: ANALYZE THE IMAGE
-  You have been provided with an image. Analyze its visual content carefully.
+  STEP 1: CONTENT SAFETY CHECK - CRITICAL FIRST STEP
+  Before analyzing the image, you MUST perform a content safety assessment:
+  
+  🚨 NSFW CONTENT DETECTION:
+  - Is this image appropriate for all audiences?
+  - Does it contain explicit sexual content, nudity, or graphic violence?
+  - Is it suitable for social media platforms (Instagram, TikTok, etc.)?
+  - Does it violate community guidelines?
+  
+  If the image contains ANY of the following, mark it as NSFW:
+  - Explicit sexual content or nudity
+  - Graphic violence or gore
+  - Hate speech symbols or content
+  - Illegal activities or substances
+  - Extremely disturbing or inappropriate content
+  
+  STEP 2: IMAGE ANALYSIS (Only if content is safe)
+  If the image passes content safety checks, analyze its visual content carefully.
   
   IMPORTANT: You MUST analyze the actual image content you see. Do not generate generic captions.
   
@@ -65,14 +84,14 @@ const generateCaptionsPrompt = ai.definePrompt({
   - Are there any text, brands, or notable details?
   - What's the overall aesthetic and vibe?
 
-  STEP 2: MATCH THE MOOD
+  STEP 3: MOOD MATCHING (Only if content is safe)
   Target mood: {{{mood}}}
   
   {{#if description}}
   Additional context provided: {{{description}}}
   {{/if}}
 
-  STEP 3: CREATE CAPTIONS
+  STEP 4: CAPTION GENERATION (Only if content is safe)
   Generate exactly 3 unique, viral-worthy captions that:
   
   ✅ MUST directly reference what you see in the image (colors, objects, people, setting, etc.)
@@ -100,7 +119,19 @@ const generateCaptionsPrompt = ai.definePrompt({
   - "This blue dress is everything 💙" (if you see someone in a blue dress)
   - "Beach waves and good vibes 🌊" (if you see a beach scene)
   
-  Return exactly 3 captions in an array format.
+  OUTPUT FORMAT:
+  If the image is SAFE:
+  - Set isNSFW: false
+  - Return exactly 3 captions in an array format
+  - Set nsfwReason and contentWarning to undefined
+  
+  If the image is NOT SAFE:
+  - Set isNSFW: true
+  - Set nsfwReason with specific reason (e.g., "Contains explicit sexual content", "Graphic violence detected")
+  - Set contentWarning with user-friendly message (e.g., "This image contains inappropriate content and cannot be processed")
+  - Set captions to empty array []
+  
+  SAFETY FIRST: Always prioritize content safety over caption generation. If in doubt, mark as NSFW.
   `,
 });
 
@@ -183,8 +214,24 @@ const generateCaptionsFlow = ai.defineFlow(
         🎲 RANDOMIZATION SEED: ${Date.now()}_${Math.random().toString(36).substr(2, 9)}
         ⏰ GENERATION TIME: ${new Date().toISOString()}
         
-        STEP 1: ANALYZE THE IMAGE
-        You have been provided with an image. Analyze its visual content carefully.
+        STEP 1: CONTENT SAFETY CHECK - CRITICAL FIRST STEP
+        Before analyzing the image, you MUST perform a content safety assessment:
+        
+        🚨 NSFW CONTENT DETECTION:
+        - Is this image appropriate for all audiences?
+        - Does it contain explicit sexual content, nudity, or graphic violence?
+        - Is it suitable for social media platforms (Instagram, TikTok, etc.)?
+        - Does it violate community guidelines?
+        
+        If the image contains ANY of the following, mark it as NSFW:
+        - Explicit sexual content or nudity
+        - Graphic violence or gore
+        - Hate speech symbols or content
+        - Illegal activities or substances
+        - Extremely disturbing or inappropriate content
+        
+        STEP 2: IMAGE ANALYSIS (Only if content is safe)
+        If the image passes content safety checks, analyze its visual content carefully.
         
         IMPORTANT: You MUST analyze the actual image content you see. Do not generate generic captions.
         
@@ -199,7 +246,7 @@ const generateCaptionsFlow = ai.defineFlow(
         - Are there any text, brands, or notable details?
         - What's the overall aesthetic and vibe?
 
-        STEP 2: MATCH THE MOOD
+        STEP 3: MOOD MATCHING (Only if content is safe)
         Target mood: ${input.mood}
         
         ${input.description ? `Additional context provided: ${input.description}` : ''}
@@ -261,8 +308,8 @@ const generateCaptionsFlow = ai.defineFlow(
           return selectedMood ? `\n        ${moodEnhancements[selectedMood]}` : '';
         })()}
 
-        STEP 3: CREATE CAPTIONS WITH MAXIMUM DIVERSITY
-        Generate exactly 3 COMPLETELY DIFFERENT captions that feel like they were written by 3 different people:
+        STEP 4: CAPTION GENERATION (Only if content is safe)
+        Generate exactly 3 unique, viral-worthy captions that:
         
         ✅ MUST directly reference what you see in the image (colors, objects, people, setting, etc.)
         ✅ MUST match the specified mood/tone perfectly

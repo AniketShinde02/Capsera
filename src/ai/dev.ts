@@ -1,4 +1,6 @@
 
 import 'dotenv/config';
 
-import '@/ai/flows/generate-caption.ts';
+// Initialize environment variables
+console.log('🔧 AI Development Environment Loaded');
+console.log('📝 Environment variables configured');

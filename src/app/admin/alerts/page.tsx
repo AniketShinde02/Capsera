@@ -90,7 +90,7 @@ export default function SystemAlertsPage() {
       if (response.ok) {
         const data = await response.json();
         setAlerts(data.alerts || []);
-        setSystemHealth(data.systemHealth || systemHealth);
+        // setSystemHealth(data.systemHealth || systemHealth); // This line is removed as per new_code
       } else {
         console.error('Failed to fetch alerts:', response.status);
         setAlerts([]);
@@ -109,18 +109,34 @@ export default function SystemAlertsPage() {
     }
   }, [session, status]);
 
-  // Simulate real-time updates
+  // Fetch real-time system health data
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Update system health randomly
-      setSystemHealth(prev => ({
-        ...prev,
-        responseTime: Math.max(100, prev.responseTime + (Math.random() - 0.5) * 50),
-        activeUsers: Math.max(50, prev.activeUsers + Math.floor((Math.random() - 0.5) * 10)),
-        memoryUsage: Math.max(60, Math.min(95, prev.memoryUsage + (Math.random() - 0.5) * 5)),
-        cpuUsage: Math.max(20, Math.min(80, prev.cpuUsage + (Math.random() - 0.5) * 8))
-      }));
-    }, 5000);
+    const fetchSystemHealth = async () => {
+      try {
+        // Fetch real system health data from API
+        const response = await fetch('/api/admin/dashboard-stats');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.stats) {
+            setSystemHealth(prev => ({
+              ...prev,
+              responseTime: data.stats.realTimeData?.systemLoad || prev.responseTime,
+              activeUsers: data.stats.realTimeData?.onlineUsers || prev.activeUsers,
+              memoryUsage: prev.memoryUsage, // Would come from system monitoring
+              cpuUsage: prev.cpuUsage // Would come from system monitoring
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching system health:', error);
+      }
+    };
+
+    // Fetch initial data
+    fetchSystemHealth();
+    
+    // Update every 30 seconds instead of random generation
+    const interval = setInterval(fetchSystemHealth, 30000);
 
     return () => clearInterval(interval);
   }, []);

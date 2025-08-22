@@ -265,3 +265,4 @@ export function validateImageForProcessing(
 
   return { isValid: true };
 }
+

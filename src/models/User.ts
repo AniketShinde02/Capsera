@@ -11,8 +11,7 @@ const UserSchema = new mongoose.Schema({
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
       'Please add a valid email.',
-    ],
-    index: true, // Remove duplicate index definition below
+    ]
   },
   password: {
     type: String,

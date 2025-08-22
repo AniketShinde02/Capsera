@@ -200,10 +200,10 @@ export default function AdminDashboard() {
       try {
         const realStats = await fetchRealStats();
         setStats(realStats);
-    } catch (error) {
+      } catch (error) {
         console.error('Failed to load dashboard stats:', error);
-      setStats(null);
-    } finally {
+        setStats(null);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
   }
 
   if (isLoading) {
-  return (
+    return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -256,11 +256,11 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="h-8 bg-muted rounded w-3/4"></div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
           ))}
-            </div>
-            </div>
+        </div>
+      </div>
     );
   }
 
@@ -273,7 +273,7 @@ export default function AdminDashboard() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Retry
           </Button>
-            </div>
+        </div>
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-muted-foreground">
@@ -283,11 +283,11 @@ export default function AdminDashboard() {
               <Button onClick={handleRefresh}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Try Again
-            </Button>
+              </Button>
             </div>
           </CardContent>
         </Card>
-              </div>
+      </div>
     );
   }
 

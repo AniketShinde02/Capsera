@@ -51,8 +51,7 @@ const CaptionCacheSchema = new Schema<ICaptionCache>({
   },
   expiresAt: {
     type: Date,
-    required: false,
-    index: true
+    required: false
   }
 }, {
   timestamps: true

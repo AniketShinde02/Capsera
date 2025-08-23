@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "dev:bypass": "node scripts/dev-error-bypass.js",
+    "dev:force-bypass": "node scripts/force-bypass.js && npm run dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",

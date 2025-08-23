@@ -114,10 +114,20 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Soft delete flag
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
   // Last login tracking
   lastLoginAt: {
     type: Date,
     default: null
+  },
+  // Track when user was last seen (for online status)
+  lastSeen: {
+    type: Date,
+    default: Date.now
   },
   // Account status
   status: {

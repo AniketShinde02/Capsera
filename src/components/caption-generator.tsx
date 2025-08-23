@@ -30,7 +30,6 @@ import { generateCaptions } from "@/ai/flows/generate-caption";
 import { CaptionCard } from "./caption-card";
 import { Textarea } from "./ui/textarea";
 import { trackCaptionGeneration, hasConsent, saveFavoriteMood } from "@/lib/cookie-utils";
-import { ContentSafetyGuidelines } from "./content-safety-guidelines";
 
 const formSchema = z.object({
   mood: z.string({
@@ -86,7 +85,6 @@ export function CaptionGenerator() {
   const [currentMood, setCurrentMood] = useState<string>('');
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [isOnline, setIsOnline] = useState(true);
-  const [hasSeenGuidelines, setHasSeenGuidelines] = useState(false);
   const { data: session } = useSession();
 
   // Function to compress image while maintaining quality
@@ -926,21 +924,6 @@ export function CaptionGenerator() {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-
-              {/* Content Safety Guidelines */}
-              {!hasSeenGuidelines && (
-                <div className="col-span-full mb-6">
-                  <ContentSafetyGuidelines
-                    onAccept={() => setHasSeenGuidelines(true)}
-                    onDecline={() => {
-                      // User declined guidelines, show error
-                      setError('You must accept our content safety guidelines to use this service.');
-                      setTimeout(() => setError(''), 5000);
-                    }}
-                    showAcceptance={true}
-                  />
-                </div>
-              )}
 
               {/* Responsive Grid Layout - Mobile First */}
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5 items-start">

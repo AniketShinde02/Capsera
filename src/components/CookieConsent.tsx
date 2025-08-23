@@ -18,7 +18,9 @@ import Link from 'next/link';
 import { 
   CookiePreferences, 
   trackUserAction, 
-  personalizeExperience 
+  personalizeExperience,
+  getCookieConsent,
+  setCookieConsent
 } from '@/lib/cookie-utils';
 
 export default function CookieConsent() {
@@ -33,19 +35,18 @@ export default function CookieConsent() {
 
   useEffect(() => {
     // Check if user has already made a choice
-    const consent = localStorage.getItem('cookie-consent');
-    if (!consent) {
+    const consent = getCookieConsent();
+    if (!consent || (!consent.analytics && !consent.functional && !consent.marketing)) {
       // Show banner after a short delay to avoid flash
       const timer = setTimeout(() => setShowBanner(true), 1000);
       return () => clearTimeout(timer);
     } else {
       // Load saved preferences
       try {
-        const savedPreferences = JSON.parse(localStorage.getItem('cookie-preferences') || '{}');
-        setPreferences(prev => ({ ...prev, ...savedPreferences }));
+        setPreferences(prev => ({ ...prev, ...consent }));
         
         // Apply preferences immediately
-        applyPreferences(savedPreferences);
+        applyPreferences(consent);
       } catch (error) {
         console.error('Error loading cookie preferences:', error);
       }
@@ -100,11 +101,15 @@ export default function CookieConsent() {
       marketing: true,
       functional: true,
     };
+    
     setPreferences(allAccepted);
-    savePreferences(allAccepted);
+    setCookieConsent(allAccepted);
     setShowBanner(false);
     
-    // Track the acceptance
+    // Apply all preferences
+    applyPreferences(allAccepted);
+    
+    // Track the action
     trackUserAction('cookie_consent_all_accepted');
   };
 
@@ -115,11 +120,15 @@ export default function CookieConsent() {
       marketing: false,
       functional: false,
     };
+    
     setPreferences(necessaryOnly);
-    savePreferences(necessaryOnly);
+    setCookieConsent(necessaryOnly);
     setShowBanner(false);
     
-    // Track the acceptance
+    // Apply necessary preferences
+    applyPreferences(necessaryOnly);
+    
+    // Track the action
     trackUserAction('cookie_consent_necessary_only_accepted');
   };
 
@@ -133,13 +142,15 @@ export default function CookieConsent() {
   };
 
   const savePreferences = (prefs: CookiePreferences) => {
-    localStorage.setItem('cookie-consent', 'true');
-    localStorage.setItem('cookie-preferences', JSON.stringify(prefs));
+    setCookieConsent(prefs);
+    setShowSettings(false);
+    setShowBanner(false);
     
-    // Apply the preferences immediately
+    // Apply the new preferences
     applyPreferences(prefs);
     
-    console.log('🍪 Cookie preferences saved and applied:', prefs);
+    // Track the action
+    trackUserAction('cookie_consent_custom_saved', { preferences: prefs });
   };
 
   const togglePreference = (key: keyof CookiePreferences) => {

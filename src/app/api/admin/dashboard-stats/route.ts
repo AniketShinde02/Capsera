@@ -18,6 +18,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    // Update user's lastSeen for real-time tracking
+    try {
+      await db.collection('users').updateOne(
+        { _id: session.user.id },
+        { $set: { lastSeen: new Date() } }
+      );
+    } catch (error) {
+      console.log('Could not update lastSeen for user:', session.user.id);
+    }
+
     const { db } = await connectToDatabase();
 
     console.log('📊 Fetching real dashboard stats from database...');
@@ -26,36 +36,36 @@ export async function GET(request: NextRequest) {
     const regularUserCount = await db.collection('users').countDocuments({ 
       isDeleted: { $ne: true },
       isAdmin: { $ne: true }
-    });
+    }).catch(() => 0);
     
     const adminUserCount = await db.collection('adminusers').countDocuments({ 
       status: 'active'
-    });
+    }).catch(() => 0);
     
     const totalUsers = regularUserCount + adminUserCount;
 
     // Get REAL post counts
     const totalPosts = await db.collection('posts').countDocuments({ 
       isDeleted: { $ne: true }
-    });
+    }).catch(() => 0);
 
     // Get REAL image counts (posts with images)
     const totalImages = await db.collection('posts').countDocuments({ 
       image: { $exists: true, $ne: null },
       isDeleted: { $ne: true }
-    });
+    }).catch(() => 0);
 
     // Get REAL role counts
-    const totalRoles = await db.collection('roles').countDocuments({});
+    const totalRoles = await db.collection('roles').countDocuments({}).catch(() => 0);
 
     // Get REAL contact form submissions
-    const totalContacts = await db.collection('contacts').countDocuments({});
+    const totalContacts = await db.collection('contacts').countDocuments({}).catch(() => 0);
 
     // Get REAL data recovery requests
-    const totalDataRecoveryRequests = await db.collection('datarecoveryrequests').countDocuments({});
+    const totalDataRecoveryRequests = await db.collection('datarecoveryrequests').countDocuments({}).catch(() => 0);
 
     // Get REAL archived profiles
-    const totalArchivedProfiles = await db.collection('deletedprofiles').countDocuments({});
+    const totalArchivedProfiles = await db.collection('deletedprofiles').countDocuments({}).catch(() => 0);
 
     // Calculate real-time metrics
     const now = new Date();
@@ -68,24 +78,24 @@ export async function GET(request: NextRequest) {
       createdAt: { $gte: weekAgo },
       isDeleted: { $ne: true },
       isAdmin: { $ne: true }
-    });
+    }).catch(() => 0);
 
     const newUsersThisMonth = await db.collection('users').countDocuments({
       createdAt: { $gte: monthAgo },
       isDeleted: { $ne: true },
       isAdmin: { $ne: true }
-    });
+    }).catch(() => 0);
 
     // New posts this week/month
     const newPostsThisWeek = await db.collection('posts').countDocuments({
       createdAt: { $gte: weekAgo },
       isDeleted: { $ne: true }
-    });
+    }).catch(() => 0);
 
     const newPostsThisMonth = await db.collection('posts').countDocuments({
       createdAt: { $gte: monthAgo },
       isDeleted: { $ne: true }
-    });
+    }).catch(() => 0);
 
     // Calculate growth percentages
     const userGrowthWeek = totalUsers > 0 ? ((newUsersThisWeek / totalUsers) * 100).toFixed(1) : '0';
@@ -94,8 +104,8 @@ export async function GET(request: NextRequest) {
     const postGrowthMonth = totalPosts > 0 ? ((newPostsThisMonth / totalPosts) * 100).toFixed(1) : '0';
 
     // Get system health metrics
-    const dbStats = await db.stats();
-    const collections = await db.listCollections().toArray();
+    const dbStats = await db.stats().catch(() => ({ objects: 0, dataSize: 0, avgObjSize: 0 }));
+    const collections = await db.listCollections().toArray().catch(() => []);
     
     // Calculate database performance metrics
     const totalCollections = collections.length;
@@ -111,13 +121,15 @@ export async function GET(request: NextRequest) {
       })
       .sort({ createdAt: -1 })
       .limit(5)
-      .toArray();
+      .toArray()
+      .catch(() => []);
 
     const recentPosts = await db.collection('posts')
       .find({ isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .limit(5)
-      .toArray();
+      .toArray()
+      .catch(() => []);
 
     // Calculate real-time metrics
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
@@ -127,20 +139,20 @@ export async function GET(request: NextRequest) {
     const onlineUsers = await db.collection('users').countDocuments({
       lastSeen: { $gte: fiveMinutesAgo },
       isDeleted: { $ne: true }
-    });
+    }).catch(() => 0);
 
     // Active sessions (logged in within last hour)
     const activeSessions = await db.collection('users').countDocuments({
       lastLogin: { $gte: oneHourAgo },
       isDeleted: { $ne: true }
-    });
+    }).catch(() => 0);
 
     // Pending actions (recovery requests, contact forms, etc.)
     const pendingActions = await db.collection('datarecoveryrequests').countDocuments({
       status: { $in: ['pending', 'processing'] }
-    }) + await db.collection('contacts').countDocuments({
+    }).catch(() => 0) + await db.collection('contacts').countDocuments({
       status: { $in: ['unread', 'processing'] }
-    });
+    }).catch(() => 0);
 
     // Server system load (simulated based on database performance)
     const dbPerformance = await db.command({ serverStatus: 1 }).catch(() => null);
@@ -156,7 +168,7 @@ export async function GET(request: NextRequest) {
       // Fallback: calculate load based on recent activity
       const recentActivity = await db.collection('posts').countDocuments({
         createdAt: { $gte: fiveMinutesAgo }
-      });
+      }).catch(() => 0);
       systemLoad = Math.min(100, Math.round((recentActivity / 10) * 20)); // Scale based on recent posts
     }
 
@@ -206,14 +218,14 @@ export async function GET(request: NextRequest) {
       },
       recentActivity: {
         users: recentUsers.map(user => ({
-          id: user._id.toString(),
-          name: user.username || user.email || 'Unknown User',
-          email: user.email,
+          id: user._id?.toString() || 'unknown',
+          name: user.username || user.email?.split('@')[0] || 'Unknown User',
+          email: user.email || 'No email',
           joined: user.createdAt || user.created_at || new Date().toISOString()
         })),
         posts: recentPosts.map(post => ({
-          id: post._id.toString(),
-          title: post.caption?.substring(0, 50) || 'No caption',
+          id: post._id?.toString() || 'unknown',
+          title: post.caption?.substring(0, 50) || post.captions?.[0]?.substring(0, 50) || 'No caption',
           created: post.createdAt || post.created_at || new Date().toISOString(),
           hasImage: !!post.image
         }))

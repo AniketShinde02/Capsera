@@ -7,6 +7,8 @@ export interface IPost extends Document {
   mood?: string; // Store the mood used for generation
   description?: string; // Store the description used
   user?: Types.ObjectId;
+  // Soft delete flag
+  isDeleted: boolean;
   createdAt: Date;
 }
 
@@ -34,6 +36,11 @@ const PostSchema: Schema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: false, // Explicitly make it optional
+  },
+  // Soft delete flag
+  isDeleted: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,

@@ -12,6 +12,8 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { PerformanceOptimizer } from '@/components/PerformanceOptimizer';
 import ModuleErrorRecovery from '@/components/ModuleErrorRecovery';
+import '@/lib/dev-error-bypass'; // Import error bypass utility
+import '@/lib/runtime-error-bypass'; // Import runtime error bypass utility
 
 // Optimize font loading
 const inter = Inter({

@@ -10,6 +10,7 @@ import AdminHeader from '@/components/admin/AdminHeader';
 import AdminMaintenanceCheck from '@/components/admin-maintenance-check';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import '@/lib/dev-error-bypass'; // Import error bypass utility
+import '@/lib/runtime-error-bypass'; // Import runtime error bypass utility
 
 export default async function AdminLayout({
   children,

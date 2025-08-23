@@ -189,6 +189,69 @@ function HomeContent() {
         </section>
       </main>
       
+      {/* Footer */}
+      <footer className="bg-muted/30 border-t border-border mt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="md:col-span-2">
+              <h3 className="font-bold text-foreground mb-3">CaptionCraft</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                AI-powered caption generation for social media. Create engaging, 
+                contextual captions that match your content perfectly.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-foreground mb-3">Legal</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/cookie-policy" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Cookie Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-foreground mb-3">Safety & Support</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/content-safety" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Content Safety Guidelines
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/support" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Support Center
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Contact Us
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-border pt-6 mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              © 2024 CaptionCraft. All rights reserved. Built with ❤️ for content creators.
+            </p>
+          </div>
+        </div>
+      </footer>
+      
       {/* Cookie Consent - Only shows on main page */}
       <CookieConsent />
     </div>

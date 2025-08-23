@@ -184,15 +184,7 @@ export default function MaintenancePage() {
           </div>
         </div>
 
-        {/* Debug Info - Only show in development */}
-        {process.env.NODE_ENV === 'development' && status && (
-          <div className="mt-8 p-4 bg-gray-800 rounded-lg text-left text-xs">
-            <p className="text-gray-400 mb-2">Debug Info (Development Only):</p>
-            <p>Last Updated: {new Date(status.updatedAt).toLocaleString()}</p>
-            <p>Allowed IPs: {status.allowedIPs.join(', ')}</p>
-            <p>Allowed Emails: {status.allowedEmails.join(', ')}</p>
-          </div>
-        )}
+  {/* Debug Info removed per request */}
       </div>
     </div>
   );

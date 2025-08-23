@@ -193,14 +193,88 @@ function HomeContent() {
       <footer className="bg-muted/30 border-t border-border mt-16">
         <div className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="md:col-span-2">
-              <h3 className="font-bold text-foreground mb-3">CaptionCraft</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                AI-powered caption generation for social media. Create engaging, 
-                contextual captions that match your content perfectly.
-              </p>
+            {/* Product Column */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-3">Product</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/features" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/integrations" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Integrations
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/updates" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Updates
+                  </Link>
+                </li>
+              </ul>
             </div>
             
+            {/* Company Column */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-3">Company</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/careers" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Careers
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Blog
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Contact
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            
+            {/* Resources Column */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-3">Resources</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/community" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Community
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/support" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Support Center
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/api-docs" className="text-muted-foreground hover:text-foreground transition-colors">
+                    API Docs
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/status" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Status
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            
+            {/* Legal Column */}
             <div>
               <h4 className="font-semibold text-foreground mb-3">Legal</h4>
               <ul className="space-y-2 text-sm">
@@ -219,25 +293,9 @@ function HomeContent() {
                     Cookie Policy
                   </Link>
                 </li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-foreground mb-3">Safety & Support</h4>
-              <ul className="space-y-2 text-sm">
                 <li>
                   <Link href="/content-safety" className="text-muted-foreground hover:text-foreground transition-colors">
                     Content Safety Guidelines
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/support" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Support Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Contact Us
                   </Link>
                 </li>
               </ul>
@@ -246,7 +304,7 @@ function HomeContent() {
           
           <div className="border-t border-border pt-6 mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              © 2024 CaptionCraft. All rights reserved. Built with ❤️ for content creators.
+              Made with ❤️ for creators
             </p>
           </div>
         </div>

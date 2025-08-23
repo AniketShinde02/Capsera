@@ -8,7 +8,8 @@ import { checkImageContentSafety, reportInappropriateContent, validateImageForPr
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '10mb',
+    // Allow up to ~10MB requests; server will enforce the precise 9.99MB application limit
+    sizeLimit: '10mb',
     },
     responseLimit: false,
   },
@@ -59,12 +60,14 @@ export async function POST(req: Request) {
       }, { status: 503 });
     }
 
-    // Check content length first
+  // Check content length first (be conservative for serverless limits)
     const contentLength = req.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+    // Enforce a 9.99MB application limit to allow files up to but not exceeding this.
+    const MAX_BYTES = Math.floor(9.99 * 1024 * 1024); // ~9.99MB
+    if (contentLength && parseInt(contentLength) > MAX_BYTES) {
       return NextResponse.json({ 
         success: false, 
-        message: 'File too large. Please upload an image smaller than 10MB.' 
+        message: 'File too large. Please upload an image smaller than 9.99MB.' 
       }, { status: 413 });
     }
 
@@ -105,9 +108,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Invalid file type. Please upload an image.' }, { status: 400 });
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ success: false, message: 'File too large. Please upload an image smaller than 10MB.' }, { status: 413 });
+    // Validate file size (max 4MB to be safe on Vercel)
+    const MAX_FILE_BYTES = Math.floor(9.99 * 1024 * 1024); // ~9.99MB
+    if (file.size > MAX_FILE_BYTES) {
+      return NextResponse.json({ success: false, message: 'File too large. Please upload an image smaller than 9.99MB.' }, { status: 413 });
     }
 
     // Content safety validation

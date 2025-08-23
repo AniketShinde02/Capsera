@@ -30,6 +30,7 @@ import { generateCaptions } from "@/ai/flows/generate-caption";
 import { CaptionCard } from "./caption-card";
 import { Textarea } from "./ui/textarea";
 import { trackCaptionGeneration, hasConsent, saveFavoriteMood } from "@/lib/cookie-utils";
+import { compressWithWorker } from '@/lib/worker-client';
 
 const formSchema = z.object({
   mood: z.string({
@@ -292,31 +293,59 @@ export function CaptionGenerator() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Enhanced file validation
-    const maxSize = 10 * 1024 * 1024; // 10MB limit
+  // Enhanced file validation
+  const MAX_UPLOAD_BYTES = Math.floor(9.99 * 1024 * 1024); // ~9.99MB application limit
+  const maxSize = MAX_UPLOAD_BYTES;
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    
+    // Use a local fileToUpload (compressed or original) to avoid relying on state updates that are async
+    let fileToUpload: File = file;
     if (file.size > maxSize) {
-      setError(`File too large. Please upload an image smaller than 10MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
-      return;
+      // Attempt client-side compression to fit within MAX_UPLOAD_BYTES
+      try {
+        // Prefer Web Worker compression when available to avoid blocking the main thread
+        let compressedFile: File;
+        try {
+          compressedFile = await compressWithWorker(file, MAX_UPLOAD_BYTES);
+        } catch (workerErr) {
+          // Worker not available or failed - fallback to main-thread compressor
+          compressedFile = await compressImage(file, MAX_UPLOAD_BYTES);
+        }
+
+        // If compression succeeded and is smaller, use it
+        if (compressedFile.size <= MAX_UPLOAD_BYTES) {
+          fileToUpload = compressedFile;
+        } else {
+          setError(`File too large. Please upload an image smaller than 9.99MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+          return;
+        }
+      } catch (err) {
+        setError(`File too large and could not be compressed. Please upload a smaller image.`);
+        return;
+      }
     }
-    
-    if (!allowedTypes.includes(file.type)) {
+
+    // Validate type against the file we will upload
+    if (!allowedTypes.includes(fileToUpload.type)) {
       setError('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
       return;
     }
 
+    // Set state immediately so onSubmit will see uploadedFile
+    setUploadedFile(fileToUpload);
+
     try {
       setUploadStage('uploading');
       setError('');
-      
-      // Create preview with compression
-      const compressedPreview = await compressImageForPreview(file);
-      setImagePreview(compressedPreview);
-      
-      // Upload the original file (server will handle compression)
-  const formData = new FormData();
-  formData.append('file', file);
+
+      // Create preview from the file we'll upload (if not already set)
+      if (!imagePreview) {
+        const compressedPreview = await compressImageForPreview(fileToUpload);
+        setImagePreview(compressedPreview);
+      }
+
+      // Upload the (possibly compressed) file using the local variable
+      const formData = new FormData();
+      formData.append('file', fileToUpload as File);
       
       const response = await fetch('/api/upload', {
         method: 'POST',

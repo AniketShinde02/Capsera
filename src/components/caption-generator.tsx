@@ -318,17 +318,34 @@ export function CaptionGenerator() {
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await fetch('/api/upload-image', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          console.error('Failed to parse error response:', jsonError);
+          throw new Error(`Upload failed with status ${response.status}: ${response.statusText}`);
+        }
+        throw new Error(errorData.error || errorData.message || 'Upload failed');
       }
 
-      const uploadData = await response.json();
+      let uploadData;
+      try {
+        uploadData = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse upload response:', jsonError);
+        throw new Error('Upload succeeded but received invalid response. Please try again.');
+      }
+
+      if (!uploadData.success) {
+        throw new Error(uploadData.message || 'Image upload failed. Please try again.');
+      }
+
       setCurrentImageData(uploadData);
       setUploadStage('idle');
       setShowSuccessMessage(true);
@@ -338,7 +355,25 @@ export function CaptionGenerator() {
       
     } catch (error: any) {
       console.error('Upload error:', error);
-      setError(error.message || 'Upload failed. Please try again.');
+      
+      // Enhanced error handling for production
+      let errorMessage = 'Upload failed. Please try again.';
+      
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Upload timeout. Please try with a smaller image.';
+      } else if (error.message?.includes('too large')) {
+        errorMessage = 'File too large. Please upload an image smaller than 10MB.';
+      } else if (error.message?.includes('invalid')) {
+        errorMessage = 'Invalid file format. Please upload a valid image.';
+      } else if (error.message?.includes('safety')) {
+        errorMessage = 'Image contains inappropriate content. Please upload a family-friendly image.';
+      } else {
+        errorMessage = error.message || 'Upload failed. Please try again.';
+      }
+      
+      setError(errorMessage);
       setUploadStage('idle');
       setImagePreview(null);
     }
@@ -346,38 +381,59 @@ export function CaptionGenerator() {
 
   // Image compression function for preview
   const compressImageForPreview = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new window.Image();
+      let objectUrl: string | null = null;
       
       img.onload = () => {
-        // Calculate new dimensions (max 800x800 for preview)
-        const maxSize = 800;
-        let { width, height } = img;
-        
-        if (width > height) {
-          if (width > maxSize) {
-            height = (height * maxSize) / width;
-            width = maxSize;
+        try {
+          // Calculate new dimensions (max 800x800 for preview)
+          const maxSize = 800;
+          let { width, height } = img;
+          
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
           }
-        } else {
-          if (height > maxSize) {
-            width = (width * maxSize) / height;
-            height = maxSize;
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(compressedDataUrl);
+        } catch (error) {
+          reject(new Error('Failed to compress image for preview'));
+        } finally {
+          // Cleanup
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
           }
+          canvas.width = 0;
+          canvas.height = 0;
         }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        resolve(compressedDataUrl);
       };
       
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => {
+        reject(new Error('Failed to load image for preview'));
+        // Cleanup
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      
+      objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
     });
   };
 
@@ -910,6 +966,29 @@ export function CaptionGenerator() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  // Cleanup function to prevent memory leaks
+  const cleanup = () => {
+    // Clear any existing timers
+    if (errorTimer) {
+      clearTimeout(errorTimer);
+    }
+    
+    // Clear image preview to free memory
+    if (imagePreview && imagePreview.startsWith('data:')) {
+      setImagePreview(null);
+    }
+    
+    // Reset states
+    setUploadStage('idle');
+    setIsLoading(false);
+    setError('');
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
   }, []);
 
   return (

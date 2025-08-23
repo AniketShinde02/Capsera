@@ -48,6 +48,17 @@ async function uploadWithRetry(uploadParams: any, maxRetries = 3): Promise<any> 
 
 export async function POST(req: Request) {
   try {
+    // Check if Cloudinary is properly configured
+    if (!process.env.CLOUDINARY_CLOUD_NAME || 
+        !process.env.CLOUDINARY_API_KEY || 
+        !process.env.CLOUDINARY_API_SECRET) {
+      console.error('❌ Cloudinary configuration missing');
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Image upload service is not configured. Please contact support.' 
+      }, { status: 503 });
+    }
+
     // Check content length first
     const contentLength = req.headers.get('content-length');
     if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
@@ -129,7 +140,19 @@ export async function POST(req: Request) {
       console.log(`✅ Content safety check passed for: ${uniqueFileName}`);
     } catch (safetyError) {
       console.error('❌ Content safety check failed:', safetyError);
-      // Continue with upload if safety check fails (fail-safe approach)
+      
+      // In production, we should be more strict about content safety
+      if (process.env.NODE_ENV === 'production') {
+        console.error('🚨 Content safety check failed in production - rejecting upload');
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Content safety verification failed. Please try again or contact support if the issue persists.',
+          error: 'safety_check_failed'
+        }, { status: 400 });
+      }
+      
+      // In development, continue with upload if safety check fails (fail-safe approach)
+      console.warn('⚠️ Continuing with upload in development mode despite safety check failure');
     }
 
     // Sanitized success logging

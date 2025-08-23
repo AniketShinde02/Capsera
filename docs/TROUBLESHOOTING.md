@@ -175,6 +175,14 @@ curl -X POST http://localhost:3000/api/maintenance \
   -d '{"enabled": false, "message": "Complete", "estimatedTime": "0"}'
 ```
 
+```powershell
+# PowerShell (Windows) - enable maintenance mode
+Invoke-RestMethod -Uri "http://localhost:3000/api/maintenance" -Method Post -ContentType "application/json" -Body '{"enabled": true, "message": "Testing", "estimatedTime": "1 hour"}'
+
+# PowerShell (Windows) - disable maintenance mode
+Invoke-RestMethod -Uri "http://localhost:3000/api/maintenance" -Method Post -ContentType "application/json" -Body '{"enabled": false, "message": "Complete", "estimatedTime": "0"}'
+```
+
 ### **14. "Maintenance page not loading" - Error or blank page**
 ```bash
 # Check if /maintenance route exists

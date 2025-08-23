@@ -53,8 +53,34 @@ export function initRuntimeErrorBypass() {
           errorMessage.includes('__webpack_require__')) {
         
         console.warn('🚨 Runtime Error Bypass: Suppressing webpack runtime error');
-        console.warn('🔄 This error has been bypassed for development');
-        
+        console.warn('🔄 Attempting recovery from runtime error (will reload once)');
+
+        // Attempt a one-time reload to recover from webpack runtime module errors
+        try {
+          const key = '__RUNTIME_ERROR_RELOAD_ATTEMPTED__';
+          if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, '1');
+            // Delay slightly to allow logging to flush
+            setTimeout(() => {
+              console.log('🔁 Reloading page to recover from runtime error...');
+              try {
+                window.location.reload();
+              } catch (e) {
+                // ignore
+              }
+            }, 200);
+          } else {
+            console.warn('⚠️ Runtime recovery already attempted; not reloading again');
+          }
+        } catch (e) {
+          // sessionStorage might be unavailable; fallback to a single reload attempt
+          try {
+            window.location.reload();
+          } catch (err) {
+            // ignore
+          }
+        }
+
         // Don't show the error in console
         return;
       }
@@ -72,10 +98,21 @@ export function initRuntimeErrorBypass() {
         event.preventDefault();
         event.stopPropagation();
         
-        // Try to recover
-        setTimeout(() => {
-          console.log('✅ Site should now be accessible despite runtime errors');
-        }, 100);
+        // Try to recover by reloading once
+        try {
+          const key = '__RUNTIME_ERROR_RELOAD_ATTEMPTED__';
+          if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, '1');
+            setTimeout(() => {
+              console.log('🔁 Reloading page to recover from runtime error (error event)...');
+              try { window.location.reload(); } catch (e) {}
+            }, 200);
+          } else {
+            console.warn('⚠️ Runtime recovery already attempted; not reloading again');
+          }
+        } catch (e) {
+          try { window.location.reload(); } catch (err) {}
+        }
         
         return false;
       }
@@ -126,6 +163,5 @@ export function forceRuntimeErrorBypass() {
 if (isDevelopment) {
   initRuntimeErrorBypass();
 }
-
 
 

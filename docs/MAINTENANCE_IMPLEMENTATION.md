@@ -32,6 +32,11 @@ npm run maintenance:check
 
 ## 🔧 **Maintenance Mode System Implementation**
 
+
+```powershell
+# PowerShell (Windows) equivalent - useful when curl fails in PowerShell
+Invoke-RestMethod -Uri "http://localhost:3000/api/maintenance" -Method Post -ContentType "application/json" -Body '{"enabled": false, "message": "Maintenance complete", "estimatedTime": "0", "allowedIPs": [], "allowedEmails": []}'
+```
 ### **Overview**
 The maintenance mode system provides complete site-wide protection when enabled, while preserving admin access for system management. This section covers the complete implementation details.
 

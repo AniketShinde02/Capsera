@@ -780,6 +780,18 @@ curl http://localhost:3000/features
 curl http://localhost:3000/admin/maintenance
 ```
 
+```powershell
+# PowerShell equivalents for Windows (use in PowerShell terminal)
+# Check maintenance status
+Invoke-RestMethod -Uri "http://localhost:3000/api/maintenance" -Method Get
+
+# Test page access (follow redirects)
+Invoke-WebRequest -Uri "http://localhost:3000/features" -MaximumRedirection 5
+
+# Test admin access
+Invoke-RestMethod -Uri "http://localhost:3000/admin/maintenance" -Method Get
+```
+
 ### ⚠️ **Important Notes**
 
 #### **Best Practices:**

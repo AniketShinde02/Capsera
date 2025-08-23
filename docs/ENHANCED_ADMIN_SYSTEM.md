@@ -186,6 +186,13 @@ curl http://localhost:3000/features
 curl http://localhost:3000/admin/maintenance
 ```
 
+```powershell
+# PowerShell equivalents (Windows)
+Invoke-RestMethod -Uri "http://localhost:3000/api/maintenance" -Method Get
+Invoke-WebRequest -Uri "http://localhost:3000/features" -MaximumRedirection 5
+Invoke-RestMethod -Uri "http://localhost:3000/admin/maintenance" -Method Get
+```
+
 ### **⚠️ Security Considerations**
 
 #### **Best Practices**

@@ -50,6 +50,12 @@
 3. **Test Admin Access**: Admin pages should remain accessible
 4. **Disable Mode**: Toggle back to "Disabled" to restore normal access
 
+PowerShell tip (Windows): if curl doesn't work in PowerShell, use the following to disable maintenance mode:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3000/api/maintenance" -Method Post -ContentType "application/json" -Body '{"enabled": false, "message": "Maintenance complete", "estimatedTime": "0"}'
+```
+
 **The maintenance mode system provides complete site protection while maintaining admin control!** 🔧
 
 

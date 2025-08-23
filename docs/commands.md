@@ -167,6 +167,15 @@ curl https://yourdomain.com/api/health-check
 # Performance metrics only
 curl https://yourdomain.com/api/health-check | jq '.performance'
 
+
+```powershell
+# PowerShell equivalents (Windows)
+# Basic health check
+Invoke-RestMethod -Uri "https://yourdomain.com/api/health-check" -Method Get
+
+# Performance metrics only (use ConvertFrom-Json to inspect fields)
+(Invoke-RestMethod -Uri "https://yourdomain.com/api/health-check").performance
+```
 # Queue status
 curl https://yourdomain.com/api/health-check | jq '.queue'
 

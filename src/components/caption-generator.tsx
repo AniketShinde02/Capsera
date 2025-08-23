@@ -315,8 +315,8 @@ export function CaptionGenerator() {
       setImagePreview(compressedPreview);
       
       // Upload the original file (server will handle compression)
-      const formData = new FormData();
-      formData.append('image', file);
+  const formData = new FormData();
+  formData.append('file', file);
       
       const response = await fetch('/api/upload', {
         method: 'POST',

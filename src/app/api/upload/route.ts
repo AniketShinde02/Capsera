@@ -69,14 +69,39 @@ export async function POST(req: Request) {
     }
 
     const formData = await req.formData();
-    const file = formData.get('file') as File;
+    // Accept either 'file' or 'image' to be backwards compatible with clients
+    let file = formData.get('file') as File | null | undefined;
+    if (!file) {
+      file = formData.get('image') as File | null | undefined;
+    }
+
+    // If still no file, try to find the first File/Blob in the form data values
+    if (!file) {
+      for (const value of formData.values()) {
+        if (value instanceof File) {
+          file = value as File;
+          break;
+        }
+        // Some clients may send a Blob-like object (check for arrayBuffer support)
+        const anyVal: any = value;
+        if (anyVal && typeof anyVal.arrayBuffer === 'function') {
+          try {
+            const blobType = anyVal.type || 'application/octet-stream';
+            file = new File([anyVal], `upload-${Date.now()}.jpg`, { type: blobType });
+            break;
+          } catch (e) {
+            // If File constructor is unavailable or fails, continue searching
+          }
+        }
+      }
+    }
 
     if (!file) {
       return NextResponse.json({ success: false, message: 'No file uploaded' }, { status: 400 });
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+  // Validate file type
+  if (!file.type || !file.type.startsWith('image/')) {
       return NextResponse.json({ success: false, message: 'Invalid file type. Please upload an image.' }, { status: 400 });
     }
 

@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Shield, User } from 'lucide-react';
 
 interface AdminModeToggleProps {
   isAdminMode?: boolean;
@@ -13,22 +16,36 @@ export default function AdminModeToggle({
   onToggle,
   className = ''
 }: AdminModeToggleProps) {
-  const [isEnabled, setIsEnabled] = useState(isAdminMode);
+  const [isEnabled, setIsEnabled] = useState<boolean>(isAdminMode);
 
-  const handleToggle = (next: boolean) => {
+  const handleToggle = () => {
+    const next = !isEnabled;
     setIsEnabled(next);
     if (onToggle) onToggle(next);
   };
 
   return (
     <div className={`flex items-center gap-3 p-2 rounded ${className}`}>
-      <button
-        aria-pressed={isEnabled}
-        onClick={() => handleToggle(!isEnabled)}
-        className={`px-3 py-1 rounded-md border text-sm ${isEnabled ? 'bg-primary text-primary-foreground' : 'bg-transparent'}`}
-      >
-        {isEnabled ? 'Admin Mode' : 'User Mode'}
-      </button>
+      <div className="flex items-center gap-2">
+        {isEnabled ? (
+          <Shield className="w-4 h-4 text-primary" />
+        ) : (
+          <User className="w-4 h-4 text-muted-foreground" />
+        )}
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{isEnabled ? 'Admin Mode' : 'User Mode'}</span>
+          <span className="text-xs text-muted-foreground">{isEnabled ? 'Full system access' : 'Limited access'}</span>
+        </div>
+      </div>
+
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={handleToggle}>
+          {isEnabled ? 'Switch to User' : 'Switch to Admin'}
+        </Button>
+        <Badge variant={isEnabled ? 'default' : 'secondary'} className="text-xs">
+          {isEnabled ? 'ON' : 'OFF'}
+        </Badge>
+      </div>
     </div>
   );
 }

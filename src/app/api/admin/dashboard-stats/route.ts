@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
+import { ObjectId } from 'mongodb';
 import { canManageAdmins } from '@/lib/init-admin';
 
 export async function GET(request: NextRequest) {
@@ -18,17 +19,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    // Connect to database early so we can update lastSeen
+    const { db } = await connectToDatabase();
+
     // Update user's lastSeen for real-time tracking
     try {
+      const userIdFilter = ObjectId.isValid(String(session.user.id)) ? new ObjectId(String(session.user.id)) : (session.user.id as any);
       await db.collection('users').updateOne(
-        { _id: session.user.id },
+        { _id: userIdFilter },
         { $set: { lastSeen: new Date() } }
       );
     } catch (error) {
-      console.log('Could not update lastSeen for user:', session.user.id);
+      console.log('Could not update lastSeen for user:', session.user.id, error);
     }
-
-    const { db } = await connectToDatabase();
 
     console.log('📊 Fetching real dashboard stats from database...');
 

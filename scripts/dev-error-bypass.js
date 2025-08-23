@@ -84,3 +84,4 @@ console.log('🔒 Admin panel at: http://localhost:3000/admin');
 console.log('\n💡 If you still get errors, check the console for bypass messages');
 console.log('🔄 Press Ctrl+C to stop the server\n');
 
+

@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info } from 'lucide-react';
+import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, ImageIcon } from 'lucide-react';
 import JSZip from 'jszip';
 
 interface ImageItem {
@@ -940,27 +940,38 @@ export default function ImageManagementPage() {
                     {/* Image */}
                     <div className="aspect-square overflow-hidden">
                                              {image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image' ? (
-                         <img 
-                           src={image.thumbnailUrl} 
-                           alt={image.originalName}
-                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                           loading="lazy"
-                           decoding="async"
-                           onError={(e) => {
-                             console.log('❌ Image failed to load:', image.thumbnailUrl);
-                             // Fallback to placeholder if image fails to load
-                             e.currentTarget.style.display = 'none';
-                             (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
-                           }}
-                           onLoad={() => {
-                             console.log('✅ Image loaded successfully:', image.thumbnailUrl);
-                           }}
-                         />
-                       ) : null}
-                      <div className="w-full h-full flex items-center justify-center bg-muted" style={{ display: (image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') ? 'none' : 'flex' }}>
-                        <Image className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground ml-2">No Image</span>
+                      <img
+                        src={image.thumbnailUrl}
+                        alt={`Thumbnail for ${image.id}`}
+                        className="w-full h-full object-cover rounded"
+                        onError={(e) => {
+                          console.log('❌ Image failed to load:', image.thumbnailUrl);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          // Show fallback
+                          const fallback = target.parentElement?.querySelector('.image-fallback');
+                          if (fallback) {
+                            (fallback as HTMLElement).style.display = 'flex';
+                          }
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Image loaded successfully:', image.thumbnailUrl);
+                        }}
+                      />
+                    ) : null}
+                    
+                    {/* Fallback when image fails to load */}
+                    <div 
+                      className="image-fallback w-full h-full flex items-center justify-center bg-muted rounded"
+                      style={{ display: (image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') ? 'none' : 'flex' }}
+                    >
+                      <div className="text-center p-4">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">No Image</p>
                       </div>
+                    </div>
                     </div>
                     
                     {/* Status Badge */}

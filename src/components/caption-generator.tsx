@@ -288,79 +288,97 @@ export function CaptionGenerator() {
     mode: "onChange", // Add this to enable real-time validation
   });
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-            // Image upload triggered
-    const file = e.target.files?.[0];
+  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    // Clear previous errors, but preserve monthly limit errors
-    if (!error.includes('monthly limit') && !error.includes('used all') && !error.includes('quota will reset')) {
+    // Enhanced file validation
+    const maxSize = 10 * 1024 * 1024; // 10MB limit
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    
+    if (file.size > maxSize) {
+      setError(`File too large. Please upload an image smaller than 10MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+      return;
+    }
+    
+    if (!allowedTypes.includes(file.type)) {
+      setError('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    try {
+      setUploadStage('uploading');
       setError('');
+      
+      // Create preview with compression
+      const compressedPreview = await compressImageForPreview(file);
+      setImagePreview(compressedPreview);
+      
+      // Upload the original file (server will handle compression)
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const uploadData = await response.json();
+      setCurrentImageData(uploadData);
+      setUploadStage('idle');
+      setShowSuccessMessage(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setError(error.message || 'Upload failed. Please try again.');
+      setUploadStage('idle');
+      setImagePreview(null);
     }
-    // Don't clear rate limit errors - let them stay visible for 10 seconds
-    // clearRateLimitError();
+  };
 
-    if (file) {
-              // File selected
-
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError('Invalid file type. Please upload an image (PNG, JPG, or GIF).');
-        return;
-      }
-
-      // Validate specific image formats
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-      if (!allowedTypes.includes(file.type)) {
-        setError('Unsupported image format. Please upload PNG, JPG, or GIF files only.');
-        return;
-      }
-
-      try {
-        let processedFile = file;
-        const maxSize = 10 * 1024 * 1024; // 10MB limit for Cloudinary compatibility
+  // Image compression function for preview
+  const compressImageForPreview = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new window.Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (max 800x800 for preview)
+        const maxSize = 800;
+        let { width, height } = img;
         
-        // If file is larger than 10MB, compress it
-        if (file.size > maxSize) {
-          // Compressing high-resolution image
-          setError('🔄 Compressing your high-resolution image to meet upload requirements...');
-          
-          processedFile = await compressImage(file, maxSize);
-          
-          const originalSize = (file.size / (1024 * 1024)).toFixed(1);
-          const compressedSize = (processedFile.size / (1024 * 1024)).toFixed(1);
-          // Image compressed
-          
-          setError(''); // Clear compression message
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
         }
-
-        setUploadedFile(processedFile);
-
-        // Clear image-related error when user uploads a valid image
-        if (error === "Please upload an image to generate captions.") {
-          setError('');
-        }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          // Image preview generated
-          setImagePreview(result);
-        };
-
-        reader.onerror = () => {
-          console.error('❌ FileReader error:', reader.error);
-          setError('Failed to read image file. Please try again.');
-        };
-
-        reader.readAsDataURL(processedFile);
         
-      } catch (compressionError) {
-        console.error('❌ Image compression failed:', compressionError);
-        setError('Failed to process your high-resolution image. Please try with a smaller image or different format.');
-      }
-    } else {
-              // No file selected
-    }
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(compressedDataUrl);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -959,7 +977,45 @@ export function CaptionGenerator() {
                             alt="Uploaded preview"
                             fill
                             style={{ objectFit: "contain" }}
+                            onError={(e) => {
+                              console.error('❌ Image failed to load:', imagePreview);
+                              // Fallback to a placeholder if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              // Show error message
+                              setError('Image failed to load. Please try uploading again.');
+                            }}
+                            onLoad={() => {
+                              console.log('✅ Image loaded successfully:', imagePreview);
+                              setError(''); // Clear any previous errors
+                            }}
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            priority={false}
+                            quality={85}
+                            placeholder="blur"
+                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxERAPwCdABmX/9k="
                           />
+                          {/* Fallback error display */}
+                          {error && error.includes('failed to load') && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
+                              <div className="text-center p-4">
+                                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-2">Image failed to load</p>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setImagePreview(null);
+                                    setError('');
+                                  }}
+                                >
+                                  Try Again
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : uploadStage !== 'idle' ? (
                         <div className="flex flex-col items-center justify-center px-3 text-center">

@@ -1,0 +1,25 @@
+---
+description: Production-grade coding rules for Cursor AI ensuring high-quality, secure, maintainable code generation that requires minimal review.
+alwaysApply: true
+globs: ["**/*"]  # Apply to all project files
+---
+
+- Always generate production-ready code: no experimental, buggy, or incomplete snippets allowed.
+- Explicitly handle all errors and exceptions; never silently swallow errors or fail without notice.
+- Strictly follow project-specific coding standards, style guides, and linters without deviation.
+- Use clear, descriptive variable and function names. Maintain modular, readable code structure.
+- Add meaningful comments for complex logic; avoid magic numbers, hidden behavior, or undocumented hacks.
+- Prefer stable, popular, and well-maintained libraries only; avoid random, unverified packages.
+- If essential context or requirements are missing, prompt for clarification instead of guessing.
+- Prioritize security: never insert secrets, vulnerabilities, or unsafe patterns in code.
+- Ensure comprehensive testing: include unit, integration, and edge cases as per project standards.
+- Avoid deprecated language features, libraries, or unsafe API calls.
+- Focus on quality over quantity: optimize for clean, efficient, maintainable code rather than boilerplate.
+- Proactively suggest refactoring and improvements to existing code where appropriate.
+- Always align outputs to the latest version of project rules and style guidelines.
+- Treat all generated code as drafts for human review; do not assume any output is final without approval.
+- Follow performance best practices: reduce unnecessary computations, network requests, and memory waste.
+- Do not introduce any side effects or global state changes without explicit indication.
+- Use strict typing and validation where applicable to reduce runtime errors.
+- Log and remember project-specific preferences and repeated corrections to avoid repeated mistakes.
+- Integrate latest security patches and software development best practices continuously.

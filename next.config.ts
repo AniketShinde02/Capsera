@@ -195,10 +195,25 @@ const nextConfig: NextConfig = {
   }),
   
   images: {
+    domains: [
+      'res.cloudinary.com',
+      'images.unsplash.com',
+      'via.placeholder.com',
+      'placehold.co'
+    ],
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: false,
+    loader: 'default',
+    path: '/_next/image',
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'placehold.co',
+        hostname: 'res.cloudinary.com',
         port: '',
         pathname: '/**',
       },
@@ -208,25 +223,7 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      // ✅ Added Cloudinary
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'ik.imagekit.io',
-        port: '',
-        pathname: '/**',
-      },
     ],
-    // Image optimization settings
-    formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
-    dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   
   // Headers for performance (fixed regex patterns)

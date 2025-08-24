@@ -573,105 +573,114 @@ export function CaptionGenerator() {
       setCurrentMood(values.mood);
       setCurrentDescription(values.description || '');
 
-      // Step 2: Now upload image (only if quota check passed)
-      updateButtonState('uploading');
-              // Starting image upload
+      // Step 2: Ensure image is uploaded (only if not already uploaded during file-select)
+      let uploadData: any = null;
 
-      // Show upload progress for better user experience
-      setButtonMessage('Uploading image...');
-      setButtonIcon(<UploadCloud className="mr-2 h-4 w-4 animate-pulse" />);
+      if (currentImageData && currentImageData.url) {
+        // Image was already uploaded during handleImageChange; reuse it and avoid re-uploading
+        uploadData = {
+          url: currentImageData.url,
+          public_id: currentImageData.publicId,
+        };
+        // Move UI to processing without showing the upload animation again
+        updateButtonState('processing');
+      } else {
+        // No existing uploaded image - perform the upload now
+        updateButtonState('uploading');
 
-      const formData = new FormData();
-      formData.append('file', uploadedFile);
+        // Show upload progress for better user experience
+        setButtonMessage('Uploading image...');
+        setButtonIcon(<UploadCloud className="mr-2 h-4 w-4 animate-pulse" />);
 
-      // Add timeout protection for upload with realistic timing
-      const uploadController = new AbortController();
-      const uploadTimeout = setTimeout(() => {
-        // Upload timeout triggered - aborting upload
-        uploadController.abort();
-      }, 60000); // 60 second timeout - realistic for large images and slow connections
+        const formData = new FormData();
+        formData.append('file', uploadedFile as File);
 
-      // ⚡ USER EXPERIENCE: Show timeout warning at 45 seconds
-      const uploadWarningTimeout = setTimeout(() => {
-        setButtonMessage('Upload taking longer than usual...');
-        setButtonIcon(<Clock className="mr-2 h-4 w-4 animate-pulse text-yellow-500" />);
-      }, 45000);
+        // Add timeout protection for upload with realistic timing
+        const uploadController = new AbortController();
+        const uploadTimeout = setTimeout(() => {
+          // Upload timeout triggered - aborting upload
+          uploadController.abort();
+        }, 60000); // 60 second timeout
 
-      let uploadResponse;
-      try {
-        uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-          signal: uploadController.signal,
-        });
-      } catch (fetchError: any) {
-        console.error('❌ Fetch error during upload:', fetchError);
+        // ⚡ USER EXPERIENCE: Show timeout warning at 45 seconds
+        const uploadWarningTimeout = setTimeout(() => {
+          setButtonMessage('Upload taking longer than usual...');
+          setButtonIcon(<Clock className="mr-2 h-4 w-4 animate-pulse text-yellow-500" />);
+        }, 45000);
 
-        // Handle different error types properly
-        if (fetchError.name === 'AbortError') {
+        let uploadResponse;
+        try {
+          uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+            signal: uploadController.signal,
+          });
+        } catch (fetchError: any) {
+          console.error('❌ Fetch error during upload:', fetchError);
+
+          // Handle different error types properly
+          if (fetchError.name === 'AbortError') {
+            clearTimeout(uploadTimeout);
+            throw new Error('Upload is taking too long. Please try with a smaller image or check your connection.');
+          }
+
+          if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
+            clearTimeout(uploadTimeout);
+            throw new Error('Network error during upload. Please check your internet connection and try again.');
+          }
+
           clearTimeout(uploadTimeout);
-          throw new Error('Upload is taking too long. Please try with a smaller image or check your connection.');
-        }
-
-        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
-          clearTimeout(uploadTimeout);
-          throw new Error('Network error during upload. Please check your internet connection and try again.');
+          throw new Error('Upload failed. Please try again.');
         }
 
         clearTimeout(uploadTimeout);
-        throw new Error('Upload failed. Please try again.');
-      }
+        clearTimeout(uploadWarningTimeout); // Clear the warning timeout
 
-      clearTimeout(uploadTimeout);
-      clearTimeout(uploadWarningTimeout); // Clear the warning timeout
+        // Check if upload response is valid
+        if (!uploadResponse.ok) {
+          let uploadErrorMessage = 'Image upload failed.';
 
-      // Check if upload response is valid
-      if (!uploadResponse.ok) {
-        let uploadErrorMessage = 'Image upload failed.';
-
-        try {
-          const uploadErrorData = await uploadResponse.json();
-          uploadErrorMessage = uploadErrorData.message || uploadErrorMessage;
-        } catch (parseError) {
-          console.error('❌ Failed to parse upload error response:', parseError);
-          // Handle different HTTP status codes
-          switch (uploadResponse.status) {
-            case 413:
-              uploadErrorMessage = 'Image is too big in size. Please upload an image smaller than 10MB.';
-              break;
-            case 400:
-              uploadErrorMessage = 'Invalid image file. Please check the file format and try again.';
-              break;
-            case 500:
-              uploadErrorMessage = 'Server error during upload. Please try again later.';
-              break;
-            default:
-              uploadErrorMessage = `Upload failed (${uploadResponse.status}). Please try again.`;
+          try {
+            const uploadErrorData = await uploadResponse.json();
+            uploadErrorMessage = uploadErrorData.message || uploadErrorMessage;
+          } catch (parseError) {
+            console.error('❌ Failed to parse upload error response:', parseError);
+            // Handle different HTTP status codes
+            switch (uploadResponse.status) {
+              case 413:
+                uploadErrorMessage = 'Image is too big in size. Please upload an image smaller than 10MB.';
+                break;
+              case 400:
+                uploadErrorMessage = 'Invalid image file. Please check the file format and try again.';
+                break;
+              case 500:
+                uploadErrorMessage = 'Server error during upload. Please try again later.';
+                break;
+              default:
+                uploadErrorMessage = `Upload failed (${uploadResponse.status}). Please try again.`;
+            }
           }
+
+          throw new Error(uploadErrorMessage);
         }
 
-        throw new Error(uploadErrorMessage);
+        try {
+          uploadData = await uploadResponse.json();
+        } catch (parseError) {
+          console.error('❌ Failed to parse upload response:', parseError);
+          throw new Error('Failed to process upload response. Please try again.');
+        }
+
+        if (!uploadData.success) {
+          throw new Error(uploadData.message || 'Image upload failed. Please try again.');
+        }
+
+        // Store image data for regeneration
+        setCurrentImageData({
+          url: uploadData.url,
+          publicId: uploadData.public_id,
+        });
       }
-
-      let uploadData;
-      try {
-        uploadData = await uploadResponse.json();
-      } catch (parseError) {
-        console.error('❌ Failed to parse upload response:', parseError);
-        throw new Error('Failed to process upload response. Please try again.');
-      }
-
-      if (!uploadData.success) {
-        throw new Error(uploadData.message || 'Image upload failed. Please try again.');
-      }
-
-              // Image uploaded successfully
-
-      // Store image data for regeneration
-      setCurrentImageData({
-        url: uploadData.url,
-        publicId: uploadData.public_id
-      });
 
       // Send to AI for analysis
 

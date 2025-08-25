@@ -251,6 +251,12 @@ export const metadata: Metadata = {
 - **Fix**: Replaced with elegant toast notifications
 - **Result**: Better user experience without intrusive popups
 
+### **Caption Generator — Double Upload Animation**
+- **Issue**: When a user uploaded an image the UI showed an upload animation, and clicking "Generate" re-triggered a second "Uploading" animation (confusing UX).
+- **Fix**: The caption generator now reuses the already-uploaded image state when available and skips a redundant upload on submit. This prevents the duplicate upload animation and provides a single coherent upload → processing flow.
+- **Files Updated**: `src/components/caption-generator.tsx`
+- **Notes**: The change is client-side; in production verify worker bundling and server upload endpoints (timeouts/payload limits). Consider adding a lightweight server verification (e.g., head request or `/api/upload/verify`) before reusing an uploaded `public_id` if you need stronger guarantees.
+
 ### **Console Logs**
 - **Issue**: Unnecessary logging and debug information
 - **Root Cause**: Development console statements left in production code

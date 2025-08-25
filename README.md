@@ -68,6 +68,13 @@ Capsera includes a **comprehensive maintenance mode system** that provides compl
 
 ## 🚀 **Live Features Showcase**
 
+## 🛠️ Recent UX Fixes
+
+- Caption upload UX: fixed a double upload animation in the caption generation flow by reusing an already-uploaded image when available. This avoids a redundant upload on submit and gives a single, clearer upload → processing experience. (See `src/components/caption-generator.tsx`.)
+
+Note: This is a client-side UX fix; verify worker bundling and server upload endpoints in production (timeouts and payload limits). Consider adding a lightweight server-side verification for `public_id` if you need to ensure the uploaded file still exists before reuse.
+
+
 ### 🎨 **Screenshot Gallery**
 > *Most screenshots are available in the `/screenshots` folder. Some admin screenshots need to be created.*
 

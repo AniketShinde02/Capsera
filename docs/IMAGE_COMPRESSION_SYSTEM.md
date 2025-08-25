@@ -302,3 +302,8 @@ try {
 ---
 
 *This document provides comprehensive information about the image compression system implemented in the AI Caption Generator. The system automatically handles all compression tasks, ensuring optimal performance while maintaining high visual quality.*
+
+## 📌 Recent UX Fix — Caption Generator
+
+- We fixed a UX issue where the caption generator showed the upload animation twice (once on file-select and again when the user clicked "Generate"). The front-end now reuses the already-uploaded image state when present and avoids re-uploading the same file.
+- Production note: Ensure your build correctly bundles the compression worker or that the main-thread fallback is functioning; also confirm server upload endpoints accept the expected payload sizes and that serverless timeout/payload limits are compatible with the client-side timeouts.

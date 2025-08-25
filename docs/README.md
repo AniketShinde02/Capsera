@@ -75,6 +75,10 @@ The admin dashboard has been completely transformed into a **fully operational, 
 ### **🎨 UI/UX Improvements - COMPLETED**
 **Status**: ✅ **Enhanced user experience across all components**
 
+### Recent UX Fix: Caption Generator
+
+- Fixed a double upload animation bug in the caption generation flow by reusing an already-uploaded image when available. This avoids redundant uploads and improves user clarity. See `src/components/caption-generator.tsx` for implementation details.
+
 - **Smooth Animations**: Text transitions and mode switching animations
 - **Toast Notifications**: Replaced intrusive alerts with elegant toasts
 - **Theme Consistency**: Fixed dark mode visibility and color schemes

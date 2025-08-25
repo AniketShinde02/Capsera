@@ -2,15 +2,15 @@
 
 import { CaptionGenerator } from "@/components/caption-generator";
 import { Button } from "@/components/ui/button";
-import {  Bot, Palette, Hash, Pencil, Copy, Share, RefreshCcw, ArrowRight, Sparkles, Sun, Zap, Shield } from "lucide-react";
+import {  Bot, Palette, Sun, Zap, Shield } from "lucide-react";
 import Link from "next/link";
 import CookieConsent from "@/components/CookieConsent";
-import { useRouter } from 'next/navigation';
+
 import { useEffect, useState, Suspense } from 'react';
 import { useAuthModal } from '@/context/AuthModalContext';
 
 function HomeContent() {
-  const router = useRouter();
+  
   const { setOpen, setInitialEmail } = useAuthModal();
   const [isShaking, setIsShaking] = useState(false);
 
@@ -115,7 +115,7 @@ function HomeContent() {
                 See the Magic in Action
               </h2>
               <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed px-2">
-                Here's what our AI generates from a simple sunset photo
+                Here&apos;s what our AI generates from a simple sunset photo
               </p>
             </div>
             
@@ -123,7 +123,7 @@ function HomeContent() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-start md:items-center">
                 <div className="md:col-span-2 space-y-3 sm:space-y-4">
                   <p className="text-xs sm:text-sm md:text-base text-foreground/90 leading-relaxed">
-                    Chasing horizons and embracing the glow. ✨ Every sunset paints a story of gratitude and wonder. Couldn't ask for a better view to end the day.
+                    Chasing horizons and embracing the glow. ✨ Every sunset paints a story of gratitude and wonder. Couldn&apos;t ask for a better view to end the day.
                   </p>
                   <div className="bg-[#F2EFE5]/50 dark:bg-background/50 p-3 sm:p-4 border border-[#C7C8CC]/50 dark:border-border/50 rounded-lg">
                     <p className="text-muted-foreground font-mono text-xs sm:text-sm">#SunsetVibes #GoldenHourGlow #Gratitude #Mindfulness #NaturePhotography</p>
@@ -189,126 +189,7 @@ function HomeContent() {
         </section>
       </main>
       
-      {/* Footer */}
-      <footer className="bg-muted/30 border-t border-border mt-16">
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* Product Column */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-3">Product</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/features" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/integrations" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Integrations
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/updates" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Updates
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            
-            {/* Company Column */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-3">Company</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/careers" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            
-            {/* Resources Column */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-3">Resources</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/community" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Community
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/support" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Support Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/api-docs" className="text-muted-foreground hover:text-foreground transition-colors">
-                    API Docs
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/status" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Status
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            
-            {/* Legal Column */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/cookie-policy" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Cookie Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/content-safety" className="text-muted-foreground hover:text-foreground transition-colors">
-                    Content Safety Guidelines
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-border pt-6 mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Made with ❤️ for creators
-            </p>
-          </div>
-        </div>
-      </footer>
+      
       
       {/* Cookie Consent - Only shows on main page */}
       <CookieConsent />
@@ -317,9 +198,5 @@ function HomeContent() {
 }
 
 export default function Home() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomeContent />
-    </Suspense>
-  );
+  return <HomeContent />;
 }

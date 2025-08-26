@@ -8,10 +8,12 @@ import { useSession } from 'next-auth/react';
 import { SignUpButton } from '@/components/SignUpButton';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function ServerHeader() {
+  const { theme, setTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSignoutConfirm, setShowSignoutConfirm] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -152,16 +154,7 @@ export default function ServerHeader() {
                 variant="outline" 
                 size="sm" 
                 className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-lg border-slate-300/60 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all duration-300 ease-out hover:scale-110"
-                onClick={() => {
-                  const html = document.documentElement;
-                  if (html.classList.contains('dark')) {
-                    html.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                  } else {
-                    html.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                  }
-                }}
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
                 <div className="w-3 h-3 sm:w-4 sm:h-4">
                   <svg className="w-3 h-3 sm:w-4 sm:h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

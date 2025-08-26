@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -864,15 +863,15 @@ export function CaptionGenerator() {
             }),
           }).then(response => {
             if (response.ok) {
-              console.log('✅ Anonymous user image auto-deleted successfully');
+              // console.log('✅ Anonymous user image auto-deleted successfully');
             } else {
-              console.log('❌ Failed to auto-delete anonymous user image');
+              // console.log('❌ Failed to auto-delete anonymous user image');
             }
           }).catch(error => {
-            console.log('⚠️ Error during auto-deletion of anonymous user image:', error);
+            // console.log('⚠️ Error during auto-deletion of anonymous user image:', error);
           });
         } else if (quotaData.isAuthenticated) {
-          console.log('💾 Authenticated user - image saved permanently in Cloudinary');
+          // console.log('💾 Authenticated user - image saved permanently in Cloudinary');
         }
       } else {
         console.error('❌ Invalid caption data structure:', captionData);
@@ -919,7 +918,7 @@ export function CaptionGenerator() {
         !error.message?.includes('used all 5 free images this month') &&
         !error.message?.includes('You\'ve used all') &&
         !error.message?.includes('You\'ve reached your monthly limit')) {
-        console.error("Caption Generation Error:", error);
+        // console.error("Caption Generation Error:", error);
       }
 
       // If it's a rate limit error, trigger quota refresh and shake animation
@@ -980,7 +979,7 @@ export function CaptionGenerator() {
             isAuthenticated: data.isAuthenticated,
             isAdmin: data.isAdmin
           });
-          console.log('�� Quota info updated:', data.remaining, '/', data.maxGenerations);
+          // console.log(' Quota info updated:', data.remaining, '/', data.maxGenerations);
         }
       } catch (error) {
         console.error('Failed to fetch quota info:', error);
@@ -1103,7 +1102,7 @@ export function CaptionGenerator() {
                               setError('Image failed to load. Please try uploading again.');
                             }}
                             onLoad={() => {
-                              console.log('✅ Image loaded successfully:', imagePreview);
+                              // console.log('✅ Image loaded successfully:', imagePreview);
                               setError(''); // Clear any previous errors
                             }}
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

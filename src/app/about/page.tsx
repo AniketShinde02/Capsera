@@ -46,11 +46,11 @@ export default async function AboutPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-4 sm:gap-8 mt-6 sm:mt-8">
                   <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">1M+</div>
+                    <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">100+</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Captions Generated</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">50K+</div>
+                    <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">10K+</div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Happy Users</div>
                   </div>
                 </div>

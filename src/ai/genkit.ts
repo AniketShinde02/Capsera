@@ -18,7 +18,7 @@ export const ai = genkit({
       apiKey: geminiKey || 'missing-api-key',
     })
   ],
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'googleai/gemini-2.0-flash-exp',
 });
 
 // Export a function to check if AI is properly configured

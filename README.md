@@ -13,7 +13,7 @@
 
 **🎯 Perfect captions • 🚀 Boost engagement • ✨ Save time • 📈 Grow your audience**
 
-[✨ **Live Demo**](#-[screenshot-gallery](https://capsera.vercel.app/)) • [📚 **Documentation**](#-comprehensive-documentation) • [🚀 **Deploy Now**](#-deployment-guide) • [🔄 **Migration Guide**](#-major-changes--migration)
+[✨ **Live Demo**](https://capsera.vercel.app/) • [📚 **Documentation**](#-comprehensive-documentation) • [🚀 **Deploy Now**](#-deployment-guide) • [🔄 **Migration Guide**](#-major-changes--migration)
 
 </div>
 

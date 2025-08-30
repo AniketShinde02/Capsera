@@ -87,81 +87,97 @@ export function CaptionGenerator() {
   const [isOnline, setIsOnline] = useState(true);
   const { data: session } = useSession();
 
-  // Function to compress image while maintaining quality
-  const compressImage = (file: File, maxSizeBytes: number): Promise<File> => {
+  // Enhanced image compression function for large files
+  const compressImageForUpload = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
+      // Only compress if file is larger than 5MB
+      const maxSizeMB = 5;
+      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+      
+      if (file.size <= maxSizeBytes) {
+        console.log(`📁 File size ${(file.size / 1024 / 1024).toFixed(2)}MB, no compression needed`);
+        resolve(file);
+        return;
+      }
+
+      console.log(`📁 File size ${(file.size / 1024 / 1024).toFixed(2)}MB, compressing...`);
+      
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new window.Image();
+      let objectUrl: string | null = null;
       
       img.onload = () => {
-        // Calculate new dimensions while maintaining aspect ratio
-        let { width, height } = img;
-        const maxDimension = 2048; // Max dimension to prevent excessive memory usage
-        
-        if (width > maxDimension || height > maxDimension) {
+        try {
+          // Calculate new dimensions (maintain aspect ratio)
+          const maxDimension = 1920; // Max width/height
+          let { width, height } = img;
+          
           if (width > height) {
-            height = (height * maxDimension) / width;
-            width = maxDimension;
+            if (width > maxDimension) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            }
           } else {
-            width = (width * maxDimension) / height;
-            height = maxDimension;
+            if (height > maxDimension) {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
           }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress with quality based on original size
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Adjust quality based on file size
+          let quality = 0.8;
+          if (file.size > 10 * 1024 * 1024) { // > 10MB
+            quality = 0.6;
+          } else if (file.size > 7 * 1024 * 1024) { // > 7MB
+            quality = 0.7;
+          }
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          // Convert data URL back to File
+          const arr = compressedDataUrl.split(',');
+          const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          
+          const compressedFile = new File([u8arr], file.name, { type: mime });
+          console.log(`✅ Compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+          
+          resolve(compressedFile);
+        } catch (error) {
+          console.error('❌ Compression failed:', error);
+          reject(new Error('Failed to compress image'));
+        } finally {
+          // Cleanup
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+          }
+          canvas.width = 0;
+          canvas.height = 0;
         }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        // Try different quality levels to get under 10MB
-        let quality = 0.9;
-        let compressedBlob: Blob | null = null;
-        
-        const tryCompression = () => {
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                if (blob.size <= maxSizeBytes) {
-                  // Success! Create new file
-                  const compressedFile = new File([blob], file.name, {
-                    type: 'image/jpeg',
-                    lastModified: Date.now(),
-                  });
-                  resolve(compressedFile);
-                } else if (quality > 0.3) {
-                  // Reduce quality and try again
-                  quality -= 0.1;
-                  tryCompression();
-                } else {
-                  // If still too large, reduce dimensions further
-                  if (width > 1024 || height > 1024) {
-                    width = Math.floor(width * 0.8);
-                    height = Math.floor(height * 0.8);
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    quality = 0.9; // Reset quality
-                    tryCompression();
-                  } else {
-                    reject(new Error('Unable to compress image to required size'));
-                  }
-                }
-              } else {
-                reject(new Error('Failed to compress image'));
-              }
-            },
-            'image/jpeg',
-            quality
-          );
-        };
-        
-        tryCompression();
       };
       
-      img.onerror = () => reject(new Error('Failed to load image for compression'));
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => {
+        reject(new Error('Failed to load image for compression'));
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      
+      objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
     });
   };
 
@@ -307,7 +323,7 @@ export function CaptionGenerator() {
           compressedFile = await compressWithWorker(file, MAX_UPLOAD_BYTES);
         } catch (workerErr) {
           // Worker not available or failed - fallback to main-thread compressor
-          compressedFile = await compressImage(file, MAX_UPLOAD_BYTES);
+          compressedFile = await compressImageForUpload(file); // Use the new compression function
         }
 
         // If compression succeeded and is smaller, use it

@@ -84,8 +84,16 @@ export const trackUserAction = (action: string, data?: any) => {
     // Safely serialize data to avoid circular references
     let safeData = data;
     try {
-      // Try to serialize and deserialize to ensure it's safe
-      safeData = JSON.parse(JSON.stringify(data));
+      // Check if data is null/undefined before serializing
+      if (data !== null && data !== undefined) {
+        // Try to serialize and deserialize to ensure it's safe
+        safeData = JSON.parse(JSON.stringify(data));
+      } else {
+        safeData = {
+          type: 'null_or_undefined',
+          timestamp: Date.now()
+        };
+      }
     } catch (error) {
       // If serialization fails, create a safe version
       console.warn('Data contains circular references, creating safe version:', error);

@@ -73,8 +73,8 @@ const nextConfig: NextConfig = {
         // Add better error handling for cache issues
         allowCollectingMemory: true,
         memoryCacheUnaffected: true,
-        // Fix the compiled.js cache issue
-        name: isServer ? 'webpack-cache-server' : 'webpack-cache-client',
+        // Fix the compiled.js cache issue with unique names
+        name: isServer ? `webpack-cache-server-${Date.now()}` : `webpack-cache-client-${Date.now()}`,
         version: '1.0.0',
       };
 

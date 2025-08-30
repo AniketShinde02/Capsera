@@ -1198,14 +1198,11 @@ export function CaptionGenerator() {
                       </div>
                     )}
 
-                    {/* Compact Success Message */}
+                    {/* Simple Success Message */}
                     {showSuccessMessage && (
-                      <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg transition-all duration-300">
-                        <CheckCircle2 className="w-3 h-3 text-green-600 dark:text-green-400 flex-shrink-0" />
-                        <p className="text-xs text-green-700 dark:text-green-300 font-medium">
-                          Ready to continue! 🚀
-                        </p>
-                      </div>
+                      <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+                        Ready to continue! 🚀
+                      </p>
                     )}
                   </div>
 
@@ -1464,26 +1461,9 @@ export function CaptionGenerator() {
 
                   {/* Auto-deletion message for anonymous users */}
                   {showAutoDeleteMessage && (
-                    <div className="col-span-full mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                        <div className="relative flex-shrink-0">
-                          {/* Trash can with falling image animation */}
-                          <div className="w-5 h-5 text-amber-600 dark:text-amber-400">
-                            🗑️
-                          </div>
-                          {/* Falling image animation */}
-                          <div className="absolute -top-2 -left-1 w-3 h-3 bg-gradient-to-br from-blue-400 to-purple-500 rounded-sm animate-bounce opacity-80">
-                            📷
-                          </div>
-                        </div>
-                        <span className="text-sm font-medium">
-                          Your image has been automatically deleted for privacy
-                        </span>
-                      </div>
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 ml-6">
-                        Anonymous users' images are deleted after caption generation. Sign up to save images permanently!
-                      </p>
-                    </div>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                      Image deleted for privacy 🛡️
+                    </p>
                   )}
 
                   {/* Disclaimer - Compact */}

@@ -937,7 +937,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       {/* Tabs List - Compact Design with Rich Whites */}
-      <TabsList className="grid w-full grid-cols-2 bg-[#E3E1D9]/80 dark:bg-muted/50 border border-[#C7C8CC]/60 dark:border-border h-12 rounded-2xl p-2">
+      <TabsList className="grid w-full grid-cols-2 bg-[#E3E1D9]/80 dark:bg-muted/50 border border-[#C7C8CC]/60 dark:border-border h-12 rounded-2xl p-2 gap-2">
         <TabsTrigger 
           value="sign-in" 
           className="text-sm font-medium rounded-xl data-[state=active]:bg-[#F2EFE5] dark:data-[state=active]:bg-slate-300 data-[state=active]:text-slate-800 dark:data-[state=active]:text-slate-800 data-[state=inactive]:text-slate-700 dark:data-[state=inactive]:text-slate-700 data-[state=inactive]:bg-transparent dark:data-[state=inactive]:bg-slate-100/60 data-[state=active]:shadow-sm transition-all duration-200"
@@ -946,7 +946,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
         </TabsTrigger>
         <TabsTrigger 
           value="sign-up" 
-          className="text-sm font-medium rounded-xl data-[state=active]:bg-[#F2EFE5] dark:data-[state=active]:bg-slate-300 data-[state=active]:text-slate-800 dark:data-[state=active]:text-slate-800 data-[state=inactive]:text-slate-700 dark:data-[state=inactive]:text-slate-700 data-[state=inactive]:bg-transparent dark:data-[state=inactive]:bg-slate-100/60 data-[state=active]:shadow-sm transition-all duration-200"
+          className="text-sm font-medium rounded-xl data-[state=active]:bg-[#F2EFE5] dark:data-[state=active]:bg-slate-300 data-[state=inactive]:text-slate-700 dark:data-[state=inactive]:text-slate-700 data-[state=inactive]:bg-transparent dark:data-[state=inactive]:bg-slate-100/60 data-[state=active]:shadow-sm transition-all duration-200"
         >
           Sign Up
         </TabsTrigger>

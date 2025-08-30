@@ -208,7 +208,7 @@ export default function ServerHeader() {
               className={`
                 relative w-full max-w-xs bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-xl 
                 rounded-b-2xl shadow-2xl border border-slate-300/60 dark:border-slate-700/50 overflow-hidden
-                transform transition-all duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
+                transform transition-all duration-700 ease-out
                 ${isMenuOpen ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
               `}
             >

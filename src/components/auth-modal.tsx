@@ -35,11 +35,11 @@ export function AuthModal() {
               className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8"
             />
           </div>
-          <DialogHeader className="space-y-2">
-            <DialogTitle className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 dark:text-foreground leading-tight">
+          <DialogHeader className="space-y-2 text-center w-full">
+            <DialogTitle className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 dark:text-foreground leading-tight text-center !text-center">
               Welcome to Capsera
             </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-muted-foreground leading-relaxed max-w-xs mx-auto">
+            <DialogDescription className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-muted-foreground leading-relaxed max-w-xs mx-auto text-center !text-center">
               Sign in or create an account to start generating captions.
             </DialogDescription>
           </DialogHeader>

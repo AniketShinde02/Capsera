@@ -1083,6 +1083,31 @@ export function CaptionGenerator() {
 
                   {/* Image Upload - Compact */}
                   <div className="space-y-2">
+                    {/* Step-by-Step Guide */}
+                    <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center">
+                        📋 How to Generate Captions
+                      </h4>
+                      <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+                        <div className="flex items-start gap-2">
+                          <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold">1</span>
+                          <span>Upload image (JPG/PNG/WebP, max 10MB)</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold">2</span>
+                          <span>Choose mood from 46+ options</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold">3</span>
+                          <span>Click "Generate Captions" & wait!</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold">4</span>
+                          <span>Copy & share your favorite captions!</span>
+                        </div>
+                      </div>
+                    </div>
+
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                       <span className="w-2 h-2 bg-primary rounded-full"></span>
                       Image Upload

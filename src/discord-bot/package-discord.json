@@ -1,0 +1,42 @@
+{
+  "name": "capsera-discord-bot",
+  "version": "1.0.0",
+  "description": "AI-Powered Social Media Caption Generator for Discord",
+  "main": "src/discord-bot/start.ts",
+  "scripts": {
+    "start": "tsx src/discord-bot/start.ts",
+    "dev": "tsx --watch src/discord-bot/start.ts",
+    "build": "tsc src/discord-bot/start.ts --outDir dist/discord-bot",
+    "discord:start": "tsx src/discord-bot/start.ts",
+    "discord:dev": "tsx --watch src/discord-bot/start.ts",
+    "discord:build": "tsc src/discord-bot/start.ts --outDir dist/discord-bot",
+    "test:db": "tsx src/discord-bot/test-db.ts",
+    "test:connections": "tsx src/discord-bot/test-connections.ts",
+    "test:all": "npm run test:connections"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "ai",
+    "captions",
+    "social-media",
+    "gemini"
+  ],
+  "author": "Capsera Team",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@google/generative-ai": "^0.2.1",
+    "mongoose": "^8.0.0",
+    "dotenv": "^16.0.0",
+    "tsx": "^4.19.2",
+    "cloudinary": "^1.41.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.17.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

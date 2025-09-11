@@ -22,14 +22,16 @@ const clientFiles = [
   'src/app/setup/page.tsx'
 ];
 
-// Patterns to remove (client-side debug logs)
+// Patterns to remove (client-side debug logs) - more precise regex
 const debugPatterns = [
-  /console\.log\([^)]*\);?\s*/g,
-  /console\.warn\([^)]*\);?\s*/g,
-  /console\.debug\([^)]*\);?\s*/g,
-  /console\.info\([^)]*\);?\s*/g
+  // Single-line console statements (more precise)
+  /^\s*console\.(log|warn|debug|info)\s*\([^)]*\)\s*;?\s*$/gm,
+  // Multi-line console statements with template literals (more precise)
+  /^\s*console\.(log|warn|debug|info)\s*\(`[\s\S]*?`\)\s*;?\s*$/gm,
+  // Console statements with string literals
+  /^\s*console\.(log|warn|debug|info)\s*\("[\s\S]*?"\)\s*;?\s*$/gm,
+  /^\s*console\.(log|warn|debug|info)\s*\('[\s\S]*?'\)\s*;?\s*$/gm
 ];
-
 function cleanFile(filePath) {
   try {
     if (!fs.existsSync(filePath)) {
@@ -67,7 +69,13 @@ function cleanFile(filePath) {
 
 console.log('🧹 Starting debug cleanup...\n');
 
-clientFiles.forEach(cleanFile);
+// Use path.join for cross-platform compatibility
+// Ensure we're working from the project root directory
+const projectRoot = process.cwd();
+clientFiles.forEach(file => {
+  const filePath = path.join(projectRoot, file);
+  cleanFile(filePath);
+});
 
 console.log('\n✅ Debug cleanup completed!');
 console.log('🔒 Client-side debug statements removed for production security');

@@ -18,7 +18,12 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     
     // Check if user can access admin dashboard
-    const canAccess = await canManageAdmins(session?.user?.id || '');
+    const userId = session?.user?.id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User session not found' }, { status: 401 });
+    }
+    
+    const canAccess = await canManageAdmins(userId);
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied. Admin privileges required.' }, { status: 403 });
     }
@@ -99,7 +104,10 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     
     // Check if user can manage admins
-    const canManage = await canManageAdmins(session?.user?.id || '');
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
+    }
+    const canManage = await canManageAdmins(session.user.id);
     if (!canManage) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }

@@ -5,15 +5,39 @@ import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
 export async function GET() {
+  console.log('🔍 /api/user GET called');
   const session = await getServerSession(authOptions);
+  console.log('🔍 Session in /api/user:', {
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    userId: session?.user?.id,
+    userEmail: session?.user?.email
+  });
+  
   if (!session?.user?.id) {
+    console.log('❌ /api/user: No session or user ID');
     return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   }
   await dbConnect();
-  const user = await (User as any).findById(session.user.id).select('email username title bio image createdAt');
+  // Try primary session user ID first. If not found (possible when an admin
+  // signs in with an admin account whose ID lives in a separate collection),
+  // fall back to the regularUserId attached to the session (set during
+  // the admin credentials authorize flow).
+  const primaryUserId = session.user.id;
+  let user = await (User as any).findById(primaryUserId).select('email username title bio image createdAt');
+
+  if (!user) {
+    const regularUserId = (session as any)?.user?.regularUserId;
+    console.log('🔍 /api/user: Primary user not found, checking regularUserId:', regularUserId);
+    if (regularUserId) {
+      user = await (User as any).findById(regularUserId).select('email username title bio image createdAt');
+    }
+  }
+
   if (!user) {
     return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
   }
+
   return NextResponse.json({ success: true, data: user }, { status: 200 });
 }
 

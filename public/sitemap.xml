@@ -1,61 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/</loc>
+             <loc>https://capsera.online/</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/about</loc>
+             <loc>https://capsera.online/free-caption-generator</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+             <loc>https://capsera.online/instagram-caption-generator</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+             <loc>https://capsera.online/features</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/features</loc>
+             <loc>https://capsera.online/pricing</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/pricing</loc>
-    <lastmod>2024-01-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/blog</loc>
+             <loc>https://capsera.online/blog</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/contact</loc>
+             <loc>https://capsera.online/contact</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/support</loc>
+             <loc>https://capsera.online/support</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/terms</loc>
+             <loc>https://capsera.online/terms</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/privacy</loc>
+             <loc>https://capsera.online/privacy</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-             <loc>https://ai-caption-generator-pied.vercel.app/cookies</loc>
+             <loc>https://capsera.online/cookies</loc>
     <lastmod>2024-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

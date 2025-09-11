@@ -41,8 +41,7 @@ export async function verifyAdminAccess(request: NextRequest): Promise<NextRespo
     console.log('✅ Admin middleware: Admin access verified for:', session.user.email);
     return null; // No error, admin verified
 
-  } catch (error: any) {
-    console.error('❌ Admin middleware error:', error);
+  } catch (error: unknown) {    console.error('❌ Admin middleware error:', error);    console.error('❌ Admin middleware error:', error);
     return NextResponse.json({ 
       error: 'Authentication verification failed',
       message: 'Unable to verify admin privileges'

@@ -13,8 +13,7 @@ const RateLimitSchema: Schema = new Schema({
   key: {
     type: String,
     required: true,
-    unique: true,
-    index: true,
+    unique: true
   },
   count: {
     type: Number,

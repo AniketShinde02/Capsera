@@ -1,5 +1,6 @@
-a mian # Major Changes & Migration Summary
+# Major Changes & Migration Summary
 
+Version: vX.Y.Z · Date: 2025-09-11
 ## 🚀 **Brand Transformation: CaptionCraft → Capsera**
 
 ### **Complete Rebranding**

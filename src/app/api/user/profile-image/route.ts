@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         // Extract public ID from Cloudinary URL
         const publicId = extractCloudinaryPublicId(currentUser.image);
         if (publicId) {
-          await archiveCloudinaryImage(publicId, session.user.id);
+          await archiveCloudinaryImage(publicId, session.user.id, 'image');
         }
       } catch (error) {
         // Continue with update even if archiving fails
@@ -109,7 +109,7 @@ export async function DELETE(request: NextRequest) {
         // Extract public ID from Cloudinary URL
         const publicId = extractCloudinaryPublicId(currentUser.image);
         if (publicId) {
-          await archiveCloudinaryImage(publicId, session.user.id);
+          await archiveCloudinaryImage(publicId, session.user.id, 'image');
         }
       } catch (error) {
         // Continue with removal even if archiving fails

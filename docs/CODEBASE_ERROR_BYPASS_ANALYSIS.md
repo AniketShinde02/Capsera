@@ -10,9 +10,26 @@ This analysis reveals a **critical pattern of error bypassing** throughout the C
 
 The codebase implements a **multi-layered error bypass system** that systematically suppresses errors instead of fixing them:
 
+#### **⚠️ IMPORTANT: Opt-In Only Approach**
+As of recent updates, the development error bypass system (`backups/dev-error-bypass.ts`) now requires **explicit opt-in** and no longer auto-initializes. This is a significant improvement that prevents accidental error suppression.
+
+**To enable development error bypass:**
+```typescript
+import { enableDevErrorBypass } from '@/backups/dev-error-bypass';
+
+// Explicitly opt-in to error bypass
+enableDevErrorBypass();
+```
+
+**Available functions:**
+- `enableDevErrorBypass()` - Enable error bypass (recommended)
+- `initErrorBypass()` - Direct initialization
+- `disableDevErrorBypass()` - Disable error bypass
+- `isDevErrorBypassActive()` - Check bypass status
+
 #### **Primary Bypass Files:**
-- `src/lib/dev-error-bypass.ts` - Development error suppression
-- `src/lib/runtime-error-bypass.ts` - Runtime error suppression  
+- `backups/dev-error-bypass.ts` - Development error suppression (opt-in only)
+- `backups/runtime-error-bypass.ts` - Runtime error suppression  
 - `scripts/force-bypass.js` - Force bypass script generator
 - `next.config.ts` - Webpack-level error suppression
 
@@ -26,8 +43,8 @@ The codebase implements a **multi-layered error bypass system** that systematica
 ```
 
 **Files Suppressing This Error:**
-- `src/lib/runtime-error-bypass.ts:23-35`
-- `src/lib/dev-error-bypass.ts:28-40`
+- `backups/runtime-error-bypass.ts:23-35`
+- `backups/dev-error-bypass.ts:41-76` (opt-in only)
 - `scripts/force-bypass.js:31-35`
 - `next.config.ts:124-128`
 
@@ -163,7 +180,7 @@ typescript: {
 #### **1. Remove Error Bypass Systems**
 ```bash
 # Files to remove/modify:
-- src/lib/dev-error-bypass.ts (DELETE)
+- src/lib/dev-error-bypass.ts (MOVED to backups/dev-error-bypass.ts with opt-in approach)
 - src/lib/runtime-error-bypass.ts (DELETE)  
 - scripts/force-bypass.js (DELETE)
 - Remove bypass code from next.config.ts
@@ -235,7 +252,7 @@ componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
 ## 📋 Implementation Checklist
 
 ### **Phase 1: Remove Bypass Systems**
-- [ ] Delete `src/lib/dev-error-bypass.ts`
+- [ ] Update `backups/dev-error-bypass.ts` to use opt-in approach (COMPLETED)
 - [ ] Delete `src/lib/runtime-error-bypass.ts`
 - [ ] Delete `scripts/force-bypass.js`
 - [ ] Remove bypass code from `next.config.ts`

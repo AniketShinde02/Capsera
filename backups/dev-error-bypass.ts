@@ -1,101 +1,111 @@
 /**
- * Development Error Bypass Utility
- * Helps bypass certain errors during development to allow the site to function
+ * Development Error Recovery Utility
+ * Provides safe wrappers for potentially problematic code during development
  */
 
 // Check if we're in development mode
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Global error bypass flag
-let bypassErrors = false;
+// Module-level state to track bypass status
+const devErrorBypassState = {
+  isActive: false,
+  consoleErrorOverride: null as any,
+  originalConsoleError: null as any
+};
 
 /**
- * Initialize error bypass in development
+ * Development-safe function caller that logs errors instead of throwing
  */
-export function initErrorBypass() {
-  if (!isDevelopment) return;
-  
-  // Set up global error handler
-  if (typeof window !== 'undefined') {
-    (window as any).__BYPASS_ERRORS__ = false;
-    
-    // Override console.error to catch specific errors
-    const originalError = console.error;
-    console.error = (...args: any[]) => {
-      const errorMessage = args.join(' ');
-      
-      // Check for the specific error we want to bypass
-      if (errorMessage.includes('Cannot read properties of undefined (reading \'call\')')) {
-        console.warn('🚨 Development Error Bypass: Caught undefined call error');
-        console.warn('🔄 Attempting to recover...');
-        
-        // Set bypass flag
-        bypassErrors = true;
-        (window as any).__BYPASS_ERRORS__ = true;
-        
-        // Try to recover by clearing any problematic state
-        setTimeout(() => {
-          console.log('✅ Error bypass activated - site should now be accessible');
-        }, 100);
-      }
-      
-      // Call original console.error
-      originalError.apply(console, args);
-    };
-  }
-}
-
-/**
- * Check if error bypass is active
- */
-export function isErrorBypassActive(): boolean {
-  if (typeof window !== 'undefined') {
-    return (window as any).__BYPASS_ERRORS__ || bypassErrors;
-  }
-  return bypassErrors;
-}
-
-/**
- * Clear error bypass state
- */
-export function clearErrorBypass() {
-  bypassErrors = false;
-  if (typeof window !== 'undefined') {
-    (window as any).__BYPASS_ERRORS__ = false;
-  }
-}
-
-/**
- * Safe function wrapper that bypasses errors in development
- */
-export function safeCall<T>(
+export function devSafeCall<T>(
   fn: () => T,
   fallback: T,
-  errorMessage?: string
+  context?: string
 ): T {
-  if (!isDevelopment || !isErrorBypassActive()) {
-    try {
-      return fn();
-    } catch (error) {
-      if (errorMessage) {
-        console.warn(`Development warning: ${errorMessage}`, error);
-      }
-      return fallback;
-    }
+  if (!isDevelopment) {
+    return fn();
   }
   
-  // In development with bypass active, try to execute safely
   try {
     return fn();
   } catch (error) {
-    console.warn('🚨 Error bypassed in development:', error);
+    console.warn(`[DEV] Safe call failed${context ? ` in ${context}` : ''}:`, error);
+    console.warn('[DEV] Returning fallback value to continue development');
     return fallback;
   }
 }
 
-// Auto-initialize in development
-if (isDevelopment) {
+/**
+ * Initialize development error bypass system
+ * This function sets up error suppression mechanisms for development
+ */
+export function initErrorBypass(): void {
+  if (!isDevelopment) {
+    console.warn('[DEV] Error bypass only available in development mode');
+    return;
+  }
+  
+  if (devErrorBypassState.isActive) {
+    console.warn('[DEV] Error bypass already active');
+    return;
+  }
+  
+  if (typeof window !== 'undefined') {
+    // Override console.error to suppress specific development errors
+    devErrorBypassState.originalConsoleError = console.error;
+    devErrorBypassState.consoleErrorOverride = (...args: any[]) => {
+      const errorMessage = args.join(' ');
+      
+      // Suppress common development errors
+      if (errorMessage.includes('Cannot read properties of undefined') ||
+          errorMessage.includes('Module not found') ||
+          errorMessage.includes('webpack') ||
+          errorMessage.includes('__webpack_require__')) {
+        console.warn('[DEV] Suppressed development error:', errorMessage);
+        return;
+      }
+      
+      // Call original console.error for other errors
+      devErrorBypassState.originalConsoleError?.apply(console, args);
+    };
+    
+    console.error = devErrorBypassState.consoleErrorOverride;
+    devErrorBypassState.isActive = true;
+    
+    console.log('[DEV] Error bypass initialized');
+  }
+}
+
+/**
+ * Enable development error bypass (explicit opt-in)
+ * This is the recommended way to activate error bypass
+ */
+export function enableDevErrorBypass(): void {
   initErrorBypass();
 }
 
+/**
+ * Disable development error bypass
+ */
+export function disableDevErrorBypass(): void {
+  if (!devErrorBypassState.isActive) {
+    return;
+  }
+  
+  if (typeof window !== 'undefined' && devErrorBypassState.originalConsoleError) {
+    console.error = devErrorBypassState.originalConsoleError;
+  }
+  
+  devErrorBypassState.isActive = false;
+  devErrorBypassState.consoleErrorOverride = null;
+  devErrorBypassState.originalConsoleError = null;
+  
+  console.log('[DEV] Error bypass disabled');
+}
+
+/**
+ * Check if development error bypass is active
+ */
+export function isDevErrorBypassActive(): boolean {
+  return devErrorBypassState.isActive;
+}
 

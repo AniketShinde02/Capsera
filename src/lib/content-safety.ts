@@ -67,6 +67,7 @@ export async function checkImageContentSafety(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'Capsera/1.0'
       },
       body: JSON.stringify({
         contents: [{
@@ -80,7 +81,8 @@ export async function checkImageContentSafety(
             }
           ]
         }]
-      })
+      }),
+      signal: AbortSignal.timeout(60000) // 60 second timeout for AI content analysis
     });
 
     if (!response.ok) {
@@ -175,7 +177,9 @@ async function performBasicContentCheck(imageUrl: string): Promise<ContentSafety
  */
 async function getImageBase64(imageUrl: string): Promise<string> {
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(15000) // 15 second timeout for image fetching
+    });
     const buffer = await response.arrayBuffer();
     return Buffer.from(buffer).toString('base64');
   } catch (error) {
@@ -206,7 +210,8 @@ export async function reportInappropriateContent(
         description: report.description,
         severity: 'high',
         status: 'pending'
-      })
+      }),
+      signal: AbortSignal.timeout(10000) // 10 second timeout for internal API call
     });
 
     if (!response.ok) {

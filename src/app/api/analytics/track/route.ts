@@ -8,6 +8,26 @@ export async function POST(req: NextRequest) {
     // Connect to database
     const { db } = await connectToDatabase();
     
+    // Check for duplicate cookie consent events within the last 5 minutes
+    if (action && action.includes('cookie_consent')) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      const existingEvent = await db.collection('analytics_events').findOne({
+        action,
+        sessionId,
+        timestamp: { $gte: fiveMinutesAgo }
+      });
+      
+      if (existingEvent) {
+        console.log('🚫 Duplicate cookie consent event prevented:', { action, sessionId });
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Duplicate event prevented',
+          duplicate: true
+        });
+      }
+    }
+    
     // Create analytics event document
     const analyticsEvent = {
       action,

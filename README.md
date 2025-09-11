@@ -13,7 +13,7 @@
 
 **🎯 Perfect captions • 🚀 Boost engagement • ✨ Save time • 📈 Grow your audience**
 
-[✨ **Live Demo**](https://capsera.vercel.app/) • [📚 **Documentation**](#-comprehensive-documentation) • [🚀 **Deploy Now**](#-deployment-guide) • [🔄 **Migration Guide**](#-major-changes--migration)
+[✨ **Live Demo**](https://capsera.online/) • [📚 **Documentation**](#-comprehensive-documentation) • [🚀 **Deploy Now**](#-deployment-guide) • [🔄 **Migration Guide**](#-major-changes--migration)
 
 </div>
 
@@ -37,6 +37,35 @@ Capsera isn't just another caption generator – it's your **AI-powered creative
 - **🎨 Rich UI/UX**: Professional design with reduced eye strain and smooth animations
 - **👑 Admin Unlimited Access**: No generation limits for admin users
 - **🔧 Site-Wide Maintenance Mode**: Complete system protection with admin bypass capabilities
+- **🚀 Advanced SEO Optimization**: Optimized for "caption generator" rankings with dedicated landing pages
+
+---
+
+## 🚀 **Advanced SEO Optimization**
+
+Capsera has been comprehensively optimized for search engine rankings, specifically targeting "caption generator" and related keywords to maximize organic visibility.
+
+### **🎯 SEO Features:**
+- **Keyword-Optimized Titles**: "Free AI Caption Generator Online | Capsera - Best Instagram Caption Tool 2024"
+- **Dedicated Landing Pages**: 
+  - `/free-caption-generator` - Targets "free caption generator" (4,400 searches/month)
+  - `/instagram-caption-generator` - Targets "Instagram caption generator" (6,600 searches/month)
+- **Enhanced Structured Data**: SoftwareApplication schema with ratings and features
+- **Comprehensive FAQ Sections**: Voice search optimization with long-tail keywords
+- **Domain Consolidation**: All references updated to capsera.online
+- **Mobile-First Optimization**: Perfect mobile experience for better rankings
+
+### **📊 Target Keywords:**
+- **Primary:** "caption generator" (12,100 searches/month)
+- **Secondary:** "AI caption generator" (8,100 searches/month)
+- **Long-tail:** "free AI caption generator online", "Instagram caption maker AI"
+
+### **📈 Expected Results:**
+- **Month 1-2:** Top 10 for long-tail keywords
+- **Month 3-6:** Top 5 for primary keywords
+- **Traffic Growth:** 300% increase in organic traffic
+
+📚 **SEO Documentation:** [SEO Implementation Guide](docs/SEO_IMPLEMENTATION_GUIDE.md) • [SEO Changes Log](docs/SEO_CHANGES_LOG.md)
 
 ---
 
@@ -149,11 +178,11 @@ npm run dev
 
 ## 🌐 **Live Demo & Links**
 
-- **🚀 Live Site**: [https://capsera.vercel.app](https://capsera.vercel.app)
-- **📖 API Documentation**: [https://capsera.vercel.app/api-docs](https://capsera.vercel.app/api-docs)
+- **🚀 Live Site**: [https://capsera.online](https://capsera.online)
+- **📖 API Documentation**: [https://capsera.online/api-docs](https://capsera.online/api-docs)
 - **🐛 Report Issues**: [GitHub Issues](https://github.com/AniketShinde02/capsera/issues)
 - **💡 Feature Requests**: [GitHub Discussions](https://github.com/AniketShinde02/capsera/discussions)
-- **📧 Support**: [Contact Form](https://capsera.vercel.app/contact)
+- **📧 Support**: [Contact Form](https://capsera.online/contact)
 
 ---
 
@@ -240,9 +269,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## ⚖️ **Legal**
 
-- **Privacy Policy**: [Privacy Policy](https://capsera.vercel.app/privacy)
-- **Terms of Service**: [Terms of Service](https://capsera.vercel.app/terms)
-- **Cookie Policy**: [Cookie Policy](https://capsera.vercel.app/cookies)
+- **Privacy Policy**: [Privacy Policy](https://capsera.online/privacy)
+- **Terms of Service**: [Terms of Service](https://capsera.online/terms)
+- **Cookie Policy**: [Cookie Policy](https://capsera.online/cookies)
 
 ---
 
@@ -272,55 +301,62 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### 🎯 **Major Feature Enhancements**
 
-#### **👑 Admin Unlimited Access System**
-- **Unlimited Caption Generation**: Admin users now have unlimited caption generation with no monthly quotas
-- **Dual-Mode System**: Admins can switch between admin and user modes seamlessly
-- **Enhanced Admin Dashboard**: Improved navigation with "Browse Site" and "Admin Dashboard" toggle
-- **Profile Integration**: Added "Admin Dashboard" button on admin profile pages
+#### **🔒 Analytics Cookie Consent System**
+- **Database Flooding Prevention**: Fixed analytics cookie consent flooding database with 960+ entries
+- **Deduplication System**: Implemented server-side and client-side deduplication mechanisms
+- **Debounce Protection**: Added 2-second debounce to prevent rapid-fire tracking events
+- **Cleanup Scripts**: Created comprehensive cleanup tools for existing duplicate entries
+- **Performance Optimization**: Reduced database bloat and improved query performance
 
-#### **🔐 Enhanced Security & Setup Flow**
-- **System Lock PIN**: Mandatory PIN verification for setup when enabled
-- **Compact UI Design**: Streamlined setup forms with better visual hierarchy
-- **Session Validation**: Automatic redirect for authenticated admins to prevent setup loops
-- **OTP & PIN Management**: Improved verification flow with better error handling
+#### **🔧 Database Schema Optimization**
+- **Duplicate Index Elimination**: Fixed Mongoose duplicate index warnings across all models
+- **Schema Cleanup**: Removed redundant `index: true` declarations where `unique: true` already creates indexes
+- **Performance Improvement**: Cleaner builds without index warnings
+- **Models Fixed**: CaptionCache, AdminUser, RateLimit, ApiKey, DataRecoveryRequest, BlockedCredentials
 
-#### **🎨 UI/UX Improvements**
-- **Smooth Animations**: Added text transitions and smooth mode switching
-- **Toast Notifications**: Replaced intrusive `alert()` popups with elegant toast messages
-- **Theme Consistency**: Fixed dark mode visibility issues and color scheme alignment
-- **Responsive Design**: Improved mobile experience and button sizing
+#### **📚 Documentation Security & Maintenance**
+- **Security Audit**: Comprehensive security documentation audit and fixes
+- **Hardcoded Values**: Replaced all hardcoded URLs, database strings, and sensitive information with template variables
+- **Template System**: Implemented `{{BASE_URL}}`, `{{MONGODB_URI}}`, `{{MAINTENANCE_SECRET}}` placeholders
+- **Environment Agnostic**: Documentation now works across different deployment environments
+- **Security Guidelines**: Created comprehensive security documentation guidelines
 
-#### **⚡ Performance & Compatibility**
-- **Next.js 15 Compatibility**: Fixed `params` handling in dynamic API routes
-- **React Hooks Compliance**: Resolved hooks order violations in components
-- **Error Handling**: Improved error messages and user feedback
-- **Code Optimization**: Removed console logs and debug information
+#### **🖼️ Image Display System Fixes**
+- **Profile Page Images**: Fixed image display issues in profile page cards
+- **Upload Area Optimization**: Resolved blank upload area after caption generation
+- **Loading State Management**: Improved loading skeletons and error handling
+- **Image Rendering**: Enhanced image rendering with proper error boundaries
+- **State Management**: Simplified image state management for better reliability
 
-#### **🌐 Deployment & Infrastructure**
-- **Vercel Integration**: Optimized for Vercel deployment with proper metadata
-- **Favicon System**: Modern favicon configuration using Next.js metadata
-- **Netlify Support**: Added `netlify.toml` configuration for alternative deployment
-- **Environment Management**: Better handling of environment variables
+#### **⚡ Performance & Code Quality**
+- **CodeRabbit Integration**: Addressed 170+ code quality issues from AI code review
+- **TypeScript Improvements**: Fixed type safety issues and improved error handling
+- **Security Enhancements**: Resolved security vulnerabilities and improved input validation
+- **Error Handling**: Standardized error handling across all API routes
+- **Code Optimization**: Removed debug logs and improved production readiness
 
 ### 🐛 **Recent Bug Fixes**
 
 #### **Critical Issues Resolved**
-- **Setup Redirect Loop**: Fixed infinite redirect to PIN step after login
-- **Admin Quota Display**: Removed quota limits from admin user interface
-- **Session Management**: Fixed `isAdmin: false` issues in admin sessions
-- **API Route Errors**: Resolved Next.js 15 `params.id` compatibility issues
+- **Analytics Database Flooding**: Fixed 960+ duplicate cookie consent entries flooding database
+- **Duplicate Index Warnings**: Eliminated Mongoose duplicate index warnings during build
+- **Image Display Issues**: Fixed profile page images not displaying properly
+- **Documentation Security**: Removed hardcoded sensitive information from documentation
+- **API Route Optimization**: Improved error handling and response consistency
 
-#### **UI/UX Issues Fixed**
-- **Alert Popups**: Replaced all `alert()` calls with toast notifications
-- **Console Logs**: Removed unnecessary logging and debug messages
-- **Theme Visibility**: Fixed dark mode toggle and color scheme issues
-- **Form Consistency**: Standardized form sizes and spacing across components
+#### **Security & Performance Fixes**
+- **Cookie Consent Deduplication**: Prevented duplicate analytics events within 5-minute windows
+- **Database Schema Cleanup**: Removed redundant index declarations across all models
+- **Documentation Security**: Sanitized sensitive information and implemented template variables
+- **Error Handling**: Standardized error responses and improved user feedback
+- **Code Quality**: Addressed 170+ CodeRabbit suggestions for better maintainability
 
-#### **Authentication & Authorization**
-- **Admin Login Flow**: Improved admin credential verification
-- **Session Persistence**: Better session handling and validation
-- **Role Management**: Enhanced tier user system with proper email notifications
-- **Dual-Mode Toggle**: Fixed visibility and functionality issues
+#### **UI/UX Improvements**
+- **Image Loading States**: Enhanced loading skeletons and error handling for images
+- **Profile Page Optimization**: Fixed image display issues and improved user experience
+- **Error Boundaries**: Better error handling and user feedback throughout the application
+- **Loading Indicators**: Improved loading states and user guidance
+- **Responsive Design**: Enhanced mobile experience and cross-device compatibility
 
 ---
 
@@ -1107,11 +1143,17 @@ SMTP_FROM=your-from-email@domain.com
 - **docs/PRODUCTION_TOKEN_SYSTEM.md** - JWT-based admin system
 - **docs/SUPER_ADMIN_SYSTEM.md** - Super admin capabilities
 
+### **🚀 SEO Documentation:**
+- **docs/SEO_OPTIMIZATION_SUMMARY.md** - Complete SEO implementation summary
+- **docs/SEO_IMPLEMENTATION_GUIDE.md** - SEO optimization guide & reference
+- **docs/SEO_CHANGES_LOG.md** - Detailed log of all SEO changes made
+
 ### **📋 Quick Reference:**
 - **Environment Variables**: `docs/env.example`
 - **API Endpoints**: `docs/API_DOCUMENTATION.md`
 - **Admin Setup**: `docs/ADMIN_SETUP.md`
 - **Troubleshooting**: `docs/TROUBLESHOOTING.md`
+- **SEO Optimization**: `docs/SEO_IMPLEMENTATION_GUIDE.md`
 
 ---
 
@@ -1153,6 +1195,17 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - **Performance**: 2-3x faster response times, handles 150-300 concurrent users
 - **UI/UX**: Modern, responsive design with mobile-first approach
 - **Documentation**: Comprehensive project structure and guides
+- **Analytics System**: Cookie consent tracking with deduplication and cleanup
+- **Database Schema**: Optimized with no duplicate index warnings
+- **Security**: Enhanced documentation security and template system
+
+### **🔧 Recent Technical Improvements**
+- **Database Optimization**: Fixed duplicate index warnings across all Mongoose models
+- **Analytics Flooding**: Resolved 960+ duplicate cookie consent entries
+- **Documentation Security**: Sanitized hardcoded values and implemented template system
+- **Image Display**: Fixed profile page image loading and upload area issues
+- **Code Quality**: Addressed 170+ CodeRabbit suggestions for better maintainability
+- **Error Handling**: Standardized error responses across all API routes
 
 ### **📸 Screenshot Status**
 - **Available**: 10/13 core screenshots (77% complete)
@@ -1165,12 +1218,16 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - **Image Service**: Cloudinary migration complete, ImageKit deprecated
 - **Performance**: Load tested up to 500 concurrent users
 - **Security**: Rate limiting, input validation, GDPR compliant
+- **Analytics**: Cookie consent system with deduplication and cleanup
+- **Documentation**: Security-hardened with template variables
 
 ### **🚀 Ready for Production**
 - **Deployment**: Vercel deployment guide complete
 - **Environment**: Production-ready configuration
 - **Monitoring**: Performance monitoring and error handling
 - **Scaling**: Handles production load with room for growth
+- **Security**: Comprehensive security audit and fixes completed
+- **Maintenance**: Database cleanup and optimization tools available
 
 ---
 

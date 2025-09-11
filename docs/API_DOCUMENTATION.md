@@ -947,6 +947,45 @@ Test admin system (development only).
 - `401` - Unauthorized
 - `403` - Forbidden
 - `404` - Not Found
+
+## ⚡ **Recent API Improvements (January 2025)**
+
+### **Timeout Configuration**
+All external API calls now include proper timeout configuration:
+
+- **Brevo Email API**: 30-second timeout
+- **Gemini AI API**: 60-second timeout  
+- **Image Fetching**: 15-second timeout
+- **Internal API Calls**: 10-second timeout
+
+### **User-Agent Headers**
+External API calls include proper User-Agent headers:
+```javascript
+headers: {
+  'User-Agent': 'Capsera/1.0',
+  'Accept': 'application/json'
+}
+```
+
+### **Cloudinary Resource Type Consistency**
+Archive operations now use consistent resource types:
+```javascript
+// Function signature updated
+archiveCloudinaryImage(publicId: string, userId?: string, resourceType: string = 'auto')
+
+// All calls now pass appropriate resource type
+await archiveCloudinaryImage(publicId, userId, 'image');
+```
+
+### **Dynamic Year Implementation**
+Copyright notices now use dynamic years:
+```javascript
+// React/JSX
+© {new Date().getFullYear()} Capsera. All rights reserved.
+
+// JavaScript
+© ${new Date().getFullYear()} Capsera. All rights reserved.
+```
 - `409` - Conflict
 - `429` - Too Many Requests
 - `500` - Internal Server Error

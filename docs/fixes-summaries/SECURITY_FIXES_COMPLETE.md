@@ -75,8 +75,8 @@ url: 'https://external-domain.vercel.app',
 **After (SECURE)**:
 ```typescript
 // Now uses environment variables with safe fallbacks
-metadataBase: new URL(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://capsera.vercel.app'),
-url: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://capsera.vercel.app',
+metadataBase: new URL(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://capsera.online'),
+url: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://capsera.online',
 ```
 
 ---

@@ -34,10 +34,14 @@ value="mongodb://localhost:27017/captioncraft"
 value="http://localhost:3000"
 
 // After (Dynamic)
-value={process.env.MONGODB_URI || "mongodb://localhost:27017/captioncraft"}
-value={process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
-```
+// Do NOT render secrets. Indicate presence only.
+value={process.env.MONGODB_URI ? "******** (configured)" : ""}
 
+value={
+  process.env.NEXTAUTH_URL
+  || process.env.NEXT_PUBLIC_APP_URL
+  || (process.env.NODE_ENV !== "production" ? "http://localhost:3000" : "")
+}
 ### **Email System Security Improvements:**
 **Files**: `src/lib/mail.ts`, `src/app/api/unsubscribe/route.ts`
 ```tsx

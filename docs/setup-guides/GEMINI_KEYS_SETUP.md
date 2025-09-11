@@ -1,31 +1,30 @@
 # Gemini API Key Rotation System Setup Guide
 
 ## 🎯 **Overview**
-This system automatically rotates between multiple Gemini API keys to maximize your free tier quota and avoid rate limits. It's designed for MVP survival mode - keeping your app running without burning through API limits.
-
-## 🔑 **Required Environment Variables**
+This system manages multiple Gemini API keys for reliability and graceful degradation (failover when a key is unavailable). It is not intended to bypass provider rate limits or aggregate free-tier quotas. Ensure your use complies with Google’s Terms of Service.## 🔑 **Required Environment Variables**
 
 Add these to your `.env` file:
 
 ```bash
 # Gemini AI - Key Rotation System (REQUIRED)
 GEMINI_API_KEY_1=AIzaSyC_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-GEMINI_API_KEY_2=AIzaSyC_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-GEMINI_API_KEY_3=AIzaSyC_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-GEMINI_API_KEY_4=AIzaSyC_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# Gemini AI - Key Rotation System (REQUIRED)
+GEMINI_API_KEY_1=<gemini_key_1>
+GEMINI_API_KEY_2=<gemini_key_2>
+GEMINI_API_KEY_3=<gemini_key_3>
+GEMINI_API_KEY_4=<gemini_key_4>
 
 # Keep existing Genkit setup (don't change this yet)
-GOOGLE_GENAI=AIzaSyC_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-```
+GOOGLE_GENAI=<existing_key>
 
-## 📋 **Setup Steps**
-
+> Security
+> - Never commit .env files; ensure `.env` is in `.gitignore`.
+> - Prefer a secrets manager (e.g., GCP Secret Manager, Vault).
 ### 1. **Get Multiple Gemini API Keys**
 - Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
 - Create 4 separate API keys
-- Each key gets 1500 requests/day and 15 requests/minute
-- **Total capacity: 6000 requests/day, 60 requests/minute**
-
+- Each key has provider-defined quotas (daily and per-minute). Check Google AI Studio for your project's current limits.
+- Do not rely on aggregated limits across multiple keys; ensure compliance with Google's ToS.
 ### 2. **Add Keys to Environment**
 ```bash
 # Copy your keys exactly as shown
@@ -76,17 +75,7 @@ Visit `/admin/keys` to see:
 ## 🚨 **Troubleshooting**
 
 ### **"No Gemini API keys found" Error**
-```bash
-# Check your .env file has:
-GEMINI_API_KEY_1=your_key_here
-GEMINI_API_KEY_2=your_key_here
-# etc...
-
-# Make sure no spaces around =
-# Make sure keys start with AIzaSyC_
-```
-
-### **Keys Not Rotating**
+### **"No Gemini API keys found" Error**### **Keys Not Rotating**
 ```bash
 # Check server logs for:
 🔑 Gemini API Key 1 loaded successfully
@@ -141,15 +130,13 @@ GOOGLE_GENAI=AIzaSyC_single_key_here
 ### **Long-term Benefits**
 - 🚀 **Scalability**: Handle more users
 - 💰 **Cost control**: Maximize free tier
-- 📊 **Analytics**: Usage insights for growth
-- 🔧 **Flexibility**: Easy key management
+## 🎯 **Expected Results**
 
-## 🆘 **Support**
-
-### **Common Issues**
-1. **Keys not loading**: Check `.env` file format
-2. **Rotation not working**: Restart application
-3. **Still getting rate limited**: Check admin dashboard
+### **Immediate Benefits**
+- ✅ **Higher resilience**: Automatic failover when a key is unavailable
+- ✅ **Better uptime**: Adaptive backoff reduces error bursts
+- ✅ **User experience**: Fewer transient "quota exceeded" errors
+- ✅ **Monitoring**: Real-time usage tracking3. **Still getting rate limited**: Check admin dashboard
 4. **Admin access denied**: Ensure user has admin role
 
 ### **Get Help**

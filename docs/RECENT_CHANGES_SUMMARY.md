@@ -200,7 +200,7 @@ export async function PATCH(
 #### **Favicon Configuration**
 ```typescript
 export const metadata: Metadata = {
-  metadataBase: new URL('https://capsera.vercel.app'),
+  metadataBase: new URL('https://capsera.online'),
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -384,7 +384,92 @@ The platform is now **production-ready** with a solid foundation for future enha
 
 ---
 
+---
+
+## 🆕 **Latest Updates (January 2025 - Part 2)**
+
+### **🎨 UI/UX Improvements**
+
+#### **Profile Page Color Scheme Fix**
+- **Issue**: Statistics cards had rainbow-like colors (blue, purple, green, orange) creating visual inconsistency
+- **Fix**: Updated all cards to use cohesive indigo color scheme with variations
+- **Implementation**: 
+  - Captions Card: `indigo-500 to indigo-600` (primary brand color)
+  - Images Card: `indigo-400 to indigo-500` (slightly lighter)
+  - Mood Card: `indigo-300 to indigo-400` (even lighter)
+  - Length Card: `indigo-200 to indigo-300` (lightest with dark text)
+- **Files Modified**: `src/app/profile/page.tsx`
+- **Result**: Professional, cohesive color scheme maintaining visual hierarchy
+
+#### **Caption History Image Display Fix**
+- **Issue**: Images in caption history cards were too large and overflowing card boundaries
+- **Fix**: Changed from `object-cover` to `object-contain` for proper image fitting
+- **Implementation**:
+  - Reduced card heights: `h-28 sm:h-32 lg:h-36 xl:h-40` (from `h-32 sm:h-40 lg:h-48 xl:h-56`)
+  - Changed image sizing: `object-contain` instead of `object-cover`
+  - Added proper containment: `maxWidth: '100%'`, `maxHeight: '100%'`
+- **Files Modified**: `src/app/profile/page.tsx`
+- **Result**: Images now fit properly within card boundaries while maintaining aspect ratio
+
+### **⚡ Performance & API Improvements**
+
+#### **Dynamic Year Implementation**
+- **Issue**: Hard-coded years in copyright notices requiring annual updates
+- **Fix**: Implemented dynamic year generation using `new Date().getFullYear()`
+- **Files Modified**:
+  - `src/components/footer.tsx`
+  - `src/lib/email.ts`
+  - `src/lib/mail.ts`
+  - `src/app/api/email-subscription/route.ts`
+  - `scripts/send-promotional-emails.mjs`
+  - `scripts/test-email-templates.mjs`
+- **Implementation**: 
+  - React/JSX: `{new Date().getFullYear()}`
+  - JavaScript: `${new Date().getFullYear()}`
+- **Result**: Copyright notices automatically update each year without manual intervention
+
+#### **Cloudinary Resource Type Consistency**
+- **Issue**: Inconsistent `resource_type` between upload (`'auto'`) and archive operations (`'image'`)
+- **Fix**: Updated `archiveCloudinaryImage` function to accept and use consistent resource types
+- **Implementation**:
+  - Function signature: `archiveCloudinaryImage(publicId: string, userId?: string, resourceType: string = 'auto')`
+  - Updated all function calls to pass `'image'` resource type
+- **Files Modified**:
+  - `src/app/api/delete-image/route.ts`
+  - `src/app/api/user/profile-image/route.ts`
+  - `src/app/api/posts/[id]/route.ts`
+- **Result**: Consistent resource type handling across all Cloudinary operations
+
+#### **Fetch Request Timeout & Headers**
+- **Issue**: External API calls lacked timeout configuration and User-Agent headers
+- **Fix**: Added proper timeout and User-Agent headers to all external API calls
+- **Implementation**:
+  - **Brevo Email API**: 30-second timeout + `'User-Agent': 'Capsera/1.0'`
+  - **Gemini AI API**: 60-second timeout + `'User-Agent': 'Capsera/1.0'`
+  - **Image Fetching**: 15-second timeout for base64 conversion
+  - **Internal API Calls**: 10-second timeout for content reporting
+- **Files Modified**:
+  - `src/lib/email.ts`
+  - `src/lib/content-safety.ts`
+- **Result**: Prevents hanging requests, follows API best practices, improves user experience
+
+### **🔧 Technical Improvements**
+
+#### **Code Quality Enhancements**
+- **Removed Unnecessary Padding**: Simplified image display without extra padding
+- **Consistent Error Handling**: Improved error messages and user feedback
+- **API Compliance**: Following external API guidelines (Unsplash, Brevo, Gemini)
+- **Resource Management**: Proper timeout handling prevents memory leaks
+
+#### **Performance Optimizations**
+- **Request Timeouts**: All external calls now have appropriate timeouts
+- **Resource Type Consistency**: Proper Cloudinary resource handling
+- **Dynamic Content**: Automatic year updates reduce maintenance overhead
+- **Image Optimization**: Better image display and containment
+
+---
+
 **Last Updated**: January 2025  
-**Version**: 2.2  
+**Version**: 2.3  
 **Status**: Production Ready with Latest Updates  
 **Next Review**: February 2025

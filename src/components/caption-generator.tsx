@@ -8,7 +8,6 @@ import { Loader2, Sparkles, UploadCloud, AlertTriangle, AlertCircle, ImageIcon, 
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 
-
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -48,6 +47,42 @@ const formSchema = z.object({
   path: ["description"]
 });
 
+// ImageRenderer component for simplified image rendering logic
+interface ImageRendererProps {
+  imageSrc: string | null | undefined;
+  onLoadStart: () => void;
+  onLoad: () => void;
+  onError: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
+  imageLoading: boolean;
+}
+
+const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }: ImageRendererProps) => {
+  const isObjectUrl = imageSrc?.startsWith('blob:');
+  const isCloudinaryUrl = imageSrc?.includes('cloudinary.com');
+  
+  const commonProps = {
+    src: imageSrc,
+    alt: "Uploaded preview",
+    className: "w-full h-full object-contain",
+    loading: "lazy" as const,
+    decoding: "async" as const,
+    onLoadStart,
+    onLoad,
+    onError
+  };
+  
+  return (
+    <>
+      {imageLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+      <img {...commonProps} />
+    </>
+  );
+};
+
 const moods = [
   "😊 Happy / Cheerful", "😍 Romantic / Flirty", "😎 Cool / Confident",
   "😜 Fun / Playful", "🤔 Thoughtful / Deep", "😌 Calm / Peaceful",
@@ -66,6 +101,11 @@ const moods = [
 ];
 
 export function CaptionGenerator() {
+  // Configurable file size limit
+  const MAX_UPLOAD_BYTES = process.env.NEXT_PUBLIC_MAX_FILE_SIZE 
+    ? parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE) 
+    : 4 * 1024 * 1024; // 4MB default for Vercel compatibility
+
   const [captions, setCaptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -102,13 +142,9 @@ export function CaptionGenerator() {
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
       
       if (file.size <= maxSizeBytes) {
-        console.log(`📁 File size ${(file.size / 1024 / 1024).toFixed(2)}MB, no compression needed`);
         resolve(file);
         return;
       }
-
-      console.log(`📁 File size ${(file.size / 1024 / 1024).toFixed(2)}MB, compressing...`);
-      
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new window.Image();
@@ -160,8 +196,6 @@ export function CaptionGenerator() {
           }
           
           const compressedFile = new File([u8arr], file.name, { type: mime });
-          console.log(`✅ Compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
-          
           resolve(compressedFile);
         } catch (error) {
           console.error('❌ Compression failed:', error);
@@ -242,8 +276,6 @@ export function CaptionGenerator() {
 
     setErrorTimer(timer);
   };
-
-
 
   // Function to clear error when user has used all free tokens
   const clearRateLimitError = () => {
@@ -326,7 +358,6 @@ export function CaptionGenerator() {
     if (!file) return;
 
   // Enhanced file validation - Updated for Vercel limits
-  const MAX_UPLOAD_BYTES = Math.floor(4 * 1024 * 1024); // 4MB for Vercel compatibility
   const maxSize = MAX_UPLOAD_BYTES;
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     // Use a local fileToUpload (compressed or original) to avoid relying on state updates that are async
@@ -347,7 +378,8 @@ export function CaptionGenerator() {
         if (compressedFile.size <= MAX_UPLOAD_BYTES) {
           fileToUpload = compressedFile;
         } else {
-          setError(`File too large. Please upload an image smaller than 4MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+          const maxSizeMB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+          setError(`File too large. Please upload an image smaller than ${maxSizeMB}MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
           return;
         }
       } catch (err) {
@@ -379,8 +411,6 @@ export function CaptionGenerator() {
       
       // Reset the explicit reset flag since user is uploading a new image
       setHasExplicitlyReset(false);
-      
-      console.log('✅ Object URL created for preview:', newObjectUrl.substring(0, 50) + '...');
     } catch (error) {
       console.error('❌ Object URL creation error:', error);
       setError('Failed to create image preview. Please try again.');
@@ -602,7 +632,8 @@ export function CaptionGenerator() {
             console.error('❌ Failed to parse upload error response:', parseError);
             switch (uploadResponse.status) {
               case 413:
-                uploadErrorMessage = 'Image is too big. Please upload an image smaller than 4MB.';
+                const maxSizeMB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+                uploadErrorMessage = `Image is too big. Please upload an image smaller than ${maxSizeMB}MB.`;
                 break;
               case 400:
                 uploadErrorMessage = 'Invalid image file. Please check the file format and try again.';
@@ -783,40 +814,20 @@ export function CaptionGenerator() {
         setButtonIcon(<Upload className="mr-2 h-4 w-4" />);
         setUploadStage('idle');
 
-        // Debug: Log image data after successful generation
-        console.log('✅ Captions generated successfully. Image data:', {
-          imagePreview: !!imagePreview,
-          currentImageData: !!currentImageData?.url,
-          url: currentImageData?.url || imagePreview,
-          imagePreviewValue: imagePreview,
-          currentImageDataValue: currentImageData,
-          hasExplicitlyReset
-        });
-
-        // Ensure image remains visible for logged-in users after caption generation
-        if (quotaData.isAuthenticated && uploadData.url) {
-          // For authenticated users, ensure the image stays visible
+        // Ensure image remains visible after successful generation for all users
+        if (uploadData.url) {
+          // Always set the Cloudinary URL for display
           setImagePreview(uploadData.url);
           setCurrentImageData({
             url: uploadData.url,
             publicId: uploadData.public_id
           });
           setHasExplicitlyReset(false);
-          console.log('🔒 Authenticated user - ensuring image remains visible:', uploadData.url);
           
           // Preload the Cloudinary image for better performance
-          preloadImage(uploadData.url).catch(err => 
-            console.warn('⚠️ Failed to preload Cloudinary image:', err.message)
-          );
-        } else if (!quotaData.isAuthenticated && (imagePreview || objectUrl)) {
-          // For anonymous users, keep the object URL preview visible until archiving
-          const currentPreview = imagePreview || objectUrl;
-          console.log('👤 Anonymous user - keeping object URL preview visible:', currentPreview?.substring(0, 50) + '...');
-          
-          // Clear currentImageData since Cloudinary URL will be invalid after archiving
-          // But keep imagePreview (object URL) for display
-          setCurrentImageData(null);
-          setHasExplicitlyReset(false); // Keep image visible for anonymous users
+          preloadImage(uploadData.url).catch(err => {
+            console.warn('Failed to preload image:', err);
+          });
         }
 
         // Track analytics if consent given
@@ -865,15 +876,11 @@ export function CaptionGenerator() {
             }),
           }).then(response => {
             if (response.ok) {
-              console.log('✅ Anonymous user image auto-archived successfully');
             } else {
-              console.log('❌ Failed to auto-archive anonymous user image');
             }
           }).catch(error => {
-            console.log('⚠️ Error during auto-archiving of anonymous user image:', error);
           });
         } else if (quotaData.isAuthenticated) {
-          console.log('💾 Authenticated user - image saved permanently in Cloudinary');
         }
       } else {
         console.error('❌ Invalid caption data structure:', captionData);
@@ -967,6 +974,19 @@ export function CaptionGenerator() {
     }
   }
 
+  // Debug logging for image state
+  useEffect(() => {
+    console.log('🔍 Image State Debug:', {
+      imagePreview: imagePreview ? imagePreview.substring(0, 50) + '...' : null,
+      currentImageData: currentImageData ? {
+        url: currentImageData.url.substring(0, 50) + '...',
+        publicId: currentImageData.publicId
+      } : null,
+      hasExplicitlyReset,
+      uploadStage,
+      buttonState
+    });
+  }, [imagePreview, currentImageData, hasExplicitlyReset, uploadStage, buttonState]);
 
   // Fetch quota info on component mount, session changes, and refresh triggers
   useEffect(() => {
@@ -1017,7 +1037,6 @@ export function CaptionGenerator() {
     // Clean up object URL if exists
     if (objectUrl) {
       URL.revokeObjectURL(objectUrl);
-      console.log('🧹 Cleaned up object URL in cleanup:', objectUrl.substring(0, 50) + '...');
     }
     
     // Clear image preview to free memory
@@ -1039,7 +1058,6 @@ export function CaptionGenerator() {
     // Clean up object URL if exists
     if (objectUrl) {
       URL.revokeObjectURL(objectUrl);
-      console.log('🧹 Cleaned up object URL in reset:', objectUrl.substring(0, 50) + '...');
     }
     
     // Clear all image-related state
@@ -1064,8 +1082,6 @@ export function CaptionGenerator() {
     // Reset button state
     setButtonMessage('Generate Captions');
     setButtonIcon(<Sparkles className="mr-2 h-4 w-4" />);
-    
-    console.log('✅ Image upload area reset successfully');
   };
 
   // Function to reset for generating another set of captions
@@ -1073,27 +1089,9 @@ export function CaptionGenerator() {
     // Clear captions
     setCaptions([]);
     
-    // For anonymous users, keep the object URL preview visible until they upload a new image
-    // For authenticated users, reset everything
-    if (quotaInfo?.isAuthenticated) {
-      // Clean up object URL if exists
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-        console.log('🧹 Cleaned up object URL in generate another:', objectUrl.substring(0, 50) + '...');
-      }
-      
-      // Clear image-related state since user wants to start fresh
-      setImagePreview(null);
-      setUploadedFile(null);
-      setCurrentImageData(null);
-      setObjectUrl(null);
-      setHasExplicitlyReset(true);
-    } else {
-      // Anonymous users: keep imagePreview and objectUrl visible
-      // Only reset when they actually upload a new image
-      setHasExplicitlyReset(false);
-      console.log('👤 Anonymous user - keeping image visible until new upload');
-    }
+    // For both authenticated and anonymous users, keep the image visible
+    // since they want to generate more captions for the same image
+    setHasExplicitlyReset(false);
     
     // Reset form
     form.resetField('image');
@@ -1124,8 +1122,6 @@ export function CaptionGenerator() {
         fileInput.click();
       }
     }, 100);
-    
-    console.log('✅ Reset for generating another set of captions - file input triggered');
   };
 
   // Streamlined animated deletion function with longer duration
@@ -1152,7 +1148,6 @@ export function CaptionGenerator() {
     return () => {
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
-        console.log('🧹 Cleaned up object URL:', objectUrl.substring(0, 50) + '...');
       }
     };
   }, [objectUrl]);
@@ -1176,8 +1171,6 @@ export function CaptionGenerator() {
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
               Upload an image, choose your mood, and get 3 unique captions instantly
             </p>
-
-
 
             {/* Network Status Indicator */}
             {!isOnline && (
@@ -1258,116 +1251,26 @@ export function CaptionGenerator() {
                             {uploadStage === 'loading' && 'Please wait while we process'}
                           </p>
                         </div>
-                      ) : (imagePreview || currentImageData?.url) && !hasExplicitlyReset ? (
-                        // Show the uploaded image even when idle if it exists and hasn't been explicitly reset
+                      ) : (imagePreview || currentImageData?.url) ? (
+                        // Show the uploaded image if it exists
                         <div className="relative w-full h-full bg-muted/20 min-h-[120px]">
-                          {(() => {
-                            const imageSrc = currentImageData?.url || imagePreview;
-                            return null; // Removed debug logging for security
-                          })()}
-                          {/* Smart image rendering: Object URL for previews, Next.js Image for Cloudinary */}
-                          {(() => {
-                            const imageSrc = currentImageData?.url || imagePreview;
-                            const isObjectUrl = imageSrc?.startsWith('blob:');
-                            const isCloudinaryUrl = imageSrc?.includes('cloudinary.com');
-                            
-                            // Removed debug logging for security
-                            
-                            if (isObjectUrl) {
-                              // Use regular img tag for object URLs (blob: URLs) with lazy loading
-                              return (
-                                <>
-                                  {imageLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
-                                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                  )}
-                                  <img
-                                    src={imageSrc}
-                                    alt="Uploaded preview"
-                                    className="w-full h-full object-contain"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onLoadStart={() => setImageLoading(true)}
-                                    onError={(e) => {
-                                      setImageLoading(false);
-                                      console.error('❌ Object URL image failed to load:', imageSrc?.substring(0, 50) + '...');
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                      setError('Image failed to load. Please try uploading again.');
-                                    }}
-                                    onLoad={() => {
-                                      setImageLoading(false);
-                                      setError('');
-                                      console.log('✅ Object URL image loaded successfully');
-                                    }}
-                                  />
-                                </>
-                              );
-                            } else if (isCloudinaryUrl) {
-                              // Use regular img tag for Cloudinary URLs (more reliable) with lazy loading
-                              return (
-                                <>
-                                  {imageLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
-                                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                  )}
-                                  <img
-                                    src={imageSrc}
-                                    alt="Uploaded preview"
-                                    className="w-full h-full object-contain"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onLoadStart={() => setImageLoading(true)}
-                                    onError={(e) => {
-                                      setImageLoading(false);
-                                      console.error('❌ Cloudinary image failed to load:', imageSrc);
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                      setError('Image failed to load. Please try uploading again.');
-                                    }}
-                                    onLoad={() => {
-                                      setImageLoading(false);
-                                      setError('');
-                                      console.log('✅ Cloudinary image loaded successfully:', imageSrc);
-                                    }}
-                                  />
-                                </>
-                              );
-                            } else {
-                              // Fallback for any other URL type with lazy loading
-                              return (
-                                <>
-                                  {imageLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
-                                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                  )}
-                                  <img
-                                    src={imageSrc}
-                                    alt="Uploaded preview"
-                                    className="w-full h-full object-contain"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onLoadStart={() => setImageLoading(true)}
-                                    onError={(e) => {
-                                      setImageLoading(false);
-                                      console.error('❌ Fallback image failed to load:', imageSrc?.substring(0, 50) + '...');
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                      setError('Image failed to load. Please try uploading again.');
-                                    }}
-                                    onLoad={() => {
-                                      setImageLoading(false);
-                                      setError('');
-                                      console.log('✅ Fallback image loaded successfully');
-                                    }}
-                                  />
-                                </>
-                              );
-                            }
-                          })()}
+                          {/* Simplified image rendering using ImageRenderer component */}
+                          <ImageRenderer 
+                            imageSrc={currentImageData?.url || imagePreview}
+                            onLoadStart={() => setImageLoading(true)}
+                            onLoad={() => {
+                              setImageLoading(false);
+                              setError('');
+                            }}
+                            onError={(e) => {
+                              setImageLoading(false);
+                              console.error('❌ Image failed to load:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              setError('Image failed to load. Please try uploading again.');
+                            }}
+                            imageLoading={imageLoading}
+                          />
                           
                           {/* Fallback if image doesn't load */}
                           {!imagePreview && !currentImageData?.url && (
@@ -1753,7 +1656,6 @@ export function CaptionGenerator() {
                     )}
                   </div>
 
-
                   {/* Enhanced Sign-up Call-to-Action */}
                   {!session && (
                     <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 max-w-md mx-auto">
@@ -1780,7 +1682,6 @@ export function CaptionGenerator() {
                       </div>
                     </div>
                   )}
-
 
                 </div>
               </div>

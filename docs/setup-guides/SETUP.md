@@ -27,9 +27,7 @@ cp env.example .env
    - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
 
 3. **AI Service (Genkit)**
-   - `GOOGLE_API_KEY`: Google AI API key from [MakerSuite](https://makersuite.google.com/app/apikey)
-
-4. **Image Upload (ImageKit)**
+   - `GOOGLE_API_KEY`: Google AI API key from [Google AI Studio](https://ai.google.dev/aistudio)4. **Image Upload (ImageKit)**
    - `IMAGEKIT_PUBLIC_KEY`: Your ImageKit public key
    - `IMAGEKIT_PRIVATE_KEY`: Your ImageKit private key
    - `IMAGEKIT_URL_ENDPOINT`: Your ImageKit URL endpoint
@@ -46,12 +44,10 @@ cp env.example .env
 
 ### Google OAuth
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials
-5. Add authorized redirect URIs: `http://localhost:9002/api/auth/callback/google`
-
-### ImageKit
+2. Create a new project or select an existing one
+3. Configure OAuth consent screen (External or Internal) and add scopes if needed
+4. Create OAuth 2.0 Client ID (Web application) via Google Identity Services
+5. Add Authorized redirect URI: `http://localhost:9002/api/auth/callback/google`### ImageKit
 1. Sign up at [ImageKit](https://imagekit.io/)
 2. Get your public key, private key, and URL endpoint
 3. Add them to your `.env` file
@@ -80,10 +76,20 @@ To access the admin panel, you need to create a user with admin privileges. The 
 - `ai.captioncraft@outlook.com`
 
 You can modify this in the admin API routes to implement proper role-based access control.
+To access the admin panel, you need to create a user with admin privileges. The current system checks for these email addresses:
 
-## Troubleshooting
+- `ai.captioncraft@outlook.com`
 
-### "AI service is not configured" Error
+You can modify this in the admin API routes to implement proper role-based access control.
+
+For local dev, prefer using an environment variable (comma-separated) to avoid hardcoding:
+
+    # .env
+    ADMIN_EMAILS=you@example.com,teammate@example.com
+
+And read it in code (pseudo):
+
+`const ADMIN_EMAILS = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim())`### "AI service is not configured" Error
 - Check that `GOOGLE_API_KEY` is set in your `.env` file
 - Verify the API key is valid and has access to Gemini models
 - Restart your development server after adding environment variables

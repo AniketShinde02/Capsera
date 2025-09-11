@@ -256,17 +256,6 @@ Let me start by examining the current state of the admin pages to identify what 
 Search files...
 Now let me examine the current admin pages to identify what needs to be improved. Let me check the archived profiles and content moderation pages:
 
-Ran tool
-Ran tool
-Let me examine these pages to see their current state:
-
-Read file: src/app/admin/archived-profiles/page.tsx
-Read file: src/app/admin/moderation/page.tsx
-Now let me check the API endpoints to see what needs to be implemented:
-
-Read file: src/app/api/admin/archived-profiles/route.ts
-Read file: src/app/api/admin/moderation/reports/route.ts
-Now I can see the issues clearly. Let me start implementing the comprehensive improvements:
 
 1. **Remove all mock data fallbacks** from the admin pages
 2. **Implement real CRUD operations** for all UI components
@@ -361,12 +350,10 @@ I have successfully implemented all the requested improvements to make the admin
 - **Image Management Page**: Removed simulated real-time updates, now shows real data from `/api/admin/images`
 - **User Management Page**: Removed all mock data, now shows real data from `/api/admin/users`
 - **All pages now display proper empty states** when no data exists instead of falling back to fake data
-
-### ✅ **3. Implemented Real CRUD Operations**
-- **Archived Profiles**: 
-  - ✅ Recover profile API (`/api/admin/archived-profiles/[id]/recover`)
-  - ✅ Deny recovery API (`/api/admin/archived-profiles/[id]/deny`)
-  - ✅ Permanent delete API (`/api/admin/archived-profiles/[id]`)
+### ✅ **1. Port Configuration**
+- **Configured application to use port 9002** as requested
+- Updated `package.json` dev script: `"dev": "next dev -p 9002"`
+  (No next.config.ts changes needed for port)  - ✅ Permanent delete API (`/api/admin/archived-profiles/[id]`)
 - **Content Moderation**:
   - ✅ Review reports API (`/api/admin/moderation/reports/[id]/review`)
   - ✅ Dismiss reports API (`/api/admin/moderation/reports/[id]/dismiss`)

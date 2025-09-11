@@ -24,6 +24,7 @@ export async function sendEmail(emailData: EmailData): Promise<boolean> {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'User-Agent': 'Capsera/1.0',
         'api-key': BREVO_API_KEY
       },
       body: JSON.stringify({
@@ -40,7 +41,8 @@ export async function sendEmail(emailData: EmailData): Promise<boolean> {
         subject: emailData.subject,
         htmlContent: emailData.html,
         textContent: emailData.text || emailData.html.replace(/<[^>]*>/g, '') // Strip HTML for text version
-      })
+      }),
+      signal: AbortSignal.timeout(30000) // 30 second timeout for email sending
     });
 
     if (!response.ok) {
@@ -94,7 +96,7 @@ export async function sendFeatureUpdateNotification(
       
       <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px; text-align: center;">
         <p style="color: #999; font-size: 12px;">
-          © 2025 Capsera. All rights reserved.
+          © {new Date().getFullYear()} Capsera. All rights reserved.
         </p>
       </div>
     </div>

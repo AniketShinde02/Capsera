@@ -30,6 +30,11 @@ export default function ProfilePage() {
     const sessionStatus = status || 'loading';
     const sessionData = session || null;
 
+    // Session monitoring (debug logs removed for production)
+    useEffect(() => {
+        // Session state monitoring without console logs for better performance
+    }, [session, status, sessionData]);
+
     // State management
     const [posts, setPosts] = useState<IPost[]>([]);
     const [isLoadingPosts, setIsLoadingPosts] = useState(true);
@@ -57,6 +62,7 @@ export default function ProfilePage() {
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [inlineMessage, setInlineMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
     const [userData, setUserData] = useState<any>(null);
+    const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
     
     // Pagination state for captions
     const [currentPage, setCurrentPage] = useState(1);
@@ -97,8 +103,8 @@ export default function ProfilePage() {
                 setIsLoadingPosts(true);
                 try {
                     const [postsRes, userRes] = await Promise.all([
-                        fetch('/api/posts'),
-                        fetch('/api/user'),
+                        fetch('/api/posts', { credentials: 'include' }),
+                        fetch('/api/user', { credentials: 'include' }),
                     ]);
                     
                     if (postsRes.ok) {
@@ -643,7 +649,7 @@ export default function ProfilePage() {
                                                     window.location.replace("/");
                                                   }
                                                 }}
-                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                                             >
                                                 <LogOut className="w-4 h-4" />
                                                 Logout
@@ -769,43 +775,43 @@ export default function ProfilePage() {
 
                             {/* Usage Statistics - Mobile Optimized Grid */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-[90%] mx-auto lg:w-full">
-                                <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
+                                <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
                                             <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                                         </div>
                                         <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.captionsGenerated}</p>
-                                        <p className="text-indigo-100 text-xs sm:text-sm">Captions</p>
+                                        <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Captions</p>
                                     </CardContent>
                                 </Card>
                                 
-                                <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
+                                <Card className="bg-gradient-to-br from-indigo-400 to-indigo-500 dark:from-indigo-500 dark:to-indigo-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
                                             <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                                         </div>
                                         <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.totalImages}</p>
-                                        <p className="text-purple-100 text-xs sm:text-sm">Images</p>
+                                        <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Images</p>
                                     </CardContent>
                                 </Card>
                                 
-                                <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
+                                <Card className="bg-gradient-to-br from-indigo-300 to-indigo-400 dark:from-indigo-400 dark:to-indigo-500 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
                                             <Star className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                                         </div>
                                         <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.mostUsedMood}</p>
-                                        <p className="text-green-100 text-xs sm:text-sm">Mood</p>
+                                        <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Mood</p>
                                     </CardContent>
                                 </Card>
                                 
-                                <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
+                                <Card className="bg-gradient-to-br from-indigo-200 to-indigo-300 dark:from-indigo-300 dark:to-indigo-400 text-indigo-900 dark:text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-indigo-600/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
                                             <Activity className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                                         </div>
                                         <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.averageLength}</p>
-                                        <p className="text-orange-100 text-xs sm:text-sm">Length</p>
+                                        <p className="text-indigo-700 dark:text-indigo-200 text-xs sm:text-sm">Length</p>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -871,83 +877,64 @@ export default function ProfilePage() {
                                                 className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden"
                                             >
                                                 <CardContent className="p-0">
-                                                    {/* Image Section - Smaller on Mobile */}
+                                                    {/* Image Section */}
                                                     <div className="relative overflow-hidden">
-                                                        {(() => {
-                                                            // Debug logging
-                                                            if (post.image) {
-                                                            // Rendering image for post (removed debug logging for security)
-                                                            }
-                                                            
-                                                            return post.image ? (
-                                                                <div className="relative h-32 sm:h-40 lg:h-48 xl:h-56 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20">
-                                                                    {/* Loading skeleton */}
-                                                                    <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg">
-                                                                        <div className="w-full h-full flex items-center justify-center">
-                                                                            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                                                        </div>
-                                                                    </div>
-                                                                    <img
-                                                                        src={post.image}
-                                                                        alt="Generated caption image"
-                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                                        loading="lazy"
-                                                                        decoding="async"
-                                                                        onError={(e) => {
-                                                                            console.error('❌ Image failed to load in caption history:', post.image);
-                                                                            // Hide the image and show a placeholder
-                                                                            const target = e.target as HTMLImageElement;
-                                                                            target.style.display = 'none';
-                                                                            // Show a fallback placeholder
-                                                                            const parent = target.parentElement;
-                                                                            if (parent) {
-                                                                                parent.innerHTML = `
-                                                                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                                                                        <div class="text-center p-4">
-                                                                                            <div class="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                                                                                                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                                                                </svg>
-                                                                                            </div>
-                                                                                            <p class="text-xs text-gray-500 dark:text-gray-400">Image unavailable</p>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                `;
-                                                                            }
-                                                                        }}
-                                                                        onLoad={() => {
-                                                                            console.log('✅ Image loaded successfully in caption history:', post.image);
-                                                                            // Hide loading skeleton when image loads
-                                                                            const loadingSkeleton = document.querySelector('.animate-pulse') as HTMLElement;
-                                                                            if (loadingSkeleton) {
-                                                                                loadingSkeleton.style.display = 'none';
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                    {/* Floating Mood Badge - Smaller on Mobile */}
-                                                                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3">
-                                                                        <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                            {post.mood || 'Unknown'}
-                                                                        </Badge>
-                                                                    </div>
-                                                                    {/* Floating Date Badge - Smaller on Mobile */}
-                                                                    <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3">
-                                                                        <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                            {format(new Date(post.createdAt), 'MMM dd')}
-                                                                        </Badge>
+                                                        <div className="relative h-28 sm:h-32 lg:h-36 xl:h-40 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                                                            {post.image && !imageErrors.has(post._id) ? (
+                                                                <img
+                                                                    src={post.image}
+                                                                    alt="Generated caption image"
+                                                                    className="w-full h-full object-contain bg-gray-50 dark:bg-gray-800 group-hover:scale-105 transition-transform duration-300"
+                                                                    style={{ 
+                                                                        opacity: 1, 
+                                                                        display: 'block', 
+                                                                        visibility: 'visible',
+                                                                        maxWidth: '100%',
+                                                                        maxHeight: '100%'
+                                                                    }}
+                                                                    decoding="async"
+                                                                    onError={() => {
+                                                                        setImageErrors(prev => new Set([...prev, post._id]));
+                                                                    }}
+                                                                    onLoad={(e) => {
+                                                                        // Ensure visibility on load
+                                                                        const target = e.target as HTMLImageElement;
+                                                                        target.style.opacity = '1';
+                                                                        target.style.display = 'block';
+                                                                        target.style.visibility = 'visible';
+                                                                    }}
+                                                                />
+                                                            ) : imageErrors.has(post._id) ? (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                                                                    <div className="text-center">
+                                                                        <div className="text-2xl mb-2">⚠️</div>
+                                                                        <div className="text-sm">Image Error</div>
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                <div className="relative h-32 sm:h-40 lg:h-48 xl:h-56 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center">
+                                                                <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
                                                                     <div className="text-center p-4">
-                                                                        <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                                                                            <ImageIcon className="w-6 h-6 text-gray-500" />
+                                                                        <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                                            <ImageIcon className="w-8 h-8 text-gray-400" />
                                                                         </div>
-                                                                        <p className="text-xs text-gray-500 dark:text-gray-400">No image</p>
+                                                                        <p className="text-sm text-gray-500">No Image</p>
                                                                     </div>
                                                                 </div>
-                                                            );
-                                                        })()}
+                                                            )}
+                                                                    
+                                                                    {/* Floating Mood Badge - Smaller on Mobile */}
+                                                                        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3 z-60">
+                                                                            <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
+                                                                                {post.mood || 'Unknown'}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        {/* Floating Date Badge - Smaller on Mobile */}
+                                                                        <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3 z-60">
+                                                                            <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
+                                                                                {format(new Date(post.createdAt), 'MMM dd')}
+                                                                            </Badge>
+                                                                        </div>
+                                                        </div>
                                                     </div>
                                                     
                                                     {/* Caption Content - Compact Padding */}
@@ -1060,7 +1047,6 @@ export default function ProfilePage() {
                                         ))}
                                     </div>
                                 )}
-                                
 
                             </div>
 

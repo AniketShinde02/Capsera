@@ -39,8 +39,7 @@
 9. **`09-mobile-responsive.png`** - Mobile design
 10. **`10-dark-mode.png`** - Dark theme
 
-### **🟢 LOW PRIORITY (Nice to Have):** `
-11. **`11-admin-dashboard.png`** - Admin dashboard
+### **🟢 LOW PRIORITY (Nice to Have):**11. **`11-admin-dashboard.png`** - Admin dashboard
 12. **`12-admin-setup.png`** - Admin setup process
 13. **`13-unauthorized.png`** - Unauthorized access page
 

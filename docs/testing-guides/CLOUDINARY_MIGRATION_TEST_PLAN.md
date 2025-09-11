@@ -12,19 +12,30 @@ This document outlines comprehensive testing to ensure the Cloudinary migration 
 - [ ] **Invalid File Types**: Test PDF, TXT, DOC (should fail)
 - [ ] **Network Interruption**: Test upload with poor connection
 - [ ] **Retry Logic**: Verify exponential backoff works
-
+- [ ] **Signed Uploads Only**: Verify client uses server-side signature; block direct use of API secret or open unsigned presets
 ### **2. Image Deletion Tests**
 - [ ] **Profile Image Deletion**: Remove user profile image
 - [ ] **Caption Image Deletion**: Delete caption with associated image
 - [ ] **Invalid Public ID**: Test deletion with malformed public ID
 - [ ] **Non-existent Image**: Test deletion of already deleted image
 - [ ] **Network Failures**: Test deletion during network issues
-
+- [ ] **Derived Assets**: Delete originals with many derivatives; confirm derivatives removed
 ### **3. Caption Generation Tests**
 - [ ] **With Cloudinary Image**: Generate captions from uploaded image
 - [ ] **Public ID Storage**: Verify public ID is stored for future deletion
 - [ ] **Rate Limiting**: Test with anonymous and authenticated users
 - [ ] **AI Service Failures**: Test when AI service is down
+- [ ] **Safety & Moderation**: Block unsafe prompts/outputs; profanity, hate, sexual content
+### **4. Error Handling Tests**
+- [ ] **Cloudinary Service Down**: Test when Cloudinary is unavailable
+- [ ] **Invalid Credentials**: Test with wrong API keys
+- [ ] **File Size Exceeded**: Test uploads > 10MB
+- [ ] **Malformed Requests**: Test with invalid request data
+- [ ] **Timeouts**: Client/server timeouts enforced; request aborted as expected
+- [ ] **Retry Policy**: Exponential backoff with jitter and max attempts; no retries on 4xx
+- [ ] **Circuit Breaker**: Opens on sustained failures; quick recovery verified
+- [ ] **Error Mapping**: UX shows actionable messages without exposing secrets
+- [ ] **Correlation IDs**: Trace logs and requests end-to-end- [ ] **AI Service Failures**: Test when AI service is down
 
 ### **4. Error Handling Tests**
 - [ ] **Cloudinary Service Down**: Test when Cloudinary is unavailable
@@ -54,14 +65,15 @@ This document outlines comprehensive testing to ensure the Cloudinary migration 
 3. Test network interruptions
 4. Test service failures
 
-### **Phase 3: User Scenarios**
-1. Test profile image management
-2. Test caption lifecycle
-3. Test user account deletion
-4. Test admin operations
-
-## 📊 **Expected Results**
-
+### **Success Indicators**
+- ✅ All uploads show "Cloudinary upload successful"
+- ✅ All deletions show "Image deleted from Cloudinary"
+- ✅ No ImageKit-related errors in logs
+- ✅ Public IDs are properly extracted and stored
+- ✅ Error handling gracefully manages failures
+- ✅ No API secret/signature exposed client-side or in logs
+- ✅ All requests over HTTPS; no mixed content
+- ✅ No PII written to logs; secrets redacted
 ### **Success Indicators**
 - ✅ All uploads show "Cloudinary upload successful"
 - ✅ All deletions show "Image deleted from Cloudinary"

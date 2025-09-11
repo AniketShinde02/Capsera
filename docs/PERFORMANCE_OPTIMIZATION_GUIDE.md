@@ -27,6 +27,29 @@ This document provides a comprehensive guide to the performance optimizations im
 
 ---
 
+## 🆕 **Recent Performance Improvements (January 2025)**
+
+### **API Request Optimization**
+| Improvement | Implementation | Benefit |
+|-------------|----------------|---------|
+| **Timeout Configuration** | All external APIs have proper timeouts | Prevents hanging requests |
+| **User-Agent Headers** | Consistent headers for all external calls | Better API compliance |
+| **Resource Type Consistency** | Cloudinary operations use consistent types | Improved reliability |
+| **Dynamic Content** | Automatic year updates | Reduced maintenance overhead |
+
+### **External API Timeouts**
+- **Brevo Email API**: 30-second timeout (email operations can be slower)
+- **Gemini AI API**: 60-second timeout (AI processing requires more time)
+- **Image Fetching**: 15-second timeout (network operations)
+- **Internal API Calls**: 10-second timeout (should be fast)
+
+### **UI Performance Improvements**
+- **Image Display**: Changed from `object-cover` to `object-contain` for better rendering
+- **Card Heights**: Reduced heights for better mobile performance
+- **Color Scheme**: Cohesive indigo theme reduces visual processing load
+
+---
+
 ## 🏗️ **System Architecture & Scalability**
 
 ### **Current System Capacity**

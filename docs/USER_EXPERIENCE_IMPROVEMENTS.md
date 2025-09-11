@@ -3,6 +3,65 @@
 ## Overview
 This document outlines the comprehensive user experience improvements implemented across the application, focusing on workflow optimization, visual feedback, and user interaction enhancements.
 
+---
+
+## 🆕 **Latest UX Improvements (January 2025)**
+
+### **Profile Page Visual Enhancements**
+
+#### **Color Scheme Consistency**
+- **Issue**: Statistics cards had rainbow-like colors creating visual inconsistency
+- **Solution**: Implemented cohesive indigo color scheme with proper hierarchy
+- **Implementation**:
+  - Captions Card: Primary indigo (`indigo-500 to indigo-600`)
+  - Images Card: Lighter indigo (`indigo-400 to indigo-500`)
+  - Mood Card: Even lighter (`indigo-300 to indigo-400`)
+  - Length Card: Lightest with dark text (`indigo-200 to indigo-300`)
+- **Result**: Professional, cohesive visual design
+
+#### **Caption History Image Display**
+- **Issue**: Images overflowing card boundaries, poor visual containment
+- **Solution**: Proper image fitting and containment
+- **Implementation**:
+  - Changed from `object-cover` to `object-contain`
+  - Reduced card heights for better proportions
+  - Added proper max-width/max-height constraints
+- **Result**: Images fit perfectly within card boundaries while maintaining aspect ratio
+
+### **Performance & Reliability Improvements**
+
+#### **Dynamic Year Implementation**
+- **Issue**: Hard-coded years requiring annual manual updates
+- **Solution**: Automatic year generation
+- **Implementation**: `{new Date().getFullYear()}` in React, `${new Date().getFullYear()}` in JavaScript
+- **Result**: Zero maintenance overhead for copyright notices
+
+#### **API Request Optimization**
+- **Issue**: External API calls could hang indefinitely
+- **Solution**: Proper timeout configuration and headers
+- **Implementation**:
+  - Brevo Email API: 30-second timeout
+  - Gemini AI API: 60-second timeout
+  - Image fetching: 15-second timeout
+  - Internal APIs: 10-second timeout
+- **Result**: Better reliability and user experience
+
+### **Technical Quality Improvements**
+
+#### **Resource Type Consistency**
+- **Issue**: Inconsistent Cloudinary resource types causing potential errors
+- **Solution**: Consistent resource type handling across all operations
+- **Implementation**: Updated `archiveCloudinaryImage` function with proper resource type parameter
+- **Result**: More reliable image archiving and management
+
+#### **API Compliance**
+- **Issue**: Missing User-Agent headers for external API calls
+- **Solution**: Added proper headers following API guidelines
+- **Implementation**: `'User-Agent': 'Capsera/1.0'` for all external calls
+- **Result**: Better API compliance and potential rate limit benefits
+
+---
+
 ## Key Improvements
 
 ### 1. Button Flow Optimization

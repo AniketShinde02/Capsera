@@ -14,23 +14,22 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   createServer(async (req, res) => {
     try {
-      const parsedUrl = parse(req.url!, true);
+      const parsedUrl = parse(req.url || '/', true);
       const { pathname } = parsedUrl;
-
-      // Handle MIME type issues for static assets
-      if (pathname?.startsWith('/_next/static/css/')) {
+      // Handle MIME type issues for static assets (only in production)
+      // Handle MIME type issues for static assets (prod only)
+      if (!dev && pathname?.startsWith('/_next/static/css/')) {
         res.setHeader('Content-Type', 'text/css; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      } else if (pathname?.startsWith('/_next/static/chunks/')) {
+      } else if (!dev && pathname?.startsWith('/_next/static/chunks/')) {
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      } else if (pathname?.startsWith('/_next/static/media/')) {
+      } else if (!dev && pathname?.startsWith('/_next/static/media/')) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      } else if (pathname === '/favicon.ico') {
+      } else if (!dev && pathname === '/favicon.ico') {
         res.setHeader('Content-Type', 'image/x-icon');
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       }
-
       // Handle the request
       await handle(req, res, parsedUrl);
     } catch (err) {
@@ -38,8 +37,10 @@ app.prepare().then(() => {
       res.statusCode = 500;
       res.end('internal server error');
     }
-  }).listen(port, (err?: any) => {
-    if (err) throw err;
+  }).listen(port, hostname, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
+  }).on('error', (e) => {
+    console.error('Server listen error:', e);
+    process.exitCode = 1;
   });
 });

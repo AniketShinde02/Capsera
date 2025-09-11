@@ -32,15 +32,6 @@ MongoDB/Mongoose treats these as duplicate index definitions.
 ## 🛡️ **Prevention Rules**
 
 ### **✅ DO: Use Inline Indexes For Simple Cases**
-```typescript
-// For simple single-field indexes
-email: {
-  type: String,
-  unique: true,  // Creates index automatically
-  index: true    // Creates index automatically
-}
-```
-
 ### **✅ DO: Use Schema.index() For Complex Cases**
 ```typescript
 // For compound indexes

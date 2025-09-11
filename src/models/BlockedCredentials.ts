@@ -16,8 +16,7 @@ const BlockedCredentialsSchema: Schema = new Schema({
   email: {
     type: String,
     required: true,
-    lowercase: true,
-    index: true,
+    lowercase: true
   },
   blockedUntil: {
     type: Date,

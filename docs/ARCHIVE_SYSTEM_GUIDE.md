@@ -14,12 +14,12 @@ Capsera now uses an intelligent archiving system instead of permanently deleting
 4. **Can be restored later** → By admins or through API calls
 
 ### **Technical Process**
-1. **Archive Operation**: Image moved to archive folder with timestamp
-2. **Original Cleanup**: Original image deleted after successful archiving
-3. **Database Update**: Caption/post removed from database
-4. **User Feedback**: Success message about "deletion"
-
----
+1. **Archive Copy**: Copy to archive; verify checksum/bytes.
+2. **Idempotency**: Use `Idempotency-Key` to make retries safe.
+3. **Swap/Mark**: Mark DB record as archived (status=archived, archivedAt, archivedId).
+4. **Original Delete**: Delete original after archive verification.
+5. **Outbox/Event**: Emit ArchiveCreated event for downstream consumers.
+6. **Compensation**: If any step fails, leave original intact; retry asynchronously.---
 
 ## 🗂️ **Archive Folder Structure**
 
@@ -38,14 +38,14 @@ capsera_archives/
 ```
 
 ### **Naming Convention**
-- **Format**: `{timestamp}_{original_filename}`
-- **Example**: `1703123456789_cat_photo.jpg`
+- **Format**: `{timestamp}__{shortid}__{sanitized_original_filename}`
+- **Sanitization**: Strip paths, control chars, and limit to `[a-zA-Z0-9._-]`; truncate to 64 chars.
+- **Example**: `1703123456789__Xa9f2K__cat_photo.jpg`
+- **Alternative**: `{timestamp}__{sha1(publicId)}.{ext}` to avoid PII in paths.
 - **Benefits**: 
   - Easy chronological sorting
   - No filename conflicts
-  - Clear audit trail
-
----
+  - Clear audit trail---
 
 ## 🔧 **API Endpoints**
 
@@ -71,27 +71,6 @@ Content-Type: application/json
 ```
 
 ### **2. List Archived Images**
-```http
-GET /api/archive?userId=user_id&limit=50
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "capsera_archives/user_id/timestamp_filename.jpg",
-      "url": "https://res.cloudinary.com/...",
-      "created": "2023-12-21T10:30:00.000Z",
-      "size": 1024000,
-      "format": "jpg"
-    }
-  ],
-  "count": 1
-}
-```
-
 ### **3. Restore Archived Image**
 ```http
 POST /api/archive
@@ -133,29 +112,7 @@ Content-Type: application/json
     "details": [...]
   }
 }
-```
-
----
-
-## 🚀 **Implementation Details**
-
-### **Core Functions**
-
-#### **Archive Image**
-```typescript
-archiveCloudinaryImage(publicId: string, userId?: string)
-```
-- Moves image to archive folder
-- Deletes original after successful archiving
-- Returns archive status and new ID
-
-#### **Restore Image**
-```typescript
-restoreCloudinaryImage(archivedId: string, originalPath?: string)
-```
-- Moves image back from archive
-- Restores to original or specified path
-- Cleans up archived copy
+### **4. Cleanup Old Archives**- Cleans up archived copy
 
 #### **List Archives**
 ```typescript
@@ -239,22 +196,20 @@ cleanupOldArchivedImages(daysOld: number = 90)
 ### **If Archiving Fails**
 1. **Fallback to Deletion**: Use original delete functions
 2. **Manual Recovery**: Restore from Cloudinary dashboard
-3. **User Communication**: Explain temporary issues
-4. **System Rollback**: Revert to deletion if needed
+## 🔄 **Migration from Deletion to Archiving**
 
-### **If Restore Fails**
-1. **Check Permissions**: Verify Cloudinary access
-2. **Validate Paths**: Ensure correct folder structure
-3. **Manual Restoration**: Use Cloudinary dashboard
-4. **Support Ticket**: Create detailed issue report
+### **What Changed**
+- **API Endpoints**: Now use archiving functions
+- **User Messages**: "Deleted" → "Moved to archive"
+- **Storage**: Images go to archive folder
+- **Recovery**: Full restore capability
 
----
+### **Backward Compatibility**
+- **API**: `/v1` (delete) maintained; `/v2` introduces archiving. `/v1` sunset on 2026-06-30.
+- **Deprecation Notice**: Responses include `Deprecation` and `Sunset` headers.
+- **Changelog**: Document client-visible semantic changes and migration steps.
 
-## 📈 **Performance Considerations**
-
-### **Storage Impact**
-- **Archive Growth**: ~2-3x original storage (temporary)
-- **Cleanup Efficiency**: Automated cleanup reduces long-term costs
+---- **Cleanup Efficiency**: Automated cleanup reduces long-term costs
 - **CDN Benefits**: Archived images still benefit from Cloudinary CDN
 
 ### **API Performance**
@@ -279,15 +234,15 @@ cleanupOldArchivedImages(daysOld: number = 90)
 - **User Privacy**: Archives respect user boundaries
 - **Compliance**: GDPR and privacy regulation support
 
----
+## 🚨 **Emergency Procedures**
 
-## 📝 **Configuration Options**
-
-### **Environment Variables**
-```bash
-# Archive retention (days)
-ARCHIVE_RETENTION_DAYS=90
-
+### **If Archiving Fails**
+1. **Queue & Retry**: Place operation in retry queue with exponential backoff.
+2. **Block Deletion**: Do not delete original until archive is verified or admin override is approved.
+3. **Alerting**: Page on repeated failures; include requestId and userId.
+2. **Manual Recovery**: Restore from Cloudinary dashboard
+3. **User Communication**: Explain temporary issues
+4. **System Rollback**: Revert to deletion if needed
 # Archive folder prefix
 ARCHIVE_FOLDER_PREFIX=capsera_archives
 

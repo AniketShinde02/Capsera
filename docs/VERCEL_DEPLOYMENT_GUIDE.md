@@ -25,14 +25,11 @@ NEXTAUTH_URL=https://yourdomain.vercel.app
 npm run generate-production-jwt
 ```
 
-### **Step 4: Share Token with Admin**
-- Send JWT token to admin via email/SMS
-- Admin visits: `https://yourdomain.vercel.app/setup`
-- Admin enters JWT token
-- Admin creates account
-- Admin gets access to admin dashboard
-
-## **�� Why JWT is Perfect for Vercel:**
+### **Step 4: Provision Admin Securely**
+- Operator generates a single-use, 15-minute magic link locally (includes the JWT as a signed query param).
+- Operator opens the link directly in a browser (no email/SMS transmission).
+- Setup page validates the token server-side and forces MFA enrollment.
+- After first admin is created, disable the setup route and revoke any unused tokens.## **�� Why JWT is Perfect for Vercel:**
 
 ### **❌ Problems with Environment Files on Vercel:**
 - **No .env files** - Vercel doesn't use them
@@ -60,21 +57,19 @@ npm run generate-production-jwt
 ## **�� What You Get:**
 
 - **Local development**: JWT tokens work perfectly
+## **What You Get:**
+
+- **Local development**: JWT tokens work perfectly
 - **Vercel production**: Same JWT system works seamlessly
 - **No environment files**: Secure for production
 - **Professional setup**: Enterprise-grade admin creation
 
-## ** Key Point:**
+## **Key Point:**
 
-**JWT system = Production ready for Vercel**
-**Environment tokens = Only work locally**
+**JWT-based provisioning works in both local and Vercel environments when secrets are configured via Vercel Project Environment Variables.**
+**Do not rely on committing .env files for production.**
 
-Your CaptionCraft app now works **both locally AND on Vercel** with the same JWT system! ��
-
-Does this clarify how the JWT system works for Vercel deployment?
-
-
-# 🚀 Vercel Deployment Guide for Password Reset System
+Your CaptionCraft app now works **both locally and on Vercel** with the same JWT-based provisioning flow.# 🚀 Vercel Deployment Guide for Password Reset System
 
 This document explains how the enhanced password reset security system works on Vercel and addresses common deployment concerns.
 
@@ -83,29 +78,11 @@ This document explains how the enhanced password reset security system works on 
 ### ✅ **Token Generation & Verification Flow**
 
 ```
-1. User requests password reset
-   ↓
-2. Backend generates cryptographically secure token
-   ↓
-3. Token stored in MongoDB with 1-hour expiry
-   ↓
-4. Email sent with reset link containing token
-   ↓
-5. User clicks link → Frontend validates token
-   ↓
-6. Backend verifies token validity + usage status
-   ↓
-7. Password reset allowed if token is valid & unused
-   ↓
-8. Token marked as used + cleared from database
-```
+## 🔐 **Token System on Vercel - How It Works**
 
-### 🌐 **Vercel-Specific Considerations**
-
-#### **Environment Variables Required**
-```env
+### ✅ **Token Generation & Verification Flow**
 # Database Connection
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/captioncraft
+MONGODB_URI={{MONGODB_URI}}
 
 # NextAuth Configuration
 NEXTAUTH_SECRET=your-super-secret-key-here
@@ -191,19 +168,17 @@ const transporter = nodemailer.createTransporter({
 
 ### **Enhanced User Model**
 ```typescript
-// New fields for security tracking
-resetPasswordRequests: [{
-  requestedAt: Date,
-  ipAddress: String,
-  userAgent: String,
-  token: String,
-  used: Boolean,
-  usedAt: Date
-}],
-dailyResetCount: Number,
-lastResetRequestDate: Date
-```
-
+// Uses Nodemailer with SMTP
+// Works reliably on Vercel's serverless environment
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_PORT === '465',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 ### **Database Indexes**
 ```typescript
 // Optimized for Vercel's serverless environment
@@ -238,7 +213,7 @@ npm run start
 ### **1. Environment Variables**
 ```bash
 # Set in Vercel Dashboard
-MONGODB_URI=mongodb+srv://...
+MONGODB_URI={{MONGODB_URI}}
 NEXTAUTH_SECRET=your-secret
 NEXTAUTH_URL=https://yourdomain.vercel.app
 SMTP_HOST=smtp-mail.outlook.com

@@ -155,7 +155,7 @@ function createPromotionalEmail(displayName, unsubscribeUrl) {
             
             <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
               CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-              © 2025 CaptionCraft. All rights reserved.
+              © ${new Date().getFullYear()} CaptionCraft. All rights reserved.
             </p>
             
             <!-- Unsubscribe Section -->

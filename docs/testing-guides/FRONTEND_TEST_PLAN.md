@@ -13,7 +13,18 @@ Comprehensive frontend testing to identify UI/UX issues, user interaction proble
 - **Accessibility** (Medium)
 - **Error Handling** (High)
 
-## 📋 **FRONTEND TEST CASES**
+## 🧪 Test Environment & Matrix
+- Browsers: Chrome (latest, latest-1), Firefox (latest, latest-1), Safari (current macOS + current iOS), Edge (latest).
+- OS: macOS (latest-1), Windows 11, iOS (current-1), Android 13+.
+- Devices/ Viewports: 360x800, 768x1024, 1280x800, 1440x900, 1920x1080.
+- Assistive tech: NVDA + Firefox, VoiceOver + Safari (macOS/iOS), TalkBack + Android Chrome.
+- Network profiles: 4G, Slow 3G, Offline.
+- Build: Production build with minification, source maps disabled (except for error triage).
+
+## 🚫 Out of Scope (for this plan)
+- Backend functional testing beyond API contracts.
+- Load testing beyond client-side performance budgets.
+- Non-web platforms.## 📋 **FRONTEND TEST CASES**
 
 ### **USER INTERFACE TESTS**
 
@@ -38,28 +49,23 @@ Comprehensive frontend testing to identify UI/UX issues, user interaction proble
 #### **UI-004: User Authentication UI**
 - **Test**: Test login/signup forms
 - **Purpose**: Verify authentication interface
-- **Expected**: Login form, signup form, error messages
-- **Check**: Form validation, error display, success states
-
-#### **UI-005: Admin Dashboard Interface**
-- **Test**: Test admin dashboard components
-- **Purpose**: Verify admin interface functionality
-- **Expected**: Dashboard layout, navigation, data tables
-- **Check**: Component rendering, data display, navigation
-
-### **USER INTERACTION TESTS**
-
 #### **INT-001: Image Upload Flow**
 - **Test**: Complete image upload process
 - **Purpose**: Test end-to-end upload workflow
 - **Expected**: File selection → upload → preview → captions
 - **Check**: User flow, state management, error handling
+- **Negative**: Cancel upload, retry after failure, duplicate file selection
+- **Network**: Offline start, mid-transfer drop, 429/503 with backoff UI
+- **Integration**: Use mocked server (contract tests) and sandbox env (happy path)
 
 #### **INT-002: Caption Generation Flow**
 - **Test**: Complete caption generation process
 - **Purpose**: Test caption generation workflow
 - **Expected**: Image → mood selection → generation → results
 - **Check**: User interactions, API calls, result display
+- **Abort**: User cancels generation while in progress (AbortController)
+- **Idempotency**: Prevent double-submit via debounce/disable
+- **Consistency**: Handle stale results after image change
 
 #### **INT-003: User Registration Flow**
 - **Test**: Complete user registration process
@@ -75,22 +81,35 @@ Comprehensive frontend testing to identify UI/UX issues, user interaction proble
 
 #### **INT-005: Admin Navigation Flow**
 - **Test**: Admin dashboard navigation
-- **Purpose**: Test admin interface navigation
-- **Expected**: Login → dashboard → various admin pages
-- **Check**: Navigation, access control, page transitions
-
-### **FORM VALIDATION TESTS**
-
 #### **FORM-001: Image Upload Validation**
 - **Test**: Test image upload form validation
 - **Purpose**: Verify file type and size validation
 - **Expected**: Proper validation messages
 - **Check**: File type validation, size limits, error messages
+- **Security**: Verify MIME via magic number, reject polyglot files
+- **Limits**: Enforce dimension/megapixel caps and EXIF stripping behavior
 
 #### **FORM-002: User Registration Validation**
 - **Test**: Test registration form validation
 - **Purpose**: Verify input validation
 - **Expected**: Email format, password strength, required fields
+- **Check**: Client-side validation, error display, form submission
+- **Security**: XSS injection in inputs, HTML/URL encoding
+- **Password**: Complexity, breached password check (e.g., k-anonymity API), paste visibility
+- **Uniqueness**: Duplicate email flow and per-locale email handling
+
+#### **FORM-003: User Login Validation**
+- **Test**: Test login form validation
+- **Purpose**: Verify login input validation
+- **Expected**: Required field validation, error messages
+- **Check**: Form validation, error handling, user feedback
+
+#### **FORM-004: Caption Generation Validation**
+- **Test**: Test caption generation form validation
+- **Purpose**: Verify mood and description validation
+- **Expected**: Required field validation, input sanitization
+- **Check**: Form validation, input handling, error messages
+- **Sanitization**: Escape/strip markdown/HTML in description- **Expected**: Email format, password strength, required fields
 - **Check**: Client-side validation, error display, form submission
 
 #### **FORM-003: User Login Validation**
@@ -126,45 +145,26 @@ Comprehensive frontend testing to identify UI/UX issues, user interaction proble
 - **Check**: Layout optimization, hover states, navigation
 
 ### **NAVIGATION & ROUTING TESTS**
-
-#### **NAV-001: Page Navigation**
-- **Test**: Test page-to-page navigation
-- **Purpose**: Verify routing functionality
-- **Expected**: Smooth page transitions, proper URLs
-- **Check**: Route handling, page loading, navigation state
-
-#### **NAV-002: Authentication Navigation**
-- **Test**: Test authentication-based navigation
-- **Purpose**: Verify protected route handling
-- **Expected**: Proper redirects, access control
-- **Check**: Route protection, authentication state, redirects
-
-#### **NAV-003: Admin Navigation**
-- **Test**: Test admin-specific navigation
-- **Purpose**: Verify admin route access
-- **Expected**: Admin-only access, proper navigation
-- **Check**: Access control, navigation, role-based routing
-
 ### **PERFORMANCE TESTS**
 
 #### **PERF-001: Page Load Performance**
 - **Test**: Test page load times
 - **Purpose**: Verify page loading performance
-- **Expected**: Fast page loads, optimized assets
-- **Check**: Load times, asset optimization, caching
+- **Expected**: LCP ≤ 2.5s (p75), CLS ≤ 0.1, INP ≤ 200ms
+- **Check**: Lighthouse CI scores (Perf ≥ 90), bundle size budgets (JS ≤ 200KB gz), HTTP caching (immutable+rev), code splitting
 
 #### **PERF-002: Image Upload Performance**
 - **Test**: Test image upload performance
 - **Purpose**: Verify upload performance
-- **Expected**: Efficient upload process, progress indication
-- **Check**: Upload speed, progress display, error handling
+- **Expected**: Start-to-preview ≤ 1.0s (local), ≤ 2.5s (Slow 3G)
+- **Check**: Chunked uploads, resumability, progress accuracy (±10%), image compression (WebP/AVIF)
 
 #### **PERF-003: Caption Generation Performance**
 - **Test**: Test caption generation performance
 - **Purpose**: Verify generation performance
-- **Expected**: Reasonable generation times, loading states
-- **Check**: Generation speed, loading indicators, user feedback
-
+- **Expected**: Time-to-first-token ≤ 1.0s (p75), total ≤ configured SLA
+- **Check**: Streaming UI, optimistic updates guarded by cancellation
+#### **PERF-001: Page Load Performance**
 ### **ACCESSIBILITY TESTS**
 
 #### **A11Y-001: Keyboard Navigation**
@@ -172,20 +172,42 @@ Comprehensive frontend testing to identify UI/UX issues, user interaction proble
 - **Purpose**: Verify keyboard accessibility
 - **Expected**: Full keyboard navigation support
 - **Check**: Tab order, focus management, keyboard shortcuts
+- **Must**: Visible focus, skip links, no keyboard traps
 
 #### **A11Y-002: Screen Reader Compatibility**
 - **Test**: Test screen reader compatibility
 - **Purpose**: Verify screen reader support
 - **Expected**: Proper ARIA labels, semantic HTML
 - **Check**: ARIA attributes, semantic markup, screen reader support
+- **Live Regions**: Announce upload progress/errors via aria-live
+- **Landmarks**: header/main/nav/footer roles; correct heading hierarchy
 
 #### **A11Y-003: Color Contrast**
 - **Test**: Test color contrast ratios
 - **Purpose**: Verify visual accessibility
-- **Expected**: WCAG compliant contrast ratios
-- **Check**: Color contrast, visual hierarchy, readability
-
 ### **ERROR HANDLING TESTS**
+
+#### **ERR-001: Network Error Handling**
+- **Test**: Test network error scenarios
+- **Purpose**: Verify network error handling
+- **Expected**: Proper error messages, retry options
+- **Check**: Error display, retry mechanisms, user guidance
+- **Cases**: Timeout, DNS failure, offline, 429 (rate limit), 5xx with exponential backoff and jitter
+- **Fallbacks**: Cached results/last-known-good where applicable
+
+#### **ERR-002: Form Error Handling**
+- **Test**: Test form error scenarios
+- **Purpose**: Verify form error handling
+- **Expected**: Clear error messages, validation feedback
+- **Check**: Error display, validation feedback, user guidance
+
+#### **ERR-003: API Error Handling**
+- **Test**: Test API error scenarios
+- **Purpose**: Verify API error handling
+- **Expected**: User-friendly error messages
+- **Check**: Error display, fallback behavior, user guidance
+- **Privacy**: No PII in client logs or error surfaces; redact tokens/IDs
+- **Observability**: Sentry (or equivalent) events include correlation IDs only### **ERROR HANDLING TESTS**
 
 #### **ERR-001: Network Error Handling**
 - **Test**: Test network error scenarios
@@ -203,45 +225,45 @@ Comprehensive frontend testing to identify UI/UX issues, user interaction proble
 - **Test**: Test API error scenarios
 - **Purpose**: Verify API error handling
 - **Expected**: User-friendly error messages
-- **Check**: Error display, fallback behavior, user guidance
-
-## 🚀 **TEST EXECUTION STRATEGY**
-
-### **Phase 1: Core UI Tests**
-1. Homepage layout and components
-2. Image upload interface
-3. Caption generation interface
-4. User authentication forms
-
-### **Phase 2: User Interaction Tests**
-1. Complete user workflows
-2. Form interactions
-3. Navigation flows
-4. Error handling
-
-### **Phase 3: Responsive & Performance Tests**
-1. Mobile/tablet/desktop layouts
-2. Performance optimization
-3. Accessibility compliance
-4. Error scenarios
-
-## 📊 **SUCCESS CRITERIA**
+## � **SUCCESS CRITERIA**
 
 ### **Critical Issues (Must Fix)**
-- ✅ All core UI components render correctly
+- ✅ All core UI components render correctly (Playwright suite pass ≥ 95%)
 - ✅ User interactions work as expected
 - ✅ Form validation functions properly
-- ✅ Navigation works correctly
+- ✅ Navigation works correctly (no broken links; deep-link/reload tests pass 100%)
 
 ### **High Priority Issues**
 - ✅ Responsive design works on all devices
 - ✅ Error handling provides clear feedback
-- ✅ Performance is acceptable
+- ✅ Performance meets budgets (LCP ≤ 2.5s p75, CLS ≤ 0.1, INP ≤ 200ms; JS ≤ 200KB gz)
 
 ### **Medium Priority Issues**
-- ✅ Accessibility compliance
+- ✅ Accessibility compliance: WCAG 2.2 AA with 0 critical axe violations
 - ✅ Visual polish and animations
-- ✅ User experience optimization
+- ✅ User experience optimization2. Performance optimization
+3. Accessibility compliance
+## � **TEST DATA REQUIREMENTS**
+
+### **Test Images**
+- Various image formats (JPG, PNG, WebP)
+- Different image sizes
+- Test images for different moods
+- Privacy: Use synthetic or licensed assets only; strip EXIF/geo data
+- Boundaries: Max file size, extreme dimensions, corrupted files, animated images (APNG/GIF)
+
+### **Test Users**
+- Regular user account
+- Admin user account
+- Test user with various permissions
+- Secrets: Use sandbox credentials; rotate regularly; never commit to repo
+
+### **Test Scenarios**
+- Valid user interactions
+- Invalid user inputs
+- Error conditions
+- Edge cases
+- Localization: Long strings, RTL, emoji, CJK; timezone/date/number formats- ✅ User experience optimization
 
 ## 🔧 **TEST DATA REQUIREMENTS**
 

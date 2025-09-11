@@ -126,7 +126,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
               
               <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
                 CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-                © 2025 CaptionCraft. All rights reserved.
+                © {new Date().getFullYear()} CaptionCraft. All rights reserved.
               </p>
             </div>
             
@@ -296,7 +296,7 @@ export async function sendContactConfirmationEmail(data: ContactConfirmationData
               
               <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
                 CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-                © 2025 CaptionCraft. All rights reserved.
+                © {new Date().getFullYear()} CaptionCraft. All rights reserved.
               </p>
             </div>
             
@@ -427,7 +427,7 @@ export async function sendWelcomeEmail(data: WelcomeEmailData) {
               
               <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
                 CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-                © 2025 CaptionCraft. All rights reserved.
+                © {new Date().getFullYear()} CaptionCraft. All rights reserved.
               </p>
             </div>
             
@@ -563,7 +563,7 @@ export async function sendPromotionalEmail(data: PromotionalEmailData) {
               
               <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
                 CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-                © 2025 CaptionCraft. All rights reserved.
+                © {new Date().getFullYear()} CaptionCraft. All rights reserved.
               </p>
               
               <!-- Unsubscribe Section -->
@@ -714,7 +714,7 @@ export async function sendRequestConfirmationEmail(data: RequestConfirmationData
               
               <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
                 CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-                © 2025 CaptionCraft. All rights reserved.
+                © {new Date().getFullYear()} CaptionCraft. All rights reserved.
               </p>
             </div>
             

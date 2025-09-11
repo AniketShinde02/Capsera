@@ -15,7 +15,9 @@ export class UnsplashTestImageProvider {
       const response = await fetch(`${this.baseUrl}/photos/random?client_id=${this.accessKey}`, {
         headers: {
           'Accept': 'application/json',
-        }
+          'User-Agent': 'Capsera/1.0'
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
       if (!response.ok) {
@@ -50,7 +52,9 @@ export class UnsplashTestImageProvider {
         {
           headers: {
             'Accept': 'application/json',
-          }
+            'User-Agent': 'Capsera/1.0'
+          },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
         }
       );
 
@@ -106,7 +110,9 @@ export class UnsplashTestImageProvider {
     const imageData = await this.getTestImageByKeyword(keyword);
     
     // Fetch the image data
-    const response = await fetch(imageData.url);
+    const response = await fetch(imageData.url, {
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
     const blob = await response.blob();
     
     // Create a File object

@@ -94,6 +94,10 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Click "Sign In" button
 - [ ] Verify successful login
 - [ ] Check redirect to appropriate page
+- [ ] Open a protected route directly when logged out → redirected to Sign In
+- [ ] Open a protected route as regular user → access denied (no data leak)
+- [ ] Session expiry prompts re-auth and clears sensitive UI state
+- [ ] “Remember me” persists session across browser restarts (if supported)
 
 #### **✅ Login Validation Test**
 - [ ] Try login with invalid email
@@ -127,6 +131,9 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Verify admin dashboard loads
 - [ ] Check admin navigation menu
 - [ ] Verify admin-only content
+- [ ] Non-admin user cannot access admin URLs (403/redirect)
+- [ ] Role downgrade during session revokes access on next navigation
+- [ ] No admin data renders prior to authZ check (no flash-of-protected-content)
 
 #### **✅ Admin Navigation Test**
 - [ ] Test all admin menu items
@@ -140,9 +147,7 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Test analytics data display
 - [ ] Test system settings
 - [ ] Verify admin-only actions work
-- [ ] Check data tables and charts
-
-### **6. ERROR HANDLING TESTING**
+- [ ] Check data tables and charts### **6. ERROR HANDLING TESTING**
 
 #### **✅ Network Error Test**
 - [ ] Disconnect internet connection
@@ -160,11 +165,6 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 
 #### **✅ Form Error Test**
 - [ ] Submit forms with invalid data
-- [ ] Verify validation error messages
-- [ ] Check error message positioning
-- [ ] Verify error message styling
-- [ ] Test error message dismissal
-
 ### **7. PERFORMANCE TESTING**
 
 #### **✅ Page Load Performance**
@@ -173,6 +173,8 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Measure admin dashboard load time
 - [ ] Check for slow loading elements
 - [ ] Verify loading indicators work
+- [ ] Lighthouse/DevTools with CPU 4× slow, Network Fast 3G
+- [ ] LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 on key pages
 
 #### **✅ Image Upload Performance**
 - [ ] Upload large image files
@@ -186,8 +188,6 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Measure generation time
 - [ ] Check generation progress
 - [ ] Verify UI remains responsive
-- [ ] Test multiple generation requests
-
 ### **8. ACCESSIBILITY TESTING**
 
 #### **✅ Keyboard Navigation**
@@ -196,6 +196,8 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Check focus indicators are visible
 - [ ] Test keyboard shortcuts
 - [ ] Verify form submission with Enter key
+- [ ] Visible skip link works and is focusable
+- [ ] No keyboard traps; modals trap focus and restore on close
 
 #### **✅ Screen Reader Test**
 - [ ] Use browser screen reader
@@ -203,9 +205,19 @@ Since TestSprite credits are exhausted, here's a comprehensive **manual frontend
 - [ ] Check form labels are announced
 - [ ] Verify button purposes are clear
 - [ ] Test navigation announcements
+- [ ] Live regions (aria-live) announce async updates (upload/progress)
+- [ ] Headings follow a logical hierarchy (h1 → h2 → h3)
+- [ ] Landmarks present (header, nav, main, footer)
 
 #### **✅ Visual Accessibility**
 - [ ] Check color contrast ratios
+- [ ] Verify text is readable
+- [ ] Check font sizes are adequate
+- [ ] Verify important information isn't color-only
+- [ ] Test with high contrast mode
+- [ ] Contrast meets WCAG 2.2 AA (4.5:1 text, 3:1 large text, focus ≥ 3:1)
+- [ ] Respects prefers-reduced-motion and prefers-contrast
+- [ ] Language attribute set; directionality handled if RTL is supported- [ ] Check color contrast ratios
 - [ ] Verify text is readable
 - [ ] Check font sizes are adequate
 - [ ] Verify important information isn't color-only

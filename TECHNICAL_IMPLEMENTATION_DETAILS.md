@@ -532,10 +532,19 @@ const validateImageFile = (file: File): boolean => {
 ### 2. URL Sanitization
 ```typescript
 const sanitizeImageUrl = (url: string): string => {
-  // Remove any potentially dangerous characters
-  return url.replace(/[<>'"]/g, '');
-};
-```
+  try {
+    const parsed = new URL(url);
+    // Only allow specific protocols
+    if (!['http:', 'https:', 'blob:', 'data:'].includes(parsed.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+    // Return the validated URL string
+    return parsed.toString();
+  } catch {
+    // Return empty string or throw error for invalid URLs
+    throw new Error('Invalid URL format');
+  }
+};```
 
 ## Conclusion
 

@@ -26,9 +26,8 @@ When an admin logs in, the system automatically:
 1. **Finds Admin Account**: Locates user in `adminusers` collection
 2. **Checks Regular Account**: Looks for matching account in `users` collection
 3. **Creates if Missing**: Automatically creates regular user account if none exists
-4. **Links Accounts**: Both accounts share the same email and password
-
-### **2. Authentication Flow**
+4. **Link Accounts**: Associate admin and user records via a stable identifier (e.g., userId/email).
+   Credentials are stored once (preferably in a single auth store or via OAuth), not duplicated across collections.### **2. Authentication Flow**
 ```
 Admin Login → Check adminusers → Check users → Create if needed → Dual Mode Ready
 ```
@@ -58,6 +57,7 @@ users (Regular User Account)
 ```
 
 ### **Authentication Providers**
+### **Authentication Providers**
 1. **`admin-credentials`**: Admin users with `isAdmin: true`
 2. **`tier-credentials`**: Tier users (non-admin users in adminusers)
 3. **`credentials`**: Regular users in users collection
@@ -65,7 +65,7 @@ users (Regular User Account)
 ### **Context Management**
 - **AdminModeProvider**: Manages dual-mode state across the app
 - **useAdminMode Hook**: Provides mode switching functions
-- **Session Updates**: Updates NextAuth session during mode switches
+- **Session Updates**: Server updates signed session/JWT on mode switches; middleware re-validates mode and roles on each request.- **Session Updates**: Updates NextAuth session during mode switches
 
 ## 🎮 **User Interface**
 
@@ -203,6 +203,11 @@ node scripts/test-admin-dual-mode.js
 - **User Mode**: Regular user permissions only
 - **Mode Validation**: Server-side verification of current mode
 - **Session Security**: Secure mode switching without exposure
+- **Step-up Authentication**: Re-prompt MFA when switching to Admin Mode or after inactivity (e.g., 15 min).
+- **CSRF Protection**: Mode switch endpoint is POST-only with CSRF token.
+- **Session Rotation**: Rotate session/JWT on each switch; invalidate prior tokens.
+- **Revocation**: Immediate logout on admin password/MFA reset.
+- **Audit Logging**: Record who switched modes, when, IP, user-agent, and context. Emit to SIEM.
 
 ### **Data Protection**
 - **Collection Separation**: Admin and user data properly isolated
@@ -212,9 +217,7 @@ node scripts/test-admin-dual-mode.js
 ### **Authentication Security**
 - **Multi-Provider System**: Separate auth for different user types
 - **Session Management**: Secure JWT-based sessions
-- **Mode Persistence**: Mode state maintained across page refreshes
-
-## 🐛 **Troubleshooting**
+- **Mode Persistence**: Mode state maintained across page refreshes## 🐛 **Troubleshooting**
 
 ### **Common Issues**
 
@@ -268,20 +271,9 @@ node scripts/test-admin-dual-mode.js
 ### **Potential Improvements**
 - **Keyboard Shortcuts**: Hotkeys for mode switching
 - **Mode Indicators**: Visual cues throughout the interface
-- **Smart Switching**: Automatic mode detection based on context
-- **Bulk Operations**: Mode switching for multiple users
-
 ## 📚 **API Reference**
 
-### **Context Hook**
-```typescript
-useAdminMode(): {
-  isAdminMode: boolean;
-  currentMode: 'admin' | 'user';
-  switchToUserMode: () => Promise<void>;
-  switchToAdminMode: () => Promise<void>;
-  canBrowseAsUser: boolean;
-  hasRegularUserAccount: boolean;
+### **Context Hook**  hasRegularUserAccount: boolean;
 }
 ```
 

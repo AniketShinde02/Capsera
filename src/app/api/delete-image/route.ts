@@ -24,7 +24,7 @@ export async function DELETE(req: Request) {
     }
 
     // Archive the image instead of deleting it
-    const archiveResult = await archiveCloudinaryImage(publicId, userId);
+    const archiveResult = await archiveCloudinaryImage(publicId, userId, 'image');
 
     if (archiveResult.success) {
       console.log(`✅ Image archived successfully: ${archiveResult.archivedId}`);

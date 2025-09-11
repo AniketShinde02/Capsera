@@ -13,9 +13,7 @@
 3. **Copy These Values**:
    - **Cloud Name** (e.g., `myapp123`)
    - **API Key** (e.g., `123456789012345`)
-   - **API Secret** (e.g., `abcdefghijklmnopqrstuvwxyz`)
-
-### **Step 3: Update Your Environment Variables**
+   - **API Secret** (e.g., `abcdefghijklmnopqrstuvwxyz`) — keep this server-side only. Never expose it to the browser or logs.### **Step 3: Update Your Environment Variables**
 
 #### **Option A: .env.local file**
 ```bash

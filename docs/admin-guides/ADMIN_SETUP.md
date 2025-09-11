@@ -39,26 +39,6 @@ npm run setup-admin
 ## 🔧 **Manual Setup (Advanced)**
 
 ### **Step 1: Initialize the System**
-```bash
-# Make a POST request to initialize roles
-curl -X POST http://localhost:9002/api/admin/setup \
-  -H "Content-Type: application/json" \
-  -d '{"action": "initialize"}'
-```
-
-### **Step 2: Create Admin User**
-```bash
-# Make a POST request to create admin user
-curl -X POST http://localhost:9002/api/admin/setup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action": "create-admin",
-    "email": "admin@example.com",
-    "password": "securepassword123",
-    "username": "admin"
-  }'
-```
-
 ---
 
 ## 🎯 **Accessing the Admin Panel**
@@ -97,18 +77,18 @@ curl -X POST http://localhost:9002/api/admin/setup \
 
 #### **"Access denied" Error**
 - Ensure you're logged in with an admin account
-- Check if the admin system has been initialized
-- Verify your user has the correct role assigned
+## 🔐 **Security Features**
 
-#### **"Role not found" Error**
-- Run the initialization step first
-- Check if the roles collection exists in MongoDB
-- Verify the database connection
+### **Role-Based Access Control**
+- Users can only access features they have permission for
+- Permissions are granular (create, read, update, delete, manage)
+- System roles cannot be deleted or modified
 
-#### **Setup Script Fails**
-- Ensure MongoDB is running and accessible
-- Check your `MONGODB_URI` environment variable
-- Verify you have the required dependencies installed
+### **Admin Authentication**
+- Admin users must have valid credentials
+- Authentication: httpOnly, Secure, SameSite=Lax cookie session.
+- Token format: signed session ID (or JWT) stored in the cookie. No tokens in localStorage.
+- Automatic logout on inactivity
 
 ### **Reset Admin System**
 ```bash
@@ -173,16 +153,7 @@ db.users.updateOne(
 ## 📞 **Support**
 
 If you encounter issues:
-1. Check the browser console for errors
-2. Check the server logs for detailed error messages
-3. Verify your MongoDB connection and permissions
-4. Ensure all environment variables are set correctly
-
----
-
-## 🎉 **Success!**
-
-Once setup is complete, you'll have:
+### **Change Admin Password**Once setup is complete, you'll have:
 - ✅ A fully functional admin system
 - ✅ Role-based access control
 - ✅ User management capabilities
@@ -521,6 +492,12 @@ if (isAdminPage || isSetupPage || isLoginPage) {
 ```
 
 ### **✅ RESULT:**
+- **Main page**: ✅ Has header and footer with navigation
+- **Admin pages**: ✅ No global header/footer (clean admin interface)
+- **No more missing navigation** on the main page
+- **Proper separation** between public and admin interfaces
+
+The main page now displays correctly with the full header and footer, while admin pages maintain their clean, focused interface without the global navigation elements! 🚀### **✅ RESULT:**
 - **Main page**: ✅ Has header and footer with navigation
 - **Admin pages**: ✅ No global header/footer (clean admin interface)
 - **No more missing navigation** on the main page

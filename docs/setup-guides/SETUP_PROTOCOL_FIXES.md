@@ -64,12 +64,7 @@ npm run generate-token
 ```
 
 ### Step 3: Update Environment
-Add the generated token to your `.env` file:
-```env
-ADMIN_SETUP_TOKEN=admin-me6pq9jc-34d1b359
-```
-
-### Step 4: Restart Server
+Add the generated token to your `.env` file:### Step 4: Restart Server
 ```bash
 npm run dev
 ```

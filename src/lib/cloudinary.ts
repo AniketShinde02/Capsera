@@ -22,7 +22,7 @@ export async function uploadWithRetry(file: File, options: any = {}, maxRetries:
       
       // Upload with timeout
       const uploadPromise = cloudinary.uploader.upload(dataUri, {
-        resource_type: 'auto',
+        resource_type: 'image',
         folder: 'capsera_uploads',
         use_filename: true,
         unique_filename: true,
@@ -80,7 +80,7 @@ export async function deleteCloudinaryImage(publicId: string) {
 }
 
 // NEW: Archive image instead of deleting
-export async function archiveCloudinaryImage(publicId: string, userId?: string): Promise<{ success: boolean; archivedId?: string; error?: string }> {
+export async function archiveCloudinaryImage(publicId: string, userId?: string, resourceType: string = 'auto'): Promise<{ success: boolean; archivedId?: string; error?: string }> {
   try {
     if (!publicId || typeof publicId !== 'string') {
       return { success: false, error: 'Invalid public ID' };
@@ -94,20 +94,36 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string):
       ? `capsera_archives/${userId}/${timestamp}_${publicId.split('/').pop()}`
       : `capsera_archives/unknown_users/${timestamp}_${publicId.split('/').pop()}`;
 
-    // Copy image to archive folder with enhanced error handling
-    const copyResult = await cloudinary.uploader.rename(publicId, archivePath, {
-      invalidate: true,
-      resource_type: 'image'
+    // First, get the original image details to create a copy
+    let originalImage;
+    try {
+      originalImage = await cloudinary.api.resource(publicId, {
+        resource_type: resourceType
+      });
+    } catch (resourceError: any) {
+      console.error(`❌ Failed to get original image details: ${publicId}`, resourceError.message);
+      return { success: false, error: 'Failed to retrieve original image for archiving' };
+    }
+
+    // Create a copy by uploading the original image URL to the archive folder
+    const copyResult = await cloudinary.uploader.upload(originalImage.secure_url, {
+      resource_type: resourceType as 'image' | 'video' | 'raw' | 'auto',
+      folder: archivePath.split('/').slice(0, -1).join('/'),
+      public_id: archivePath.split('/').pop(),
+      use_filename: false,
+      unique_filename: false,
+      overwrite: true,
+      invalidate: true
     });
     
     if (copyResult && copyResult.public_id) {
-      console.log(`✅ Image archived successfully: ${copyResult.public_id}`);
+      console.log(`✅ Image copied to archive successfully: ${copyResult.public_id}`);
       
-      // Delete the original image after successful archiving
+      // Delete the original image after successful copying
       try {
         const deleteResult = await cloudinary.uploader.destroy(publicId, {
           invalidate: true,
-          resource_type: 'image'
+          resource_type: resourceType
         });
         
         if (deleteResult.result === 'ok' || deleteResult.result === 'not found') {

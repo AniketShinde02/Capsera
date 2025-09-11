@@ -479,37 +479,42 @@ const generateCaptionsFlow = ai.defineFlow(
      console.log('📝 Caption lengths:', captions.map(c => String(c).length));
 
     if (captions.length > 0) {
-        try {
-            await dbConnect();
-            const client = await clientPromise;
-            const db = client.db();
-            const postsCollection = db.collection('posts');
-            
-            console.log('💾 Saving caption set to database...');
-            
-            // Create a single document with all captions
-            const postToInsert = {
-              captions: captions, // Store all captions in array
-              image: input.imageUrl,
-              mood: input.mood,
-              description: input.description || null,
-              createdAt: new Date(),
-              ...(input.userId && { user: new Types.ObjectId(input.userId) }),
-            };
-            
-            const result = await postsCollection.insertOne(postToInsert);
+        // Only save posts to database for authenticated users
+        if (input.userId) {
+            try {
+                await dbConnect();
+                const client = await clientPromise;
+                const db = client.db();
+                const postsCollection = db.collection('posts');
+                
+                console.log('💾 Saving caption set to database for authenticated user...');
+                
+                // Create a single document with all captions
+                const postToInsert = {
+                  captions: captions, // Store all captions in array
+                  image: input.imageUrl,
+                  mood: input.mood,
+                  description: input.description || null,
+                  createdAt: new Date(),
+                  user: new Types.ObjectId(input.userId),
+                };
+                
+                const result = await postsCollection.insertOne(postToInsert);
 
-            if (!result.insertedId) {
-                 throw new Error('Failed to insert caption set to database.');
+                if (!result.insertedId) {
+                     throw new Error('Failed to insert caption set to database.');
+                }
+
+                console.log(`✅ Caption set saved successfully with ID: ${result.insertedId}`);
+                console.log(`📊 Saved ${captions.length} captions in single document`);
+            } catch (error) {
+                console.error('CRITICAL: Failed to save caption set to database', error);
+                // Re-throw the error to be caught by the client-side fetch.
+                // This ensures the user is notified of the failure.
+                throw new Error('Failed to save captions to the database.');
             }
-
-            console.log(`✅ Caption set saved successfully with ID: ${result.insertedId}`);
-            console.log(`📊 Saved ${captions.length} captions in single document`);
-        } catch (error) {
-            console.error('CRITICAL: Failed to save caption set to database', error);
-            // Re-throw the error to be caught by the client-side fetch.
-            // This ensures the user is notified of the failure.
-            throw new Error('Failed to save captions to the database.');
+        } else {
+            console.log('👤 Anonymous user - captions generated but not saved to database (privacy protection)');
         }
     }
     

@@ -239,10 +239,42 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Fix font MIME type issues
+      // WOFF fonts
       {
-        source: '/_next/static/media/(.*)',
+        source: '/_next/static/media/(.*)\\.(woff|woff2)',
         headers: [
+          {
+            key: 'Content-Type',
+            value: 'font/woff',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // TTF/OTF fonts
+      {
+        source: '/_next/static/media/(.*)\\.(ttf|otf)',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'font/ttf',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // EOT fonts (legacy IE support)
+      {
+        source: '/_next/static/media/(.*)\\.eot',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/vnd.ms-fontobject',
+          },
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
@@ -264,7 +296,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/:path*.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)',
+        source: '/:path*.(png|jpg|jpeg|gif|ico|svg)',
         headers: [
           {
             key: 'Cache-Control',

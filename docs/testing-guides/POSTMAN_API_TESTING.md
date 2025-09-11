@@ -3,13 +3,13 @@
 This guide shows step-by-step how to test the important server APIs for Capsera locally using Postman. It covers request setup, expected responses, Postman Tests (scripts), and diagrams to illustrate flows. Where an animation would help, I explain what to record and where to store it (eg. `docs/assets/`).
 
 ## Prerequisites
-- A working local dev environment with the app running at `http://localhost:3000` (run `npm run dev`).
+- A working local dev environment with the app running at `{{BASE_URL}}` (run `npm run dev`).
 - Environment variables set (Cloudinary keys, DB connection, etc.) when required by the API.
 - Postman installed (or use Postman web). Prefer Postman v10+.
 - A small test image available in the repo at `public/favicon-16x16.png` (used in examples).
 
 ## Quick checklist
-- [ ] Start the Next dev server: `npm run dev` and confirm `http://localhost:3000` is reachable.
+- [ ] Start the Next dev server: `npm run dev` and confirm `{{BASE_URL}}` is reachable.
 - [ ] Open Postman and create a new Collection named `Capsera - Local`.
 - [ ] Add the requests below to the collection and paste the Test scripts provided.
 - [ ] Run each request one-by-one and verify the response JSON and Postman Tests pass.
@@ -32,12 +32,11 @@ Each request below explains the configuration, examples, and Postman Tests to as
 ---
 
 ## Global Postman settings
-- In the Collection, set a variable `baseUrl` with value `http://localhost:3000`.
-- Optionally add an `authToken` variable for endpoints requiring authentication (you can copy NextAuth cookies or a bearer token if available).
+- In the Collection, set a variable `baseUrl` with value `{{BASE_URL}}`.
+- Add `authToken` (Bearer) and, if applicable, `maintenanceSecret` collection variables. Prefer tokens over copying browser cookies.
+- Security note: never hardcode real secrets in requests or commit exported collections containing tokens/cookies. Use Postman environments and exclude `*.postman_collection.json` from commits unless scrubbed.
 
-Use `{{baseUrl}}/api/upload` in request URLs.
-
----
+Use `{{baseUrl}}/api/upload` in request URLs.---
 
 ## 1 - Health / Root
 - Method: GET
@@ -84,7 +83,7 @@ sequenceDiagram
 
 Example body to disable maintenance:
 ```json
-{ "enabled": false, "secret": "<your-emergency-token-if-configured>" }
+{ "enabled": false, "secret": "{{MAINTENANCE_SECRET}}" }
 ```
 
 Postman Tests:
@@ -136,20 +135,7 @@ pm.test("Has message property", () => {
 ```
 
 Diagram (happy path):
-
-```mermaid
-sequenceDiagram
-  User->>Client: Select file
-  Client->>Server: POST /api/upload (multipart file)
-  Server->>Cloudinary: Upload base64 data
-  Cloudinary-->>Server: { secure_url, public_id }
-  Server-->>Client: { success: true, url, publicId }
-```
-
-Recording suggestion (animation):
-- Record selecting a file in Postman form-data and pressing Send, capturing the 200 JSON response. Save as `docs/assets/upload-happy.gif`.
-
----
+Diagram (happy path):
 
 ## 5 - Rate Limit Info
 - Method: GET
@@ -183,24 +169,16 @@ Postman Tests:
 pm.test('Status 200 or 401', () => pm.expect(pm.response.code).to.be.oneOf([200,401]));
 if (pm.response.code === 200) {
   const j = pm.response.json();
-  pm.test('Has stats property', () => pm.expect(j).to.have.property('stats'));
-}
-```
+## 6 - Admin Dashboard Stats (requires admin permissions)
+- Method: GET
+- URL: `{{baseUrl}}/api/admin/dashboard-stats`
 
-Diagram (sequence):
+Notes about auth:
+- This endpoint requires a user session that can manage admins. In Postman you can either:
+  - Prefer an API token or Bearer approach: set `Authorization: Bearer <token>` header.
+  - Avoid copying browser cookies into Postman; if you must for local-only testing, never record or commit them.
 
-```mermaid
-sequenceDiagram
-  Admin->>Server: GET /api/admin/dashboard-stats (with session cookie)
-  Server->>DB: Read collections, counts
-  Server-->>Admin: { success: true, stats }
-```
-
----
-
-## 7 - Generate Captions (AI flow)
-- Method: POST
-- URL: `{{baseUrl}}/api/generate-captions`
+Postman Tests:- URL: `{{baseUrl}}/api/generate-captions`
 - Body: raw JSON
 
 Example body (after successful upload):
@@ -296,19 +274,17 @@ Suggested place to reference them in docs:
 ## Troubleshooting & common pitfalls
 - 400 "No file uploaded" even when Postman shows a file: Open Postman Console (View → Show Postman Console) and verify the request payload is multipart/form-data and includes a `Content-Disposition: form-data; name="file"; filename="..."` section.
 - 413 File too large: Some proxies (or local limits) can block >10MB uploads. Confirm the dev server is configured to accept 10MB.
-- Non-JSON responses: If an upstream service (Cloudinary, AI) returns non-JSON or an error with an HTML body, the API will still wrap or return JSON; if not, check server logs for raw error message.
-- Auth-protected endpoints: When testing endpoints requiring a session, either copy browser cookies into Postman or use a test API token if your app supports one.
+## Diagrams and animations guidance
+- Diagrams included above use Mermaid. Postman markdown viewer doesn't render Mermaid by default; place the mermaid code into a separate file or use an online mermaid renderer for prettier diagrams.
+- Record short animated GIFs for these actions and save them under the repo `docs/assets/` (ensure all tokens, cookies, request IDs, and secrets are redacted/blurred):
+  - `maintenance-toggle.gif` — toggling maintenance POST
+  - `upload-happy.gif` — Upload file with `file` and show 200 JSON response
+  - `upload-error-missing.gif` — Send empty form-data and show 400
+  - `generate-captions.gif` — Run caption generation and show responses
 
----
-
-## Final checklist before reporting "upload bug fixed"
-- [ ] Verified `/api/upload` returns 200 + JSON when Postman `file` is set.
-- [ ] Verified `/api/upload` returns 200 when `image` is used (backwards compat).
-- [ ] Verified client successfully parses response and no JSON.parse errors appear in browser console.
-- [ ] Verified error responses are JSON for 400/413/500.
-
----
-
+How to record:
+- Use a tool like ShareX or Peek/GIF-cap in Linux, or the built-in Windows Game Bar > Capture, then convert to GIF.
+- Keep captures short (2–6s), crop to the Postman window, and compress with gifsicle if file size is large.
 If you want, I can:
 - Create the Postman Collection JSON and add it to `docs/assets/postman_collection.json` so you can import it directly.
 - Record and add the short GIFs to `docs/assets/` and reference them in this document.

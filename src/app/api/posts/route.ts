@@ -6,9 +6,17 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 export async function GET(req: Request) {
+  console.log('🔍 /api/posts GET called');
   const session = await getServerSession(authOptions);
+  console.log('🔍 Session in /api/posts:', {
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    userId: session?.user?.id,
+    userEmail: session?.user?.email
+  });
 
   if (!session?.user?.id) {
+    console.log('❌ /api/posts: No session or user ID');
     return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
   }
 

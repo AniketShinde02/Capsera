@@ -55,7 +55,7 @@ export async function DELETE(
         // Extract public ID from Cloudinary URL
         const publicId = extractCloudinaryPublicId(post.image);
         if (publicId) {
-          const archiveResult = await archiveCloudinaryImage(publicId, session.user.id);
+          const archiveResult = await archiveCloudinaryImage(publicId, session.user.id, 'image');
           archiveStatus = archiveResult.success ? 'success' : 'failed';
         } else {
           archiveStatus = 'failed';

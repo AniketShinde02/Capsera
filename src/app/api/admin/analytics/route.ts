@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     
     // Check if user can manage admins
-    const canManage = await canManageAdmins(session?.user?.id || '');
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 401 });
+    }
+    const canManage = await canManageAdmins(session.user.id);
     if (!canManage) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }

@@ -54,7 +54,11 @@
   - Used tokens
   - Admin-related collections
 
-### 2. **Enhanced Theme System**
+> ⚠️ WARNING: Irreversible operation. Intended for local/dev only.
+> The script should:
+> - Abort if `NODE_ENV === 'production'` or if `ALLOW_DESTRUCTIVE=1` is not set.
+> - Prompt for interactive confirmation (or require `--yes`).
+> - Create a timestamped backup when possible.### 2. **Enhanced Theme System**
 - **Added CSS variables** for sidebar theming
 - **Light theme**: Clean, professional look
 - **Dark theme**: Modern, easy-on-eyes interface

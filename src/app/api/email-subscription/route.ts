@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           
           <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px; text-align: center;">
             <p style="color: #999; font-size: 12px;">
-              © 2024 Capsera. All rights reserved.
+              © {new Date().getFullYear()} Capsera. All rights reserved.
             </p>
           </div>
         </div>

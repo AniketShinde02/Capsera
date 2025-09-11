@@ -33,6 +33,26 @@ export default function CookieConsent() {
     functional: false,
   });
 
+  // Add debounce state to prevent rapid-fire tracking
+  const [lastTrackedAction, setLastTrackedAction] = useState<string | null>(null);
+  const [lastTrackedTime, setLastTrackedTime] = useState<number>(0);
+
+  // Debounced tracking function to prevent rapid-fire events
+  const debouncedTrackUserAction = (action: string) => {
+    const now = Date.now();
+    const timeSinceLastTrack = now - lastTrackedTime;
+    
+    // Prevent tracking the same action within 2 seconds
+    if (lastTrackedAction === action && timeSinceLastTrack < 2000) {
+      console.log('🚫 Debounced duplicate tracking:', action);
+      return;
+    }
+    
+    setLastTrackedAction(action);
+    setLastTrackedTime(now);
+    trackUserAction(action);
+  };
+
   useEffect(() => {
     // Check if user has already made a choice
     const consent = getCookieConsent();
@@ -82,7 +102,7 @@ export default function CookieConsent() {
     console.log('📊 Initializing analytics...');
     
     // Track that user accepted analytics
-    trackUserAction('cookie_consent_analytics_accepted');
+    debouncedTrackUserAction('cookie_consent_analytics_accepted');
   };
 
   const initializeMarketingPixels = () => {
@@ -91,7 +111,7 @@ export default function CookieConsent() {
     console.log('📢 Initializing marketing pixels...');
     
     // Track that user accepted marketing cookies
-    trackUserAction('cookie_consent_marketing_accepted');
+    debouncedTrackUserAction('cookie_consent_marketing_accepted');
   };
 
   const acceptAll = () => {
@@ -110,7 +130,7 @@ export default function CookieConsent() {
     applyPreferences(allAccepted);
     
     // Track the action
-    trackUserAction('cookie_consent_all_accepted');
+    debouncedTrackUserAction('cookie_consent_all_accepted');
   };
 
   const acceptNecessary = () => {
@@ -129,7 +149,7 @@ export default function CookieConsent() {
     applyPreferences(necessaryOnly);
     
     // Track the action
-    trackUserAction('cookie_consent_necessary_only_accepted');
+    debouncedTrackUserAction('cookie_consent_necessary_only_accepted');
   };
 
   const saveCustomPreferences = () => {

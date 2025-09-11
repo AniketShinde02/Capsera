@@ -18,14 +18,12 @@ export interface IDataRecoveryRequest extends Document {
 const DataRecoveryRequestSchema: Schema = new Schema({
   userId: {
     type: String,
-    required: true,
-    index: true,
+    required: true
   },
   userEmail: {
     type: String,
     required: true,
-    lowercase: true,
-    index: true,
+    lowercase: true
   },
   reason: {
     type: String,
@@ -52,8 +50,7 @@ const DataRecoveryRequestSchema: Schema = new Schema({
     type: String,
     required: true,
     enum: ['pending', 'approved', 'rejected', 'completed'],
-    default: 'pending',
-    index: true,
+    default: 'pending'
   },
   adminNotes: {
     type: String,

@@ -38,9 +38,7 @@ Comprehensive backend testing to identify and fix critical flaws, bugs, and vuln
 - **Test**: GET /api/user (with/without token)
 - **Purpose**: Test session validation and user data retrieval
 - **Expected**: Proper token validation, user data return
-- **Check**: JWT verification, database queries, error responses
-
-### **DATABASE OPERATION TESTS**
+- **Check**: JWT verification (alg enforcement, aud/iss), clock skew on exp/nbf, revoked/blacklisted tokens, replayed JTI, rotated signing keys (JWKS cache TTL), logout flows and token invalidation### **DATABASE OPERATION TESTS**
 
 #### **DB-001: Database Connection**
 - **Test**: All endpoints requiring database access
@@ -59,6 +57,8 @@ Comprehensive backend testing to identify and fix critical flaws, bugs, and vuln
 - **Purpose**: Test admin user management operations
 - **Expected**: Proper admin operations with access control
 - **Check**: Authorization, data integrity, audit logging
+
+### **API ENDPOINT TESTS**
 
 ### **API ENDPOINT TESTS**
 
@@ -84,8 +84,8 @@ Comprehensive backend testing to identify and fix critical flaws, bugs, and vuln
 - **Test**: DELETE /api/delete-image
 - **Purpose**: Test image deletion/archival
 - **Expected**: Successful image removal
-- **Check**: Cloudinary operations, data cleanup, error handling
-
+- **Check**: Ownership/authorization checks (no IDOR), Cloudinary deletion by public_id with signature validation, idempotent delete (delete twice returns 204/404 consistently), audit logging, soft-delete vs hard-delete policy, eventual consistency handling#### **API-005: Object Access Control (IDOR)**
+- **Test**: Access/modify resources by changing IDs (e.g., `/api/user/{otherId}`, foreign `public_id`)
 ### **SECURITY TESTS**
 
 #### **SEC-001: SQL Injection Prevention**
@@ -112,6 +112,19 @@ Comprehensive backend testing to identify and fix critical flaws, bugs, and vuln
 - **Expected**: Proper access control
 - **Check**: Token validation, role enforcement
 
+#### **SEC-005: CORS Configuration**
+- **Test**: Preflight and credentialed requests from disallowed origins
+- **Expected**: Strict allowed-origins; no wildcard with credentials
+- **Check**: Access-Control-* headers, vary caching
+
+#### **SEC-006: Secrets Management**
+- **Test**: No secrets in repo/logs; least-privileged API keys
+- **Check**: Env-only secrets, rotation, scope, audit
+
+#### **SEC-007: SSRF/Remote Fetch Protections**
+- **Test**: Block internal IP/metadata endpoints via remote image fetch
+- **Check**: URL allowlist/denylist, DNS rebinding guard, no 0.0.0.0/169.254.169.254 access- **Check**: Token validation, role enforcement
+
 ### **ERROR HANDLING TESTS**
 
 #### **ERR-001: Database Connection Errors**
@@ -125,29 +138,25 @@ Comprehensive backend testing to identify and fix critical flaws, bugs, and vuln
 - **Purpose**: Test rate limit error handling
 - **Expected**: Proper error messages
 - **Check**: Error responses, quota information
-
-#### **ERR-003: Invalid Input Handling**
-- **Test**: Invalid data in all endpoints
-- **Purpose**: Test input validation
-- **Expected**: Proper validation errors
-- **Check**: Error messages, input sanitization
-
-#### **ERR-004: External Service Failures**
-- **Test**: Cloudinary/Gemini API failures
-- **Purpose**: Test external service error handling
-- **Expected**: Graceful degradation
-- **Check**: Error handling, retry logic, fallback behavior
-
 ### **PERFORMANCE TESTS**
 
 #### **PERF-001: Concurrent Requests**
 - **Test**: Multiple simultaneous requests
 - **Purpose**: Test system under load
 - **Expected**: Proper handling of concurrent requests
-- **Check**: Response times, error rates, resource usage
+- **Check**: p95 < 300ms (API) / p99 < 800ms, <1% 5xx, memory < 512MB per instance under N RPS, CPU < 70%, no connection pool exhaustion, autoscaling behavior, cold start latency tracked
 
 #### **PERF-002: Large File Upload**
 - **Test**: Upload large image files
+- **Purpose**: Test file upload performance
+- **Expected**: Proper handling of large files
+- **Check**: Streamed upload (O(1) memory), max size enforced (e.g., 10MB), p95 upload time target, backpressure under slow clients, temp storage cleanup
+
+#### **PERF-003: Database Query Performance**
+- **Test**: Complex database queries
+- **Purpose**: Test query performance
+- **Expected**: Reasonable response times
+- **Check**: Query plans reviewed, necessary indexes present, cache hit ratio targets, N+1 detection, p95 < 200ms for common queries, timeouts set at client/driver levels- **Test**: Upload large image files
 - **Purpose**: Test file upload performance
 - **Expected**: Proper handling of large files
 - **Check**: Upload times, memory usage, error handling
@@ -171,25 +180,20 @@ Comprehensive backend testing to identify and fix critical flaws, bugs, and vuln
 3. Authorization enforcement
 
 ### **Phase 3: Error Handling Tests**
-1. Database error scenarios
-2. External service failures
-3. Invalid input handling
-
-### **Phase 4: Performance Tests**
-1. Concurrent request handling
-2. Large file processing
-3. Database query optimization
-
 ## 📊 **SUCCESS CRITERIA**
 
 ### **Critical Issues (Must Fix)**
-- ✅ Database connection stability
-- ✅ Authentication system functionality
-- ✅ Basic API endpoint responses
-- ✅ Security vulnerabilities
+- p0: 0 known Critical/High vulns (CVSS ≥ 7.0) in runtime deps
+- p0: No auth bypass / IDOR / NoSQL injection findings
+- p0: Health/readiness stable across 1h soak
 
 ### **High Priority Issues**
-- ✅ Error handling robustness
+- p1: Error model conformity ≥ 95% of responses on failures
+- p1: Rate limiting accurate across distributed nodes
+
+### **Medium Priority Issues**
+- p2: p95 latency < target; error rate < 1% under N RPS
+- p2: Resource usage within budget (CPU < 70%, Mem < 512MB/inst)- ✅ Error handling robustness
 - ✅ Input validation completeness
 - ✅ Rate limiting accuracy
 

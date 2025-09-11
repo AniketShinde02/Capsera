@@ -3,10 +3,18 @@ import { unsplashTestProvider } from '@/lib/test-image-provider';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const keyword = searchParams.get('keyword') || 'nature';
-    const count = parseInt(searchParams.get('count') || '1');
-    const type = searchParams.get('type') || 'single';
+    const { searchParams } = request.nextUrl;
+    const keyword = searchParams.get('keyword')?.trim() || 'nature';
+    const count = Math.min(10, Math.max(1, Number.parseInt(searchParams.get('count') ?? '1', 10) || 1));
+    const type = (searchParams.get('type') || 'single').toLowerCase();
+    // Validate type parameter
+    const validTypes = ['single', 'multiple', 'caption', 'file'];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid type parameter. Use: single, multiple, caption, or file'
+      }, { status: 400 });
+    }
 
     console.log(`🖼️ Test image request: keyword=${keyword}, count=${count}, type=${type}`);
 
@@ -54,22 +62,48 @@ export async function GET(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Test image API error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch test image',
-      message: error.message
-    }, { status: 500 });
+    
+    // Don't leak internal error details in production
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to fetch test image',
+        ...(process.env.NODE_ENV === 'development' ? { message: msg } : {})
+      },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { keyword, count = 1, type = 'single' } = body;
+    
+    // Validate request body
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid request body'
+      }, { status: 400 });
+    }
+    
+    const { keyword = 'nature', count = 1, type = 'single' } = body;
+    
+    // Validate parameters
+    const validTypes = ['single', 'multiple', 'caption'];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid type parameter. Use: single, multiple, or caption'
+      }, { status: 400 });
+    }
+    
+    const safeCount = Math.min(Math.max(parseInt(String(count)) || 1, 1), 10); // Between 1-10
 
-    console.log(`🖼️ Test image POST request: keyword=${keyword}, count=${count}, type=${type}`);
+    console.log(`🖼️ Test image POST request: keyword=${keyword}, count=${safeCount}, type=${type}`);
 
     // Same logic as GET but with POST body
     switch (type) {
@@ -81,7 +115,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'multiple':
-        const multipleImages = await unsplashTestProvider.getMultipleTestImages(count);
+        const multipleImages = await unsplashTestProvider.getMultipleTestImages(safeCount);
         return NextResponse.json({
           success: true,
           data: multipleImages,
@@ -102,12 +136,18 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Test image API error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch test image',
-      message: error.message
-    }, { status: 500 });
+    
+    // Don't leak internal error details in production
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to fetch test image',
+        ...(process.env.NODE_ENV === 'development' ? { message: msg } : {})
+      },
+      { status: 500 }
+    );
   }
 }

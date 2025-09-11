@@ -16,8 +16,7 @@ const CaptionCacheSchema = new Schema<ICaptionCache>({
   imageHash: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   prompt: {
     type: String,

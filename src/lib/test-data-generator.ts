@@ -212,19 +212,19 @@ export class TestDataGenerator {
   }
 }
 
-// Export test data constants
+// Export test data getters instead of precomputed fixtures
 export const TEST_DATA = {
-  USER_CREDENTIALS: TestDataGenerator.getTestUserCredentials(),
-  ADMIN_CREDENTIALS: TestDataGenerator.getTestAdminCredentials(),
-  IMAGE_DATA: TestDataGenerator.getTestImageData(),
-  CAPTION_REQUEST: TestDataGenerator.getTestCaptionRequest(),
-  UPLOAD_DATA: TestDataGenerator.getTestUploadData(),
-  RATE_LIMIT_DATA: TestDataGenerator.getTestRateLimitData(),
-  ANALYTICS_DATA: TestDataGenerator.getTestAnalyticsData(),
-  USER_DATA: TestDataGenerator.getTestUserData(),
-  ADMIN_DATA: TestDataGenerator.getTestAdminData(),
-  IMAGE_DELETION_DATA: TestDataGenerator.getTestImageDeletionData(),
-  ERROR_RESPONSES: TestDataGenerator.getTestErrorResponses(),
-  SUCCESS_RESPONSES: TestDataGenerator.getTestSuccessResponses(),
-  ENVIRONMENT_CONFIG: TestDataGenerator.getTestEnvironmentConfig()
+  get USER_CREDENTIALS() { return TestDataGenerator.getTestUserCredentials(); },
+  get ADMIN_CREDENTIALS() { return TestDataGenerator.getTestAdminCredentials(); },
+  get IMAGE_DATA() { return TestDataGenerator.getTestImageData(); },
+  get CAPTION_REQUEST() { return TestDataGenerator.getTestCaptionRequest(); },
+  get UPLOAD_DATA() { return TestDataGenerator.getTestUploadData(); },
+  get RATE_LIMIT_DATA() { return TestDataGenerator.getTestRateLimitData(); },
+  get ANALYTICS_DATA() { return TestDataGenerator.getTestAnalyticsData(); },
+  get USER_DATA() { return TestDataGenerator.getTestUserData(); },
+  get ADMIN_DATA() { return TestDataGenerator.getTestAdminData(); },
+  get IMAGE_DELETION_DATA() { return TestDataGenerator.getTestImageDeletionData(); },
+  get ERROR_RESPONSES() { return TestDataGenerator.getTestErrorResponses(); },
+  get SUCCESS_RESPONSES() { return TestDataGenerator.getTestSuccessResponses(); },
+  get ENVIRONMENT_CONFIG() { return TestDataGenerator.getTestEnvironmentConfig(); },
 };

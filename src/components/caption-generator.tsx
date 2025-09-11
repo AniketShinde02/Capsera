@@ -812,6 +812,11 @@ export function CaptionGenerator() {
           // For anonymous users, keep the object URL preview visible until archiving
           const currentPreview = imagePreview || objectUrl;
           console.log('👤 Anonymous user - keeping object URL preview visible:', currentPreview?.substring(0, 50) + '...');
+          
+          // Clear currentImageData since Cloudinary URL will be invalid after archiving
+          // But keep imagePreview (object URL) for display
+          setCurrentImageData(null);
+          setHasExplicitlyReset(false); // Keep image visible for anonymous users
         }
 
         // Track analytics if consent given
@@ -1065,20 +1070,30 @@ export function CaptionGenerator() {
 
   // Function to reset for generating another set of captions
   const handleGenerateAnother = () => {
-    // Clean up object URL if exists
-    if (objectUrl) {
-      URL.revokeObjectURL(objectUrl);
-      console.log('🧹 Cleaned up object URL in generate another:', objectUrl.substring(0, 50) + '...');
-    }
-    
     // Clear captions
     setCaptions([]);
     
-    // Clear image-related state since user wants to start fresh
-    setImagePreview(null);
-    setUploadedFile(null);
-    setCurrentImageData(null);
-    setObjectUrl(null);
+    // For anonymous users, keep the object URL preview visible until they upload a new image
+    // For authenticated users, reset everything
+    if (quotaInfo?.isAuthenticated) {
+      // Clean up object URL if exists
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        console.log('🧹 Cleaned up object URL in generate another:', objectUrl.substring(0, 50) + '...');
+      }
+      
+      // Clear image-related state since user wants to start fresh
+      setImagePreview(null);
+      setUploadedFile(null);
+      setCurrentImageData(null);
+      setObjectUrl(null);
+      setHasExplicitlyReset(true);
+    } else {
+      // Anonymous users: keep imagePreview and objectUrl visible
+      // Only reset when they actually upload a new image
+      setHasExplicitlyReset(false);
+      console.log('👤 Anonymous user - keeping image visible until new upload');
+    }
     
     // Reset form
     form.resetField('image');
@@ -1090,9 +1105,6 @@ export function CaptionGenerator() {
     if (fileInput) {
       fileInput.value = '';
     }
-    
-    // Set flag to show placeholder
-    setHasExplicitlyReset(true);
     
     // Reset states
     setUploadStage('idle');

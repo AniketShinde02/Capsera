@@ -155,7 +155,7 @@ function testWelcomeEmail() {
             
             <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
               CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-              © 2024 CaptionCraft. All rights reserved.
+              © 2025 CaptionCraft. All rights reserved.
             </p>
           </div>
           
@@ -267,7 +267,7 @@ function testPromotionalEmail() {
             
             <p style="margin: 16px 0 0 0; color: #9ca3af; font-size: 12px;">
               CaptionCraft - AI-Powered Caption Generation for Creators Worldwide<br>
-              © 2024 CaptionCraft. All rights reserved.
+              © 2025 CaptionCraft. All rights reserved.
             </p>
             
             <!-- Unsubscribe Section -->

@@ -105,7 +105,7 @@ export default function Footer() {
         {/* Bottom Section - Mobile First */}
         <div className="mt-6 sm:mt-8 border-t border-border/50 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground gap-4 sm:gap-0">
           <p className="text-center sm:text-left">
-                         © 2024 Capsera. All rights reserved.
+                         © 2025 Capsera. All rights reserved.
           </p>
           <div className="flex items-center gap-1 text-center">
             Made with <Heart className="w-4 h-4 text-red-500 fill-current" /> for creators worldwide

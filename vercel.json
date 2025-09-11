@@ -1,18 +1,15 @@
 {
   "functions": {
-    "app/api/upload/route.ts": {
+    "src/app/api/upload/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/generate-captions/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/delete-image/route.ts": {
+      "maxDuration": 15
     }
   },
-  "headers": [
-    {
-      "source": "/api/upload",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    }
-  ]
+  "regions": ["iad1"],
+  "framework": "nextjs"
 }

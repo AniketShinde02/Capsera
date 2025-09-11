@@ -217,8 +217,15 @@ export default function ProfilePage() {
             });
             
             if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                setProfileError(data.message || 'Failed to update profile.');
+                let errorMessage = 'Failed to update profile.';
+                try {
+                    const data = await response.json();
+                    errorMessage = data.message || errorMessage;
+                } catch (parseError) {
+                    console.error('Failed to parse error response:', parseError);
+                    errorMessage = `Server error (${response.status}). Please try again.`;
+                }
+                setProfileError(errorMessage);
             } else {
                 setProfileSuccess('Profile updated successfully!');
             }
@@ -866,28 +873,81 @@ export default function ProfilePage() {
                                                 <CardContent className="p-0">
                                                     {/* Image Section - Smaller on Mobile */}
                                                     <div className="relative overflow-hidden">
-                                                        {post.image && (
-                                                            <div className="relative h-32 sm:h-40 lg:h-48 xl:h-56 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20">
-                                                                <Image
-                                                                    src={post.image}
-                                                                    alt="Generated caption image"
-                                                                    fill
-                                                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                                                                />
-                                                                {/* Floating Mood Badge - Smaller on Mobile */}
-                                                                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3">
-                                                                    <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                        {post.mood || 'Unknown'}
-                                                                    </Badge>
+                                                        {(() => {
+                                                            // Debug logging
+                                                            if (post.image) {
+                                                            // Rendering image for post (removed debug logging for security)
+                                                            }
+                                                            
+                                                            return post.image ? (
+                                                                <div className="relative h-32 sm:h-40 lg:h-48 xl:h-56 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20">
+                                                                    {/* Loading skeleton */}
+                                                                    <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg">
+                                                                        <div className="w-full h-full flex items-center justify-center">
+                                                                            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <img
+                                                                        src={post.image}
+                                                                        alt="Generated caption image"
+                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                        loading="lazy"
+                                                                        decoding="async"
+                                                                        onError={(e) => {
+                                                                            console.error('❌ Image failed to load in caption history:', post.image);
+                                                                            // Hide the image and show a placeholder
+                                                                            const target = e.target as HTMLImageElement;
+                                                                            target.style.display = 'none';
+                                                                            // Show a fallback placeholder
+                                                                            const parent = target.parentElement;
+                                                                            if (parent) {
+                                                                                parent.innerHTML = `
+                                                                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                                                                        <div class="text-center p-4">
+                                                                                            <div class="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                                                                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                            <p class="text-xs text-gray-500 dark:text-gray-400">Image unavailable</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                `;
+                                                                            }
+                                                                        }}
+                                                                        onLoad={() => {
+                                                                            console.log('✅ Image loaded successfully in caption history:', post.image);
+                                                                            // Hide loading skeleton when image loads
+                                                                            const loadingSkeleton = document.querySelector('.animate-pulse') as HTMLElement;
+                                                                            if (loadingSkeleton) {
+                                                                                loadingSkeleton.style.display = 'none';
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    {/* Floating Mood Badge - Smaller on Mobile */}
+                                                                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3">
+                                                                        <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
+                                                                            {post.mood || 'Unknown'}
+                                                                        </Badge>
+                                                                    </div>
+                                                                    {/* Floating Date Badge - Smaller on Mobile */}
+                                                                    <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3">
+                                                                        <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
+                                                                            {format(new Date(post.createdAt), 'MMM dd')}
+                                                                        </Badge>
+                                                                    </div>
                                                                 </div>
-                                                                {/* Floating Date Badge - Smaller on Mobile */}
-                                                                <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3">
-                                                                    <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                        {format(new Date(post.createdAt), 'MMM dd')}
-                                                                    </Badge>
+                                                            ) : (
+                                                                <div className="relative h-32 sm:h-40 lg:h-48 xl:h-56 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center">
+                                                                    <div className="text-center p-4">
+                                                                        <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                                            <ImageIcon className="w-6 h-6 text-gray-500" />
+                                                                        </div>
+                                                                        <p className="text-xs text-gray-500 dark:text-gray-400">No image</p>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        )}
+                                                            );
+                                                        })()}
                                                     </div>
                                                     
                                                     {/* Caption Content - Compact Padding */}

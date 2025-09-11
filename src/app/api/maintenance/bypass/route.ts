@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const token = body?.token || new URL(request.url).searchParams.get('token');
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      // Continue with empty body - token might be in URL params
+    }
+    const token = (body as any)?.token || new URL(request.url).searchParams.get('token');
 
     const secret = process.env.MAINTENANCE_BYPASS_TOKEN;
     if (!secret) {

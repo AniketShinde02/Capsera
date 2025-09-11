@@ -17,7 +17,7 @@ self.addEventListener('message', async (ev) => {
     const bitmap: ImageBitmap = await createImageBitmap(file as Blob);
     let width = bitmap.width;
     let height = bitmap.height;
-    const maxDimension = 2048;
+    const maxDimension = 1920; // Reduced from 2048 for better compression
 
     if (width > maxDimension || height > maxDimension) {
       if (width > height) {
@@ -44,15 +44,15 @@ self.addEventListener('message', async (ev) => {
       blob = (await (canvas as any).convertToBlob({ type: 'image/jpeg', quality })) as Blob;
     }
 
-    // If still too big, shrink dimensions gradually
-    while ((blob as Blob).size > maxBytes && (width > 1024 || height > 1024)) {
-      width = Math.floor(width * 0.8);
-      height = Math.floor(height * 0.8);
+    // If still too big, shrink dimensions gradually (more aggressive for Vercel)
+    while ((blob as Blob).size > maxBytes && (width > 800 || height > 800)) {
+      width = Math.floor(width * 0.7); // More aggressive reduction
+      height = Math.floor(height * 0.7);
       canvas.width = width;
       canvas.height = height;
       const ctx2 = canvas.getContext('2d');
       ctx2?.drawImage(bitmap, 0, 0, width, height);
-      quality = 0.9;
+      quality = 0.8; // Start with lower quality
       blob = (await (canvas as any).convertToBlob({ type: 'image/jpeg', quality })) as Blob;
     }
 

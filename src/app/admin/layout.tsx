@@ -9,8 +9,7 @@ import { Toaster } from '@/components/ui/toaster';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminMaintenanceCheck from '@/components/admin-maintenance-check';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import '@/lib/dev-error-bypass'; // Import error bypass utility
-import '@/lib/runtime-error-bypass'; // Import runtime error bypass utility
+// Error bypass utilities removed - using proper error handling instead
 
 export default async function AdminLayout({
   children,
@@ -19,16 +18,10 @@ export default async function AdminLayout({
 }) {
   const session = await getServerSession(authOptions);
   
-  console.log('🔐 Admin layout - Session check:', { 
-    hasSession: !!session, 
-    userId: session?.user?.id, 
-    userRole: session?.user?.role,
-    userEmail: session?.user?.email 
-  });
+  // Session validation (removed debug logging for security)
   
   // If no session, redirect to setup page
   if (!session) {
-    console.log('❌ Admin layout - No session, redirecting to setup');
     redirect('/setup');
   }
   
@@ -36,15 +29,11 @@ export default async function AdminLayout({
   try {
     const hasAdminAccess = await canManageAdmins(session.user.id);
     if (!hasAdminAccess) {
-      console.log('❌ Admin layout - User does not have admin access, redirecting to unauthorized page');
       redirect('/unauthorized');
     }
   } catch (error) {
-    console.error('❌ Admin layout - Error checking admin access:', error);
     redirect('/unauthorized');
   }
-
-  console.log('✅ Admin layout - User has admin access, rendering admin interface');
 
   return (
     <ErrorBoundary>

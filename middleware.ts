@@ -12,7 +12,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Avoid applying middleware to static/assets and API routes
-  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname === '/favicon.ico') {
+  if (
+    pathname.startsWith('/api') || 
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/robots.txt') ||
+    pathname.startsWith('/sitemap.xml') ||
+    pathname.startsWith('/manifest.json') ||
+    pathname.match(/\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot)$/)
+  ) {
     return NextResponse.next();
   }
 
@@ -74,7 +82,18 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - robots.txt (robots file)
+     * - sitemap.xml (sitemap file)
+     * - manifest.json (web app manifest)
+     * - static files with extensions
+     */
+    '/((?!api|_next/static|_next/image|favicon|robots|sitemap|manifest|.*\\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot)$).*)',
   ],
 };
 

@@ -136,20 +136,42 @@
     @apply bg-gradient-to-r from-primary via-secondary to-accent text-transparent bg-clip-text;
   }
 
-  /* Custom animations for upload stages - Very Subtle & Professional */
+  /* Custom animations for upload stages - Subtle & Smooth */
   @keyframes upload-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.95; transform: scale(1.01); }
+    0%, 100% { 
+      opacity: 1; 
+      transform: scale(1); 
+      box-shadow: 0 0 0 rgba(59, 130, 246, 0.2);
+    }
+    50% { 
+      opacity: 0.9; 
+      transform: scale(1.02); 
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+    }
   }
 
   @keyframes processing-glow {
-    0%, 100% { box-shadow: 0 0 4px rgba(59, 130, 246, 0.15); }
-    50% { box-shadow: 0 0 8px rgba(59, 130, 246, 0.25); }
+    0%, 100% { 
+      box-shadow: 0 0 6px rgba(59, 130, 246, 0.2);
+      transform: scale(1);
+    }
+    50% { 
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+      transform: scale(1.01);
+    }
   }
 
   @keyframes generating-sparkle {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.9; transform: scale(1.02); }
+    0%, 100% { 
+      opacity: 1; 
+      transform: scale(1);
+      box-shadow: 0 0 0 rgba(168, 85, 247, 0.2);
+    }
+    50% { 
+      opacity: 0.8; 
+      transform: scale(1.03);
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.4);
+    }
   }
 
   @keyframes shake-limit {

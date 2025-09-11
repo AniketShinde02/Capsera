@@ -93,7 +93,7 @@ export default function SetupPage() {
   // Clear all messages when step changes
   useEffect(() => {
     console.log('🔄 Step changed to:', step);
-    console.log('🔍 Current verifiedOTPToken:', verifiedOTPToken);
+    // Current verifiedOTPToken (removed debug logging for security)
     
     // Don't clear messages when going to admin actions if OTP is already verified
     if (step === 'signup' || step === 'login') {
@@ -355,9 +355,7 @@ export default function SetupPage() {
 
   // OTP verification handler
   const handleOtpVerification = async () => {
-    console.log('🔍 Debug: Starting OTP verification...');
-    console.log('🔍 Debug: setupOTP =', setupOTP);
-    console.log('🔍 Debug: setupOTP.trim() =', setupOTP.trim());
+    // Starting OTP verification (removed debug logging for security)
     
     if (!setupOTP.trim()) {
       setError('Please enter the 6-digit OTP');
@@ -368,7 +366,7 @@ export default function SetupPage() {
       return;
     }
     
-    console.log('🔐 Attempting to verify OTP...');
+    // Attempting to verify OTP (removed debug logging for security)
     setIsVerifying(true);
     // Clear ALL message states to prevent conflicts
     setError('');
@@ -464,11 +462,7 @@ export default function SetupPage() {
 
   // Handle admin creation
   const handleCreateAdmin = async () => {
-    console.log('🔍 Debug: Starting admin creation...');
-    console.log('🔍 Debug: verifiedOTPToken =', verifiedOTPToken);
-    console.log('🔍 Debug: otpVerified =', otpVerified);
-    console.log('🔍 Debug: signupForm =', signupForm);
-    console.log('🔍 Debug: confirmPassword =', confirmPassword);
+    // Starting admin creation (removed debug logging for security)
     
     if (!signupForm.email || !signupForm.password || !signupForm.username) {
       console.log('❌ Validation failed: Missing fields');
@@ -491,7 +485,7 @@ export default function SetupPage() {
       return;
     }
 
-    console.log('🔐 Creating admin with verified token:', verifiedOTPToken);
+    // Creating admin with verified token (removed debug logging for security)
     setIsLoading(true);
     setError('');
     

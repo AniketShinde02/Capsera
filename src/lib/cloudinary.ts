@@ -7,6 +7,60 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Enhanced upload function with better error handling
+export async function uploadWithRetry(file: File, options: any = {}, maxRetries: number = 3): Promise<any> {
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📤 Cloudinary upload attempt ${attempt}/${maxRetries}`);
+      
+      // Convert file to buffer
+      const buffer = await file.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const dataUri = `data:${file.type};base64,${base64}`;
+      
+      // Upload with timeout
+      const uploadPromise = cloudinary.uploader.upload(dataUri, {
+        resource_type: 'auto',
+        folder: 'capsera_uploads',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        ...options
+      });
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Upload timeout')), 30000); // 30 second timeout
+      });
+      
+      const result = await Promise.race([uploadPromise, timeoutPromise]) as any;
+      
+      // Validate response
+      if (!result || !result.secure_url || !result.public_id) {
+        throw new Error('Invalid Cloudinary response format');
+      }
+      
+      console.log(`✅ Cloudinary upload successful on attempt ${attempt}`);
+      return result;
+      
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Cloudinary upload attempt ${attempt} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  console.error(`❌ All ${maxRetries} Cloudinary upload attempts failed`);
+  throw lastError;
+}
+
 export { cloudinary };
 
 // Helper function to get Cloudinary URL
@@ -40,18 +94,29 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string):
       ? `capsera_archives/${userId}/${timestamp}_${publicId.split('/').pop()}`
       : `capsera_archives/unknown_users/${timestamp}_${publicId.split('/').pop()}`;
 
-    // Copy image to archive folder
-    const copyResult = await cloudinary.uploader.rename(publicId, archivePath);
+    // Copy image to archive folder with enhanced error handling
+    const copyResult = await cloudinary.uploader.rename(publicId, archivePath, {
+      invalidate: true,
+      resource_type: 'image'
+    });
     
-    if (copyResult.public_id) {
+    if (copyResult && copyResult.public_id) {
       console.log(`✅ Image archived successfully: ${copyResult.public_id}`);
       
       // Delete the original image after successful archiving
       try {
-        await cloudinary.uploader.destroy(publicId);
-        console.log(`🗑️ Original image deleted after archiving: ${publicId}`);
-      } catch (deleteError) {
-        console.warn(`⚠️ Failed to delete original image after archiving: ${publicId}`, deleteError);
+        const deleteResult = await cloudinary.uploader.destroy(publicId, {
+          invalidate: true,
+          resource_type: 'image'
+        });
+        
+        if (deleteResult.result === 'ok' || deleteResult.result === 'not found') {
+          console.log(`🗑️ Original image deleted after archiving: ${publicId}`);
+        } else {
+          console.warn(`⚠️ Unexpected delete result: ${deleteResult.result}`);
+        }
+      } catch (deleteError: any) {
+        console.warn(`⚠️ Failed to delete original image after archiving: ${publicId}`, deleteError.message);
         // Still consider it a success since it was archived
       }
       
@@ -60,15 +125,31 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string):
         archivedId: copyResult.public_id 
       };
     } else {
-      console.error(`❌ Failed to archive image: ${publicId}`);
-      return { success: false, error: 'Archive operation failed' };
+      console.error(`❌ Failed to archive image: ${publicId} - Invalid response from Cloudinary`);
+      return { success: false, error: 'Archive operation failed - invalid response from Cloudinary' };
     }
 
   } catch (error: any) {
     console.error(`❌ Error archiving image: ${publicId}`, error);
+    
+    // Enhanced error handling for specific Cloudinary errors
+    let errorMessage = 'Unknown error during archiving';
+    
+    if (error.message?.includes('not found')) {
+      errorMessage = 'Image not found - may already be deleted or archived';
+    } else if (error.message?.includes('unauthorized')) {
+      errorMessage = 'Unauthorized to access Cloudinary - check API credentials';
+    } else if (error.message?.includes('rate limit')) {
+      errorMessage = 'Cloudinary rate limit exceeded - please try again later';
+    } else if (error.message?.includes('network')) {
+      errorMessage = 'Network error connecting to Cloudinary';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return { 
       success: false, 
-      error: error.message || 'Unknown error during archiving' 
+      error: errorMessage
     };
   }
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { verifyAdminAccess } from '@/lib/admin-middleware';
 import { connectToDatabase } from '@/lib/db';
 import { canManageAdmins } from '@/lib/init-admin';
 import bcrypt from 'bcryptjs';
@@ -9,14 +8,17 @@ import AdminUser from '@/models/AdminUser';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Check admin authentication using middleware
+    const adminError = await verifyAdminAccess(request);
+    if (adminError) return adminError;
 
+    // Get session for additional checks
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/auth');
+    const session = await getServerSession(authOptions);
+    
     // Check if user can access admin dashboard
-    const canAccess = await canManageAdmins(session.user.id);
+    const canAccess = await canManageAdmins(session?.user?.id || '');
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied. Admin privileges required.' }, { status: 403 });
     }
@@ -87,14 +89,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Check admin authentication using middleware
+    const adminError = await verifyAdminAccess(request);
+    if (adminError) return adminError;
 
+    // Get session for additional checks
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/auth');
+    const session = await getServerSession(authOptions);
+    
     // Check if user can manage admins
-    const canManage = await canManageAdmins(session.user.id);
+    const canManage = await canManageAdmins(session?.user?.id || '');
     if (!canManage) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }

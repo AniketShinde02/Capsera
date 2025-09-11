@@ -28,12 +28,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
     
-    // In development, try to recover from certain errors
-    if (process.env.NODE_ENV === 'development' && 
-        error.message.includes('Cannot read properties of undefined')) {
-      console.warn('Attempting to recover from undefined property error...');
-      // Set a flag to bypass the error
-      (window as any).__BYPASS_ERRORS__ = true;
+    // Log error for monitoring in production
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Production error caught by ErrorBoundary:', {
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack
+      });
     }
   }
 
@@ -56,12 +57,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 <button
                   onClick={() => {
                     this.setState({ hasError: false });
-                    // Clear the error and try to recover
-                    (window as any).__BYPASS_ERRORS__ = true;
+                    // Reset error state to allow retry
                   }}
                   className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 >
-                  🔄 Try to Recover
+                  🔄 Try Again
                 </button>
                 <button
                   onClick={() => window.location.reload()}

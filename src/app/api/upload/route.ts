@@ -4,15 +4,18 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { checkImageContentSafety, reportInappropriateContent, validateImageForProcessing } from '@/lib/content-safety';
 
-// Vercel API configuration
+// Vercel API configuration - Updated for Vercel limits
 export const config = {
   api: {
     bodyParser: {
-    // Allow up to ~10MB requests; server will enforce the precise 9.99MB application limit
-    sizeLimit: '10mb',
+      // Vercel Pro: 50MB, Hobby: 4.5MB - Use conservative 4MB limit
+      sizeLimit: '4mb',
     },
     responseLimit: false,
   },
+  // Add runtime configuration for Vercel
+  runtime: 'nodejs',
+  maxDuration: 30, // 30 seconds max execution time
 };
 
 // Helper function to retry Cloudinary upload
@@ -60,14 +63,14 @@ export async function POST(req: Request) {
       }, { status: 503 });
     }
 
-  // Check content length first (be conservative for serverless limits)
+  // Check content length first (be conservative for Vercel limits)
     const contentLength = req.headers.get('content-length');
-    // Enforce a 9.99MB application limit to allow files up to but not exceeding this.
-    const MAX_BYTES = Math.floor(9.99 * 1024 * 1024); // ~9.99MB
+    // Vercel Hobby: 4.5MB, Pro: 50MB - Use conservative 4MB limit
+    const MAX_BYTES = Math.floor(4 * 1024 * 1024); // 4MB
     if (contentLength && parseInt(contentLength) > MAX_BYTES) {
       return NextResponse.json({ 
         success: false, 
-        message: 'File too large. Please upload an image smaller than 9.99MB.' 
+        message: 'File too large. Please upload an image smaller than 4MB.' 
       }, { status: 413 });
     }
 
@@ -108,10 +111,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Invalid file type. Please upload an image.' }, { status: 400 });
     }
 
-    // Validate file size (max 4MB to be safe on Vercel)
-    const MAX_FILE_BYTES = Math.floor(9.99 * 1024 * 1024); // ~9.99MB
+    // Validate file size (max 4MB for Vercel compatibility)
+    const MAX_FILE_BYTES = Math.floor(4 * 1024 * 1024); // 4MB
     if (file.size > MAX_FILE_BYTES) {
-      return NextResponse.json({ success: false, message: 'File too large. Please upload an image smaller than 9.99MB.' }, { status: 413 });
+      return NextResponse.json({ 
+        success: false, 
+        message: `File too large. Please upload an image smaller than 4MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`,
+        error: 'file_too_large',
+        maxSize: '4MB',
+        actualSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`
+      }, { status: 413 });
     }
 
     // Content safety validation
@@ -186,10 +195,27 @@ export async function POST(req: Request) {
 
     // Sanitized success logging
     console.log(`✅ Cloudinary upload completed successfully for: ${uniqueFileName}`);
+    
+    // Enhanced response validation
+    if (!response.secure_url || !response.public_id) {
+      console.error('❌ Cloudinary response missing required fields:', {
+        hasSecureUrl: !!response.secure_url,
+        hasPublicId: !!response.public_id,
+        response: response
+      });
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Upload completed but response format is invalid. Please try again.',
+        error: 'invalid_response_format'
+      }, { status: 500 });
+    }
+    
     return NextResponse.json({ 
       success: true, 
       url: response.secure_url,
-      publicId: response.public_id 
+      public_id: response.public_id, // Ensure consistent naming
+      publicId: response.public_id,  // Keep both for compatibility
+      secure_url: response.secure_url // Keep both for compatibility
     }, { status: 200 });
 
   } catch (error: any) {

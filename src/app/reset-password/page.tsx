@@ -113,18 +113,25 @@ function ResetPasswordContent() {
         setNewLinkMessage('New reset link sent! Check your email for the password reset link. Please check your spam folder if you don\'t see it.');
         setSuccess(''); // Clear any previous success message
       } else {
-        const d = await res.json().catch(() => ({}));
+        let errorMessage = 'Password reset request failed.';
+        try {
+          const d = await res.json();
+          errorMessage = d.message || errorMessage;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorMessage = `Server error (${res.status}). Please try again.`;
+        }
         
         if (res.status === 429) {
-          if (d.message.includes('daily limit')) {
+          if (errorMessage.includes('daily limit')) {
             setError('You have reached the maximum password reset requests for today. Please try again tomorrow.');
-          } else if (d.message.includes('location')) {
+          } else if (errorMessage.includes('location')) {
             setError('Too many reset attempts from this location. Please try again later.');
           } else {
             setError('Too many reset attempts. Please wait before requesting another reset link.');
           }
         } else {
-          setError(d.message || 'Failed to send new reset link. Please try again.');
+          setError(errorMessage);
         }
       }
     } catch (err) {
@@ -438,8 +445,15 @@ function ResetPasswordContent() {
                       });
                       
                       if (!res.ok) {
-                        const d = await res.json().catch(() => ({}));
-                        setError(d.message || 'Reset failed. Please request a new link and try again.');
+                        let errorMessage = 'Reset failed. Please request a new link and try again.';
+                        try {
+                          const d = await res.json();
+                          errorMessage = d.message || errorMessage;
+                        } catch (parseError) {
+                          console.error('Failed to parse error response:', parseError);
+                          errorMessage = `Server error (${res.status}). Please try again.`;
+                        }
+                        setError(errorMessage);
                         return;
                       }
                       

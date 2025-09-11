@@ -43,10 +43,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpToken, setOtpToken] = useState(''); // Store the OTP token for admin actions
 
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('🔍 State Debug:', { step, pinVerified, otpVerified });
-  }, [step, pinVerified, otpVerified]);
+  // State management (removed debug logging for security)
 
   // Ensure otpVerified state is maintained when navigating between admin steps
   useEffect(() => {
@@ -179,7 +176,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
 
   // Admin creation
   const handleAdminCreation = async () => {
-    console.log('🔍 handleAdminCreation called with otpVerified:', otpVerified);
+    // Admin creation process (removed debug logging for security)
     
     if (!email.trim() || !password.trim() || !username.trim()) {
       setError('All fields are required');
@@ -230,7 +227,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
     try {
       // Use stored OTP token or compute from OTP array
       const tokenToUse = otpToken || otp.join('');
-      console.log('🔍 Using token for admin creation:', tokenToUse);
+      // Using token for admin creation (removed debug logging for security)
       
       const verifyResponse = await fetch('/api/admin/setup', {
         method: 'POST',
@@ -396,7 +393,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
     setError('');
     
     try {
-      console.log('🔍 Checking if admin already exists...');
+      // Checking if admin already exists (removed debug logging for security)
       
       // First check if admin exists (like setup page does)
       const response = await fetch('/api/admin/setup', {
@@ -412,7 +409,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
         setSuccess('Admin account found! Skipping OTP verification.');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        console.log('🔍 No existing admin, using bypass for development...');
+        // No existing admin, using bypass for development (removed debug logging for security)
         
         // If no admin exists, use the bypass method
         const bypassResponse = await fetch('/api/admin/setup', {
@@ -873,7 +870,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
 
       // If admin login fails, try regular user login
       if (result?.error) {
-        console.log('🔐 Admin login failed, trying regular user login...');
+        // Admin login failed, trying regular user login (removed debug logging for security)
         result = await signIn("credentials", {
           redirect: false,
           email: values.email,
@@ -914,19 +911,26 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
       if (res.ok) {
         setForgotPasswordSuccess('Reset link sent! Check your email for the password reset link. Please check your spam folder if you don\'t see it.');
       } else {
-        const d = await res.json().catch(() => ({}));
+        let errorMessage = 'Password reset request failed.';
+        try {
+          const d = await res.json();
+          errorMessage = d.message || errorMessage;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorMessage = `Server error (${res.status}). Please try again.`;
+        }
         
         // Handle specific error cases
         if (res.status === 429) {
-          if (d.message.includes('daily limit')) {
+          if (errorMessage.includes('daily limit')) {
             setForgotPasswordError('You have reached the maximum password reset requests for today. Please try again tomorrow.');
-          } else if (d.message.includes('location')) {
+          } else if (errorMessage.includes('location')) {
             setForgotPasswordError('Too many reset attempts from this location. Please try again later.');
           } else {
             setForgotPasswordError('Too many reset attempts. Please wait before requesting another reset link.');
           }
         } else {
-          throw new Error(d.message || 'Failed to send reset link');
+          setForgotPasswordError(errorMessage);
         }
       }
     } catch (e: any) {

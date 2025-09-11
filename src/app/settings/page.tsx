@@ -71,8 +71,15 @@ export default function SettingsPage() {
       });
       
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setAccountError(data.message || 'Unable to update your profile.');
+        let errorMessage = 'Unable to update your profile.';
+        try {
+          const data = await res.json();
+          errorMessage = data.message || errorMessage;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorMessage = `Server error (${res.status}). Please try again.`;
+        }
+        setAccountError(errorMessage);
       } else {
         setAccountSuccess('Account information updated successfully!');
       }

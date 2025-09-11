@@ -107,8 +107,10 @@ export const authOptions: NextAuthOptions = {
         try {
           console.log('🔐 Admin auth: Attempting login for:', credentials.email);
           
-          // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
-          const { db } = await connectToDatabase();
+          // Add timeout wrapper for database operations
+          const dbOperation = async () => {
+            // Use direct MongoDB connection instead of Mongoose to avoid timeout issues
+            const { db } = await connectToDatabase();
           const adminUsersCollection = db.collection('adminusers');
           const usersCollection = db.collection('users');
           
@@ -237,9 +239,26 @@ export const authOptions: NextAuthOptions = {
 
           console.log('🔐 Admin auth: Returning user data:', adminUserData);
           return adminUserData;
+          };
 
-        } catch (error) {
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Database operation timeout')), 10000); // 10 second timeout
+          });
+
+          const result = await Promise.race([dbOperation(), timeoutPromise]);
+          return result as any;
+
+        } catch (error: any) {
           console.error('❌ Admin auth error:', error);
+          
+          // Return null instead of throwing to prevent 500 errors
+          if (error.message === 'Database operation timeout') {
+            console.error('❌ Admin auth: Database operation timed out');
+          } else {
+            console.error('❌ Admin auth: Unexpected error:', error.message);
+          }
+          
           return null;
         }
       },

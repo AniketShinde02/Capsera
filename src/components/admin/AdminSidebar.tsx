@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Wrench,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Sliders
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -123,6 +124,12 @@ const adminNavCategories = [
         href: '/admin/keys',
         icon: Zap,
         description: 'Manage Gemini API keys and quotas'
+      },
+      {
+        title: 'Rate Limits',
+        href: '/admin/rate-limits',
+        icon: Sliders,
+        description: 'Manage user rate limits and quotas'
       },
       {
         title: 'Cache Management',

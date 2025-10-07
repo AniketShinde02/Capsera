@@ -1,7 +1,8 @@
 
 import type { Metadata } from 'next';
-import { Inter, Poppins } from 'next/font/google';
 import './globals.css';
+import './satoshi.css';
+import { inter, poppins, satoshi } from './fonts';
 import { Providers } from '@/components/providers';
 import MaintenanceCheck from '@/components/maintenance-check';
 import ServerHeader from '@/components/server-header';
@@ -14,29 +15,6 @@ import { PerformanceOptimizer } from '@/components/PerformanceOptimizer';
 // import ModuleErrorRecovery from '@/components/ModuleErrorRecovery';
 // import { enableDevErrorBypass } from '@/backups/dev-error-bypass'; // Import error bypass utility
 // import '@/lib/runtime-error-bypass'; // Import runtime error bypass utility
-
-// Optimize font loading
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-  preload: true,
-});
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  variable: '--font-poppins',
-  weight: ['300', '400', '500', '600', '700', '800', '900'],
-  display: 'swap',
-  preload: true,
-});
-
-// Custom font for better performance
-const satoshi = {
-  style: {
-    fontFamily: 'Satoshi, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  },
-};
 
 export const metadata: Metadata = {
   title: {
@@ -171,21 +149,13 @@ export default function RootLayout({
         <meta name="theme-color" content="#667eea" />
         <meta name="msapplication-TileColor" content="#667eea" />
         
-        {/* Optimized font loading */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Satoshi:wght@300;400;500;600;700;800;900&display=swap" 
-          rel="stylesheet"
-        />
+        {/* Using locally hosted fonts */}
         
         {/* DNS prefetch for external domains */}
         <link rel="dns-prefetch" href="//res.cloudinary.com" />
         <link rel="dns-prefetch" href="//ik.imagekit.io" />
-        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
       </head>
-      <body className={`${inter.variable} ${poppins.variable} font-sans antialiased min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden`} style={satoshi.style}>
+      <body className={`${inter.variable} ${poppins.variable} ${satoshi.variable} font-satoshi antialiased min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden`} style={satoshi.style}>
         <Providers>
          
           <PerformanceOptimizer />

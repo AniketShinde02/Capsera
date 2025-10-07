@@ -57,28 +57,87 @@ interface ImageRendererProps {
 }
 
 const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }: ImageRendererProps) => {
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3; // Increased retries for better reliability
+  
   const isObjectUrl = imageSrc?.startsWith('blob:');
   const isCloudinaryUrl = imageSrc?.includes('cloudinary.com');
   
+  // Ensure Cloudinary URLs have proper format
+  const getOptimizedUrl = (url: string) => {
+    if (isCloudinaryUrl && !url.includes('f_auto') && !url.includes('q_auto')) {
+      // Add Cloudinary optimization parameters if missing
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}f_auto,q_auto`;
+    }
+    return url;
+  };
+  
+  const optimizedSrc = imageSrc ? getOptimizedUrl(imageSrc) : imageSrc;
+  
+  // Use useEffect to trigger onLoadStart when component mounts or src changes
+  useEffect(() => {
+    if (optimizedSrc) {
+      onLoadStart?.();
+    }
+  }, [optimizedSrc, onLoadStart]);
+  
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('❌ Image failed to load:', imageSrc?.substring(0, 50) + '...');
+    
+    if (retryCount < maxRetries && isCloudinaryUrl) {
+      // Retry Cloudinary images with cache-busting
+      setRetryCount(prev => prev + 1);
+      const target = e.target as HTMLImageElement;
+      target.src = `${optimizedSrc}?retry=${retryCount + 1}&t=${Date.now()}`;
+      return;
+    }
+    
+    setHasError(true);
+    onError?.(e);
+  };
+  
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.log('✅ Image loaded successfully in ImageRenderer component');
+    setHasError(false);
+    setRetryCount(0);
+    onLoad?.();
+  };
+  
   const commonProps = {
-    src: imageSrc,
+    src: optimizedSrc,
     alt: "Uploaded preview",
     className: "w-full h-full object-contain",
     loading: "lazy" as const,
     decoding: "async" as const,
-    onLoadStart,
-    onLoad,
-    onError
+    onLoad: handleLoad,
+    onError: handleError,
+    // Remove onLoadStart from img element as it's not a standard event
+    // It's now handled by the useEffect
   };
+  
+  // Show error state if image failed to load after retries
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted/20">
+        <div className="text-center p-4">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+            <ImageIcon className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground mb-2">Image failed to load</p>
+          <p className="text-xs text-muted-foreground">The image may have been moved or deleted</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <>
-      {imageLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      )}
-      <img {...commonProps} />
+      {/* Always show the image if we have a source, even during loading */}
+      {optimizedSrc && <img {...commonProps} style={{ opacity: imageLoading ? 0.5 : 1 }} />}
+      
+      {/* Removed spinner overlay so image preview is not visually blocked while loading */}
     </>
   );
 };
@@ -114,6 +173,7 @@ export function CaptionGenerator() {
   const [imageLoading, setImageLoading] = useState(false);
   const [error, setError] = useState('');
   const [quotaInfo, setQuotaInfo] = useState<{ remaining: number, total: number, isAuthenticated: boolean, isAdmin?: boolean } | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [uploadStage, setUploadStage] = useState<'idle' | 'uploading' | 'processing' | 'generating' | 'loading'>('idle');
   const [buttonMessage, setButtonMessage] = useState('Generate Captions');
@@ -132,7 +192,33 @@ export function CaptionGenerator() {
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
   const [hasExplicitlyReset, setHasExplicitlyReset] = useState(false);
   const [isImageDeleted, setIsImageDeleted] = useState(false);
+  const [freemiumUsage, setFreemiumUsage] = useState<any>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { data: session } = useSession();
+
+  // Fetch freemium usage information
+  const fetchFreemiumUsage = async () => {
+    try {
+      const response = await fetch('/api/freemium-usage', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setFreemiumUsage(data.usage);
+          setShowUpgradePrompt(data.usage.upgradePrompt);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching freemium usage:', error);
+    }
+  };
+
+  // Fetch usage info on component mount
+  useEffect(() => {
+    fetchFreemiumUsage();
+  }, [session]);
 
   // Enhanced image compression function for large files
   const compressImageForUpload = (file: File): Promise<File> => {
@@ -356,6 +442,9 @@ export function CaptionGenerator() {
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    
+    // Set loading state immediately when a file is selected
+    setImageLoading(true);
 
   // Enhanced file validation - Updated for Vercel limits
   const maxSize = MAX_UPLOAD_BYTES;
@@ -380,10 +469,12 @@ export function CaptionGenerator() {
         } else {
           const maxSizeMB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
           setError(`File too large. Please upload an image smaller than ${maxSizeMB}MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+          setImageLoading(false);
           return;
         }
       } catch (err) {
         setError(`File too large and could not be compressed. Please upload a smaller image.`);
+        setImageLoading(false);
         return;
       }
     }
@@ -391,6 +482,7 @@ export function CaptionGenerator() {
     // Validate type against the file we will upload
     if (!allowedTypes.includes(fileToUpload.type)) {
       setError('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      setImageLoading(false);
       return;
     }
 
@@ -411,14 +503,23 @@ export function CaptionGenerator() {
       
       // Reset the explicit reset flag since user is uploading a new image
       setHasExplicitlyReset(false);
+      
+      // Clear any previous image data to ensure fresh state
+      setCurrentImageData(null);
+      
+      console.log('✅ Image preview set successfully:', newObjectUrl.substring(0, 30) + '...');
     } catch (error) {
       console.error('❌ Object URL creation error:', error);
       setError('Failed to create image preview. Please try again.');
+      setImageLoading(false);
     }
 
     // Clear any previous errors
     setError('');
     setUploadStage('idle');
+    
+    // Note: setImageLoading(false) will be called by the ImageRenderer component's onLoad handler
+    // when the image is successfully loaded
   };
 
   // Image compression function for preview
@@ -479,6 +580,10 @@ export function CaptionGenerator() {
     });
   };
 
+  // Track last submission time to implement slow mode
+  const [lastSubmissionTime, setLastSubmissionTime] = useState<number>(0);
+  const SLOW_MODE_COOLDOWN_MS = 3000; // 3 seconds cooldown between submissions
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     // If button is in "generate-another" state, reset and start fresh
     if (buttonState === 'generate-another') {
@@ -487,25 +592,28 @@ export function CaptionGenerator() {
     }
 
     const startTime = Date.now(); // Track processing time for analytics
-            // Form submission started
-        // Uploaded file
-        // Selected mood
+    
+    // Implement slow mode to prevent rapid API calls
+    const timeSinceLastSubmission = startTime - lastSubmissionTime;
+    if (timeSinceLastSubmission < SLOW_MODE_COOLDOWN_MS) {
+      const remainingCooldown = Math.ceil((SLOW_MODE_COOLDOWN_MS - timeSinceLastSubmission) / 1000);
+      setError(`Please wait ${remainingCooldown} seconds before generating more captions (slow mode active).`);
+      return;
+    }
 
     // Validate that an image is uploaded
     if (!uploadedFile) {
       setError("Please upload an image to generate captions.");
-              // No image uploaded
       return;
     }
 
     // Validate that mood is selected
     if (!values.mood || values.mood.trim() === '') {
       setError("Please select a mood for your caption.");
-              // No mood selected
       return;
     }
 
-            // Validation passed, checking rate limit first
+    // Validation passed, checking rate limit first
     setIsLoading(true);
     setCaptions([]);
     // Don't clear monthly limit errors - let them stay visible
@@ -513,6 +621,9 @@ export function CaptionGenerator() {
       setError('');
     }
     updateButtonState('processing');
+    
+    // Update last submission time
+    setLastSubmissionTime(startTime);
 
     try {
       // 🔍 CORRECT FLOW: Check quota FIRST, then upload if allowed
@@ -808,6 +919,12 @@ export function CaptionGenerator() {
 
         setCaptions(validCaptions);
 
+        // Update freemium usage information from response
+        if (captionData.freemium) {
+          setFreemiumUsage(captionData.freemium);
+          setShowUpgradePrompt(captionData.freemium.upgradePrompt);
+        }
+
         // Immediately change button state after successful generation
         setButtonState('generate-another');
         setButtonMessage('Upload New Image');
@@ -816,6 +933,8 @@ export function CaptionGenerator() {
 
         // Ensure image remains visible after successful generation for all users
         if (uploadData.url) {
+          console.log('🖼️ Setting image display after successful generation:', uploadData.url.substring(0, 50) + '...');
+          
           // Always set the Cloudinary URL for display
           setImagePreview(uploadData.url);
           setCurrentImageData({
@@ -824,10 +943,21 @@ export function CaptionGenerator() {
           });
           setHasExplicitlyReset(false);
           
+          // Clean up the old object URL since we're now using Cloudinary URL
+          if (objectUrl && objectUrl.startsWith('blob:')) {
+            console.log('🧹 Cleaning up old blob URL:', objectUrl.substring(0, 30) + '...');
+            URL.revokeObjectURL(objectUrl);
+            setObjectUrl(null);
+          }
+          
           // Preload the Cloudinary image for better performance
           preloadImage(uploadData.url).catch(err => {
             console.warn('Failed to preload image:', err);
           });
+          
+          console.log('✅ Image display state updated successfully');
+        } else {
+          console.warn('⚠️ No upload data URL available for image display');
         }
 
         // Track analytics if consent given
@@ -974,7 +1104,7 @@ export function CaptionGenerator() {
     }
   }
 
-  // Debug logging for image state
+  // Enhanced debug logging for image state
   useEffect(() => {
     console.log('🔍 Image State Debug:', {
       imagePreview: imagePreview ? imagePreview.substring(0, 50) + '...' : null,
@@ -984,30 +1114,58 @@ export function CaptionGenerator() {
       } : null,
       hasExplicitlyReset,
       uploadStage,
-      buttonState
+      buttonState,
+      uploadedFile: uploadedFile ? `${uploadedFile.name} (${Math.round(uploadedFile.size / 1024)}KB)` : null,
+      objectUrl: objectUrl ? objectUrl.substring(0, 30) + '...' : null,
+      imageLoading,
+      showAutoDeleteMessage,
+      showTrashAnimation,
+      isDeletingImage
     });
-  }, [imagePreview, currentImageData, hasExplicitlyReset, uploadStage, buttonState]);
+  }, [imagePreview, currentImageData, hasExplicitlyReset, uploadStage, buttonState, uploadedFile, objectUrl, imageLoading, showAutoDeleteMessage, showTrashAnimation, isDeletingImage]);
 
   // Fetch quota info on component mount, session changes, and refresh triggers
+  // FIXED: Added debouncing to prevent flash bug
   useEffect(() => {
     const fetchQuotaInfo = async () => {
       try {
+        setQuotaLoading(true);
         const response = await fetch('/api/rate-limit-info');
         if (response.ok) {
           const data = await response.json();
-          setQuotaInfo({
-            remaining: data.remaining,
-            total: data.maxGenerations,
-            isAuthenticated: data.isAuthenticated,
-            isAdmin: data.isAdmin
+          
+          // FIXED: Only update if data has actually changed to prevent flashing
+          setQuotaInfo(prevInfo => {
+            const newInfo = {
+              remaining: data.remaining,
+              total: data.maxGenerations,
+              isAuthenticated: data.isAuthenticated,
+              isAdmin: data.isAdmin
+            };
+            
+            // Only update if the values have actually changed
+            if (!prevInfo || 
+                prevInfo.remaining !== newInfo.remaining || 
+                prevInfo.total !== newInfo.total ||
+                prevInfo.isAuthenticated !== newInfo.isAuthenticated ||
+                prevInfo.isAdmin !== newInfo.isAdmin) {
+              console.log('📊 Quota info updated:', data.remaining, '/', data.maxGenerations);
+              return newInfo;
+            }
+            
+            return prevInfo; // No change, keep existing state
           });
-          // console.log(' Quota info updated:', data.remaining, '/', data.maxGenerations);
         }
       } catch (error) {
         console.error('Failed to fetch quota info:', error);
+      } finally {
+        setQuotaLoading(false);
       }
     };
-    fetchQuotaInfo();
+    
+    // FIXED: Add small delay to prevent rapid successive calls
+    const timeoutId = setTimeout(fetchQuotaInfo, 100);
+    return () => clearTimeout(timeoutId);
   }, [session, refreshTrigger]);
 
   // Network status monitoring
@@ -1086,6 +1244,8 @@ export function CaptionGenerator() {
 
   // Function to reset for generating another set of captions
   const handleGenerateAnother = () => {
+    console.log('🔄 Generating another set of captions...');
+    
     // Clear captions
     setCaptions([]);
     
@@ -1093,8 +1253,7 @@ export function CaptionGenerator() {
     // since they want to generate more captions for the same image
     setHasExplicitlyReset(false);
     
-    // Reset form
-    form.resetField('image');
+    // Reset form fields but keep the image
     form.resetField('mood');
     form.resetField('description');
     
@@ -1115,13 +1274,11 @@ export function CaptionGenerator() {
     setButtonMessage('Generate Captions');
     setButtonIcon(<Wand2 className="mr-2 h-4 w-4" />);
     
-    // Automatically trigger file input for better UX
-    setTimeout(() => {
-      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.click();
-      }
-    }, 100);
+    console.log('✅ Generate another state reset complete');
+    console.log('🖼️ Image should remain visible:', {
+      imagePreview: imagePreview ? 'Present' : 'Missing',
+      currentImageData: currentImageData ? 'Present' : 'Missing'
+    });
   };
 
   // Streamlined animated deletion function with longer duration
@@ -1181,6 +1338,7 @@ export function CaptionGenerator() {
                 </div>
               </div>
             )}
+
           </div>
 
           <Form {...form}>
@@ -1254,42 +1412,63 @@ export function CaptionGenerator() {
                       ) : (imagePreview || currentImageData?.url) ? (
                         // Show the uploaded image if it exists
                         <div className="relative w-full h-full bg-muted/20 min-h-[120px]">
-                          {/* Simplified image rendering using ImageRenderer component */}
+                          {/* Enhanced image rendering with better error handling */}
                           <ImageRenderer 
                             imageSrc={currentImageData?.url || imagePreview}
-                            onLoadStart={() => setImageLoading(true)}
+                            onLoadStart={() => {
+                              setImageLoading(true);
+                              console.log('🔄 Image loading started:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
+                            }}
                             onLoad={() => {
                               setImageLoading(false);
                               setError('');
+                              console.log('✅ Image loaded successfully:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
                             }}
                             onError={(e) => {
                               setImageLoading(false);
                               console.error('❌ Image failed to load:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              setError('Image failed to load. Please try uploading again.');
+                              
+                              // Only clear image data if it's a blob URL (local preview)
+                              // Keep Cloudinary URLs even if they fail to load initially
+                              const imageSrc = currentImageData?.url || imagePreview;
+                              if (imageSrc && imageSrc.startsWith('blob:')) {
+                                console.log('🧹 Clearing failed blob URL');
+                                setTimeout(() => {
+                                  setImagePreview(null);
+                                  setCurrentImageData(null);
+                                  setError('Image failed to load. Please try uploading again.');
+                                }, 2000);
+                              } else {
+                                console.log('🔄 Keeping Cloudinary URL for retry');
+                                setError('Image temporarily unavailable. Please wait...');
+                                // Clear error after a short delay
+                                setTimeout(() => setError(''), 3000);
+                              }
                             }}
                             imageLoading={imageLoading}
                           />
                           
-                          {/* Fallback if image doesn't load */}
-                          {!imagePreview && !currentImageData?.url && (
+                          {/* Enhanced fallback with better state management */}
+                          {!imagePreview && !currentImageData?.url && !imageLoading && (
                             <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
                               <div className="text-center p-4">
                                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
                                   <ImageIcon className="w-8 h-8 text-muted-foreground" />
                                 </div>
                                 <p className="text-sm text-muted-foreground mb-2">No image to display</p>
+                                <p className="text-xs text-muted-foreground mb-3">This shouldn't happen - image should be visible</p>
                                 <Button 
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => {
+                                    console.log('🔄 Manual reset triggered');
                                     setImagePreview(null);
                                     setCurrentImageData(null);
                                     setError('');
+                                    setUploadStage('idle');
                                   }}
                                 >
-                                  Reset
+                                  Reset Upload Area
                                 </Button>
                               </div>
                             </div>
@@ -1446,13 +1625,6 @@ export function CaptionGenerator() {
                             </SelectContent>
                           </Select>
                           <FormMessage />
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${uploadStage === 'generating'
-                                ? 'bg-accent animate-pulse'
-                                : 'bg-accent'
-                              }`}></span>
-                            Each mood generates 3 unique styles
-                          </p>
                         </FormItem>
                       )}
                     />
@@ -1528,37 +1700,71 @@ export function CaptionGenerator() {
                     )}
                   </Button>
 
-                  {/* Clean Quota Info - Single Card Only */}
-                  {quotaInfo && (
-                    <div className={`p-2 sm:p-3 border rounded-xl text-center transition-all duration-300 ${quotaInfo.isAdmin
-                        ? 'bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200'
-                        : quotaInfo.remaining === 0
-                        ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-                        : 'bg-[#E3E1D9]/30 dark:bg-muted/30 border-[#C7C8CC]/60 dark:border-border'
-                      } ${showLimitShake ? 'animate-shake-limit' : ''}`}>
-                      <div className={`text-xs mb-1 flex items-center justify-center gap-1 ${quotaInfo.isAdmin
-                          ? 'text-purple-700 dark:text-purple-300 font-medium'
-                          : quotaInfo.remaining === 0
-                          ? 'text-red-700 dark:text-red-300 font-medium'
-                          : 'text-muted-foreground'
-                        }`}>
-                        {quotaInfo.isAdmin && <span className="text-purple-600">👑</span>}
-                        {quotaInfo.remaining === 0 && !quotaInfo.isAdmin && <AlertTriangle className="w-3 h-3" />}
-                        {quotaInfo.isAdmin ? (
-                          <span className="text-xs sm:text-sm">👑 Admin: Unlimited images</span>
-                        ) : quotaInfo.isAuthenticated ? (
-                          <span className="text-xs sm:text-sm">Monthly: {quotaInfo.remaining}/{quotaInfo.total} images</span>
-                        ) : (
-                          <span className="text-xs sm:text-sm">Free trial: {quotaInfo.remaining}/{quotaInfo.total} images</span>
-                        )}
-                      </div>
-
-                      <p className={`text-xs mt-2 ${quotaInfo.remaining === 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-muted-foreground'
-                        }`}>
-                        💡 Each image = 3 captions
-                      </p>
+                  {/* Quota Display - Positioned below Generate Captions button */}
+                  {(freemiumUsage || quotaInfo || quotaLoading) && (
+                    <div className={`${showUpgradePrompt ? 'mt-4 p-4' : 'mt-3 p-3'} ${showUpgradePrompt 
+                      ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl' 
+                      : quotaInfo?.isAdmin
+                        ? 'bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200'
+                        : quotaInfo?.remaining === 0
+                        ? 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+                        : 'bg-[#E3E1D9]/30 dark:bg-muted/30 border border-[#C7C8CC]/60 dark:border-border rounded-lg'} ${showLimitShake ? 'animate-shake-limit' : ''}`}>
+                      {showUpgradePrompt ? (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                              <Crown className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                                {freemiumUsage?.gracePeriod ? 'Weekly Grace Period' : 'Upgrade for More!'}
+                              </h3>
+                              <p className="text-sm text-blue-700 dark:text-blue-300">
+                                {freemiumUsage?.gracePeriod 
+                                  ? `You've used your daily limit. ${freemiumUsage.remainingWeekly} images left this week.`
+                                  : `${freemiumUsage?.remainingMonthly || quotaInfo?.remaining} images left today. Upgrade for unlimited access!`
+                                }
+                              </p>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                            onClick={() => window.open('/pricing', '_blank')}
+                          >
+                            <Star className="w-4 h-4 mr-1" />
+                            Upgrade
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                          {quotaLoading ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></div>
+                              <span>Loading quota...</span>
+                            </div>
+                          ) : (
+                            <>
+                              {quotaInfo?.isAdmin && <span className="text-purple-600">👑</span>}
+                              {quotaInfo?.remaining === 0 && !quotaInfo?.isAdmin && <AlertTriangle className="w-3 h-3" />}
+                              <div className="flex items-center gap-1">
+                                <div className={`w-2 h-2 rounded-full ${quotaInfo?.isAdmin ? 'bg-purple-500' : freemiumUsage?.tier === 'pro' || quotaInfo?.isAuthenticated ? 'bg-green-500' : freemiumUsage?.tier === 'basic' ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
+                                <span>
+                                  {quotaInfo?.isAdmin ? (
+                                    "Admin: Unlimited images"
+                                  ) : quotaInfo?.isAuthenticated ? (
+                                    `Daily: ${quotaInfo.remaining}/${quotaInfo.total} images`
+                                  ) : freemiumUsage ? (
+                                    <><span className="capitalize">{freemiumUsage.tier} Plan</span> • {freemiumUsage.remainingMonthly} images left today</>
+                                  ) : (
+                                    `Free trial: ${quotaInfo?.remaining}/${quotaInfo?.total} images`
+                                  )}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

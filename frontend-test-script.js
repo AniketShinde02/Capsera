@@ -100,10 +100,7 @@ const globalErrorTracker = {
     }
     
     // Restore original window error handler
-    if (this.originalWindowError) {
-      window.onerror = this.originalWindowError;
-    }
-    
+    window.onerror = this.originalWindowError;    
     // Remove unhandled rejection listener
     window.removeEventListener('unhandledrejection', this.originalUnhandledRejection);
   },

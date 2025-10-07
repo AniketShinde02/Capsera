@@ -297,7 +297,8 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       // Use NextAuth signIn function for proper authentication
       const { signIn } = await import('next-auth/react');
       
-      const result = await signIn('admin-credentials', {
+      const signInFunc = signIn;
+      const result = await signInFunc('admin-credentials', {
         email: email.trim(),
         password: password.trim(),
         redirect: false // Don't redirect automatically

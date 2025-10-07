@@ -5,23 +5,210 @@ import RateLimit from '@/models/RateLimit';
 import BlockedCredentials from '@/models/BlockedCredentials';
 import { ObjectId } from 'mongodb';
 
-// Rate limiting configuration - Monthly quotas
+// In-memory stores for rate limiting and blocked credentials
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+const blockedCredentialsStore = new Map<string, { blockedUntil: number; attempts: number }>();
+
+// Rate limiting configuration - Daily quotas with soft limiting
+// Default values that will be overridden by database values when available
 export const RATE_LIMITS = {
   ANONYMOUS: {
-    MAX_GENERATIONS: 5, // 5 images per month (15 captions total)
-    WINDOW_HOURS: 24 * 30, // 30 days
+    MAX_GENERATIONS: 10, // 10 images per day (30 captions total)
+    WINDOW_HOURS: 24, // 24 hours (daily reset)
+    USER_TYPE: 'anonymous' as const,
   },
+  REGISTERED: {
+    MAX_GENERATIONS: 20, // 20 images per day (60 captions total)
+    WINDOW_HOURS: 24, // 24 hours (daily reset)
+    USER_TYPE: 'registered' as const,
+  },
+  PRO: {
+    MAX_GENERATIONS: 50, // 50 images per day (150 captions total)
+    WINDOW_HOURS: 24, // 24 hours (daily reset)
+    USER_TYPE: 'pro' as const,
+  },
+  // Legacy support for existing authenticated users
   AUTHENTICATED: {
-    MAX_GENERATIONS: 25, // 25 images per month (75 captions total)
-    WINDOW_HOURS: 24 * 30, // 30 days
+    MAX_GENERATIONS: 20, // 20 images per day (60 captions total)
+    WINDOW_HOURS: 24, // 24 hours (daily reset)
+    USER_TYPE: 'registered' as const,
   },
 } as const;
 
-// In-memory store for rate limiting (in production, use Redis or database)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// Cache for rate limit configurations to avoid frequent database lookups
+let rateLimitConfigCache: {
+  anonymous?: { maxGenerations: number; windowHours: number; updatedAt: Date };
+  registered?: { maxGenerations: number; windowHours: number; updatedAt: Date };
+  pro?: { maxGenerations: number; windowHours: number; updatedAt: Date };
+  lastFetched?: Date;
+} = {};
+
+// Cache expiration time in milliseconds (5 minutes)
+const CACHE_EXPIRATION_MS = 5 * 60 * 1000;
+
+// User tier detection and timezone handling
+export type UserTier = 'anonymous' | 'registered' | 'pro';
+
+export interface UserTierInfo {
+  tier: UserTier;
+  isAdmin: boolean;
+  timezone?: string;
+}
+
+/**
+ * Detect user tier based on authentication and admin status
+ */
+export async function getUserTierInfo(userId?: string): Promise<UserTierInfo> {
+  if (!userId) {
+    return { tier: 'anonymous', isAdmin: false };
+  }
+
+  try {
+    const { db } = await connectToDatabase();
+    const usersCollection = db.collection('users');
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    
+    if (user?.isAdmin) {
+      return { tier: 'pro', isAdmin: true };
+    }
+
+    // Check adminusers collection
+    const adminUsersCollection = db.collection('adminusers');
+    const adminUser = await adminUsersCollection.findOne({ 
+      email: user?.email || userId,
+      isAdmin: true 
+    });
+    
+    if (adminUser) {
+      return { tier: 'pro', isAdmin: true };
+    }
+
+    // Check if user has pro subscription (future feature)
+    // For now, all registered users are 'registered' tier
+    return { tier: 'registered', isAdmin: false };
+  } catch (error) {
+    console.error('Error detecting user tier:', error);
+    return { tier: 'registered', isAdmin: false };
+  }
+}
+
+/**
+ * Get next midnight in user's timezone
+ */
+export function getNextMidnight(timezone: string = 'UTC'): Date {
+  const now = new Date();
+  const userTime = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+  const nextMidnight = new Date(userTime);
+  nextMidnight.setDate(nextMidnight.getDate() + 1);
+  nextMidnight.setHours(0, 0, 0, 0);
+  
+  // Convert back to UTC
+  const utcMidnight = new Date(nextMidnight.toLocaleString("en-US", { timeZone: "UTC" }));
+  return utcMidnight;
+}
+
+/**
+ * Get rate limit config based on user tier
+ * This function will check the database for custom configurations first
+ * and fall back to default values if not found
+ */
+export async function getRateLimitConfig(tier: UserTier) {
+  // Check if we need to refresh the cache
+  const now = new Date();
+  const shouldRefreshCache = !rateLimitConfigCache.lastFetched || 
+    (now.getTime() - rateLimitConfigCache.lastFetched.getTime() > CACHE_EXPIRATION_MS);
+  
+  // Fetch from database if cache is expired or empty
+  if (shouldRefreshCache) {
+    await refreshRateLimitConfigCache();
+  }
+  
+  // Use cached values if available
+  if (tier === 'anonymous' && rateLimitConfigCache.anonymous) {
+    return {
+      MAX_GENERATIONS: rateLimitConfigCache.anonymous.maxGenerations,
+      WINDOW_HOURS: rateLimitConfigCache.anonymous.windowHours,
+      USER_TYPE: 'anonymous' as const,
+    };
+  } else if (tier === 'registered' && rateLimitConfigCache.registered) {
+    return {
+      MAX_GENERATIONS: rateLimitConfigCache.registered.maxGenerations,
+      WINDOW_HOURS: rateLimitConfigCache.registered.windowHours,
+      USER_TYPE: 'registered' as const,
+    };
+  } else if (tier === 'pro' && rateLimitConfigCache.pro) {
+    return {
+      MAX_GENERATIONS: rateLimitConfigCache.pro.maxGenerations,
+      WINDOW_HOURS: rateLimitConfigCache.pro.windowHours,
+      USER_TYPE: 'pro' as const,
+    };
+  }
+  
+  // Fall back to default values
+  switch (tier) {
+    case 'anonymous':
+      return RATE_LIMITS.ANONYMOUS;
+    case 'registered':
+      return RATE_LIMITS.REGISTERED;
+    case 'pro':
+      return RATE_LIMITS.PRO;
+    default:
+      return RATE_LIMITS.ANONYMOUS;
+  }
+}
+
+/**
+ * Refresh the rate limit configuration cache from the database
+ */
+async function refreshRateLimitConfigCache() {
+  try {
+    await dbConnect();
+    const mongoose = (await import('mongoose')).default;
+    // Ensure model registration (hot-reload safe)
+    try {
+      await import('@/models/RateLimitConfig');
+    } catch (e) {
+      console.warn('Could not dynamically import RateLimitConfig model:', e && (e as Error).message);
+    }
+
+    // Fetch all configurations
+    const configs = await mongoose.model('RateLimitConfig').find({});
+    
+    // Reset cache
+    rateLimitConfigCache = { lastFetched: new Date() };
+    
+    // Update cache with database values
+    for (const config of configs) {
+      if (config.tier === 'anonymous') {
+        rateLimitConfigCache.anonymous = {
+          maxGenerations: config.maxGenerations,
+          windowHours: config.windowHours,
+          updatedAt: config.updatedAt
+        };
+      } else if (config.tier === 'registered') {
+        rateLimitConfigCache.registered = {
+          maxGenerations: config.maxGenerations,
+          windowHours: config.windowHours,
+          updatedAt: config.updatedAt
+        };
+      } else if (config.tier === 'pro') {
+        rateLimitConfigCache.pro = {
+          maxGenerations: config.maxGenerations,
+          windowHours: config.windowHours,
+          updatedAt: config.updatedAt
+        };
+      }
+    }
+    
+    console.log('Rate limit configurations refreshed from database');
+  } catch (error) {
+    console.error('Error refreshing rate limit configurations:', error);
+    // Keep using the existing cache or default values
+  }
+}
 
 // Blocked credentials store (to prevent abuse)
-const blockedCredentialsStore = new Map<string, { blockedUntil: number; attempts: number }>();
+// Already defined at the top of the file
 
 /**
  * Get client IP address from request
@@ -58,63 +245,42 @@ export function generateRateLimitKey(userId?: string, ip?: string): string {
 }
 
 /**
- * Check if user/IP has exceeded rate limit (database version)
+ * Check if user/IP has exceeded rate limit (database version) - Updated for daily limits
  */
 export async function checkRateLimit(key: string, maxGenerations: number, windowHours: number, userId?: string): Promise<{
   allowed: boolean;
   remaining: number;
   resetTime: number;
+  userTier?: UserTier;
+  isAdmin?: boolean;
 }> {
   try {
     await dbConnect();
     
-    // Check if user is admin - if so, bypass rate limiting
-    if (userId) {
-      try {
-        // Use connectToDatabase for consistent connection handling
-        const { db } = await connectToDatabase();
-        const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-        
-        if (user?.isAdmin) {
-          console.log(`👑 Admin user ${userId} - bypassing rate limits`);
-          return {
-            allowed: true,
-            remaining: 999999, // Unlimited for admins
-            resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-          };
-        }
-        
-        // Also check adminusers collection
-        const adminUsersCollection = db.collection('adminusers');
-        const adminUser = await adminUsersCollection.findOne({ 
-          email: user?.email || userId,
-          isAdmin: true 
-        });
-        
-        if (adminUser) {
-          console.log(`👑 Admin user ${userId} found in adminusers collection - bypassing rate limits`);
-          return {
-            allowed: true,
-            remaining: 999999, // Unlimited for admins
-            resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-          };
-        }
-      } catch (error) {
-        console.error('Error checking admin status in checkRateLimit:', error);
-        // Continue with normal rate limiting if admin check fails
-      }
+    // Get user tier info
+    const userTierInfo = await getUserTierInfo(userId);
+    const config = await getRateLimitConfig(userTierInfo.tier);
+    
+    // Admin bypass for pro users
+    if (userTierInfo.isAdmin || userTierInfo.tier === 'pro') {
+      console.log(`👑 Pro user ${userId} - bypassing rate limits`);
+      return {
+        allowed: true,
+        remaining: Infinity,
+        resetTime: getNextMidnight().getTime(),
+        userTier: userTierInfo.tier,
+        isAdmin: userTierInfo.isAdmin,
+      };
     }
     
     const now = new Date();
-    const windowMs = windowHours * 60 * 60 * 1000;
+    const resetTime = getNextMidnight(); // Daily reset at midnight
     
     // Find existing rate limit record
     let rateLimitRecord = await (RateLimit as any).findOne({ key });
     
     if (!rateLimitRecord || now > rateLimitRecord.resetTime) {
       // First request or window expired, create/update entry
-      const resetTime = new Date(now.getTime() + windowMs);
       
       if (rateLimitRecord) {
         rateLimitRecord.count = 1;
@@ -131,17 +297,21 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
       
       return {
         allowed: true,
-        remaining: maxGenerations - 1,
+        remaining: config.MAX_GENERATIONS - 1,
         resetTime: resetTime.getTime(),
+        userTier: userTierInfo.tier,
+        isAdmin: userTierInfo.isAdmin,
       };
     }
     
-    if (rateLimitRecord.count >= maxGenerations) {
-      // Rate limit exceeded
+    if (rateLimitRecord.count >= config.MAX_GENERATIONS) {
+      // Rate limit exceeded - but we'll allow with soft limiting
       return {
         allowed: false,
         remaining: 0,
         resetTime: rateLimitRecord.resetTime.getTime(),
+        userTier: userTierInfo.tier,
+        isAdmin: userTierInfo.isAdmin,
       };
     }
     
@@ -151,8 +321,10 @@ export async function checkRateLimit(key: string, maxGenerations: number, window
     
     return {
       allowed: true,
-      remaining: maxGenerations - rateLimitRecord.count,
+      remaining: config.MAX_GENERATIONS - rateLimitRecord.count,
       resetTime: rateLimitRecord.resetTime.getTime(),
+      userTier: userTierInfo.tier,
+      isAdmin: userTierInfo.isAdmin,
     };
   } catch (error) {
     console.error('Rate limit check error:', error);
@@ -382,7 +554,7 @@ export function cleanupExpiredEntries(): void {
 }
 
 /**
- * Get rate limit info for display to user (database version)
+ * Get rate limit info for display to user (database version) - Updated for daily limits
  */
 export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
   isAuthenticated: boolean;
@@ -392,84 +564,69 @@ export async function getRateLimitInfo(userId?: string, ip?: string): Promise<{
   resetTime: number;
   windowHours: number;
   isAdmin?: boolean;
+  userTier?: UserTier;
+  resetMessage?: string;
 }> {
   try {
-    const isAuthenticated = !!userId;
+    // Get user tier info
+    const userTierInfo = await getUserTierInfo(userId);
+    const config = await getRateLimitConfig(userTierInfo.tier);
     
-    // Check if user is admin - if so, return unlimited status
-    if (userId) {
-      try {
-        // Use connectToDatabase for consistent connection handling
-        const { db } = await connectToDatabase();
-        
-        // First check the regular users collection using direct MongoDB query
-        const usersCollection = db.collection('users');
-        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-        
-        // If not found in regular users, check adminusers collection
-        if (!user || !user.isAdmin) {
-          const adminUsersCollection = db.collection('adminusers');
-          const adminUser = await adminUsersCollection.findOne({ 
-            email: user?.email || userId,
-            isAdmin: true 
-          });
-          
-          if (adminUser) {
-            console.log(`👑 Admin user ${userId} found in adminusers collection - showing unlimited rate limit info`);
-            return {
-              isAuthenticated: true,
-              maxGenerations: 999999, // Unlimited for admins
-              currentUsage: 0,
-              remaining: 999999, // Unlimited remaining
-              resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-              windowHours: 24,
-              isAdmin: true,
-            };
-          }
-        } else if (user?.isAdmin) {
-          console.log(`👑 Admin user ${userId} found in users collection - showing unlimited rate limit info`);
-          return {
-            isAuthenticated: true,
-            maxGenerations: 999999, // Unlimited for admins
-            currentUsage: 0,
-            remaining: 999999, // Unlimited remaining
-            resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
-            windowHours: 24,
-            isAdmin: true,
-          };
-        }
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-      }
+    // Admin bypass for pro users
+    if (userTierInfo.isAdmin || userTierInfo.tier === 'pro') {
+      console.log(`👑 Pro user ${userId} - showing unlimited rate limit info`);
+      return {
+        isAuthenticated: !!userId,
+        maxGenerations: Infinity,
+        currentUsage: 0,
+        remaining: Infinity,
+        resetTime: getNextMidnight().getTime(),
+        windowHours: 24,
+        isAdmin: userTierInfo.isAdmin,
+        userTier: userTierInfo.tier,
+        resetMessage: 'Unlimited access',
+      };
     }
     
-    const config = isAuthenticated ? RATE_LIMITS.AUTHENTICATED : RATE_LIMITS.ANONYMOUS;
     const key = generateRateLimitKey(userId, ip);
     
     await dbConnect();
     
     const now = new Date();
+    const resetTime = getNextMidnight(); // Daily reset at midnight
     const rateLimitRecord = await (RateLimit as any).findOne({ key });
     
     let currentUsage = 0;
-    let resetTime = now.getTime();
+    let actualResetTime = resetTime.getTime();
     
     if (rateLimitRecord && now <= rateLimitRecord.resetTime) {
       currentUsage = rateLimitRecord.count;
-      resetTime = rateLimitRecord.resetTime.getTime();
-    } else if (!rateLimitRecord) {
-      // No usage yet, set reset time to 24 hours from now
-      resetTime = now.getTime() + (config.WINDOW_HOURS * 60 * 60 * 1000);
+      actualResetTime = rateLimitRecord.resetTime.getTime();
+    }
+    
+    const remaining = Math.max(0, config.MAX_GENERATIONS - currentUsage);
+    const hoursUntilReset = Math.ceil((actualResetTime - now.getTime()) / (60 * 60 * 1000));
+    
+    // Generate friendly reset message
+    let resetMessage = 'tomorrow';
+    if (hoursUntilReset < 24) {
+      if (hoursUntilReset < 1) {
+        resetMessage = 'in less than an hour';
+      } else {
+        resetMessage = `in ${hoursUntilReset} hours`;
+      }
     }
     
     return {
-      isAuthenticated,
+      isAuthenticated: !!userId,
       maxGenerations: config.MAX_GENERATIONS,
       currentUsage,
-      remaining: Math.max(0, config.MAX_GENERATIONS - currentUsage),
-      resetTime,
-      windowHours: config.WINDOW_HOURS,
-      isAdmin: false,
+      remaining,
+      resetTime: actualResetTime,
+      windowHours: 24,
+      isAdmin: userTierInfo.isAdmin,
+      userTier: userTierInfo.tier,
+      resetMessage,
     };
   } catch (error) {
     console.error('Error getting rate limit info:', error);

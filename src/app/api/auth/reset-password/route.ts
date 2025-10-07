@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { getClientIP } from '@/lib/rate-limit';
+import { getClientIP } from '@/lib/unified-rate-limiter';
 
 export const dynamic = 'force-dynamic';
 

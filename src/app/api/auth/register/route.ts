@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { isCredentialsBlocked, getClientIP } from '@/lib/rate-limit';
+import { isBlocked, getClientIP } from '@/lib/unified-rate-limiter';
+import { isCredentialsBlocked } from '@/lib/rate-limit';
 import { sendWelcomeEmail } from '@/lib/mail';
 import crypto from 'crypto';
 

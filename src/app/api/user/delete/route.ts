@@ -6,7 +6,7 @@ import Post from '@/models/Post';
 import DeletedProfile from '@/models/DeletedProfile';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { blockCredentials, getClientIP } from '@/lib/rate-limit';
+import { blockCredentials, getClientIP } from '@/lib/unified-rate-limiter';
 import { batchArchiveImagesToCloudinary } from '@/lib/cloudinary-archive';
 import { sendRequestConfirmationEmail } from '@/lib/mail';
 

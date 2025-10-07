@@ -5,6 +5,7 @@ export interface IRateLimit extends Document {
   key: string; // user:userId or ip:ipAddress
   count: number;
   resetTime: Date;
+  processedRequests?: string[]; // Array of request IDs to prevent double counting
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,11 @@ const RateLimitSchema: Schema = new Schema({
     type: Date,
     required: true,
     // Removed index: true to avoid duplicate with schema.index() below
+  },
+  processedRequests: {
+    type: [String],
+    default: [],
+    required: false
   },
   createdAt: {
     type: Date,

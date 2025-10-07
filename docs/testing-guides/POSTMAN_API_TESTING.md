@@ -169,17 +169,9 @@ Postman Tests:
 pm.test('Status 200 or 401', () => pm.expect(pm.response.code).to.be.oneOf([200,401]));
 if (pm.response.code === 200) {
   const j = pm.response.json();
-## 6 - Admin Dashboard Stats (requires admin permissions)
-- Method: GET
-- URL: `{{baseUrl}}/api/admin/dashboard-stats`
-
-Notes about auth:
-- This endpoint requires a user session that can manage admins. In Postman you can either:
-  - Prefer an API token or Bearer approach: set `Authorization: Bearer <token>` header.
-  - Avoid copying browser cookies into Postman; if you must for local-only testing, never record or commit them.
-
-Postman Tests:- URL: `{{baseUrl}}/api/generate-captions`
-- Body: raw JSON
+## 7 - Generate Captions
+- Method: POST
+- URL: `{{baseUrl}}/api/generate-captions`- Body: raw JSON
 
 Example body (after successful upload):
 ```json

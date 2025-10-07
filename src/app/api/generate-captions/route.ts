@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { generateCaptions } from '@/ai/flows/generate-caption';
-import { isRateLimited, getRemainingRequests, getResetTime } from '@/lib/rate-limit-simple';
+import { consolidatedRateLimiter } from '@/lib/consolidated-rate-limiter';
 import { getNextGeminiKey, getGeminiUsageStats } from '@/lib/gemini-keys';
 import { CaptionCacheService } from '@/lib/caption-cache';
+import { geminiManager } from '@/lib/smart-gemini-manager';
+import { smartErrorHandler } from '@/lib/smart-error-handler';
 
 // Get client IP address
 function getClientIP(req: NextRequest): string {
@@ -28,52 +30,15 @@ function getClientIP(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const clientIP = getClientIP(req);
+  let keyResult: { key: string; index: number } | null = null;
+  let rateLimitChecked = false;
+  let rateLimitResult: any = null;
 
   // Get session for user authentication FIRST
   const session = await getServerSession(authOptions);
 
   try {
-    
-    // Check rate limiting AFTER getting session (so we can check admin status)
-    const isLimited = await isRateLimited(clientIP, session?.user?.id);
-    if (isLimited) {
-      const resetTime = getResetTime(clientIP);
-      const remainingTime = Math.ceil((resetTime - Date.now()) / 1000);
-      
-      console.log(`🚫 Rate limited: ${clientIP} - Reset in ${remainingTime}s`);
-      
-      return NextResponse.json({
-        success: false,
-        message: `Too many requests! Please try again in ${remainingTime} seconds ❤️`,
-        error: 'rate_limit_exceeded',
-        resetTime: remainingTime
-      }, { 
-        status: 429,
-        headers: {
-          'X-RateLimit-Reset': resetTime.toString(),
-          'X-RateLimit-Remaining': '0'
-        }
-      });
-    }
-    
-    // Check if we have an available Gemini key
-    const geminiKey = getNextGeminiKey();
-    if (!geminiKey) {
-      console.warn('⚠️ No available Gemini API keys - all may be rate limited');
-      
-      // Get usage stats for debugging
-      const usageStats = getGeminiUsageStats();
-      console.log('📊 Current usage stats:', usageStats);
-      
-      return NextResponse.json({
-        success: false,
-        message: "Our caption servers are resting — please try again in a few hours ❤️",
-        error: 'all_keys_exhausted',
-        note: 'All API keys are currently rate limited. This is normal for free tier usage.'
-      }, { status: 503 });
-    }
-
-    // Parse request body
+    // Parse request body first to avoid unnecessary rate limit checks
     const body = await req.json();
     const { mood, description, imageUrl, publicId } = body;
 
@@ -84,7 +49,7 @@ export async function POST(req: NextRequest) {
         message: 'Mood and image are required'
       }, { status: 400 });
     }
-
+    
     // ⚡ SPEED OPTIMIZATION: Quick cache check with optimized query
     console.log(`🔍 Checking cache for existing captions...`);
     console.log(`📊 Cache key components:`, {
@@ -105,17 +70,84 @@ export async function POST(req: NextRequest) {
       
       const processingTime = Date.now() - startTime;
       
+      // Get rate limit info for display without incrementing usage
+      const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
+      
       return NextResponse.json({
         success: true,
         captions: cacheResult.captions,
         processingTime,
         fromCache: true,
         cacheHit: true,
-        note: 'Served from cache - no API call needed! 🚀'
+        note: 'Served from cache - no API call needed! 🚀',
+        rateLimit: {
+          userTier: rateLimitInfo.userTier,
+          isAdmin: rateLimitInfo.isAdmin,
+          maxGenerations: rateLimitInfo.maxGenerations,
+          remaining: rateLimitInfo.remaining,
+          resetTime: rateLimitInfo.resetTime,
+          resetMessage: rateLimitInfo.resetMessage
+        }
       });
     }
 
     console.log(`❌ Cache MISS - generating new captions with AI`);
+    
+    // 🎯 CONSOLIDATED RATE LIMITER: Check usage limits with primary + secondary systems
+    // Only check rate limit if we need to generate new captions
+    rateLimitResult = await consolidatedRateLimiter.checkRateLimit(
+      session?.user?.id, 
+      clientIP
+    );
+    rateLimitChecked = true;
+    
+    if (!rateLimitResult.allowed) {
+      console.log(`🚫 Rate limit exceeded: ${clientIP} - ${rateLimitResult.reason}`);
+      
+      // Get rate limit info for display
+      const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
+      
+      return NextResponse.json({
+        success: false,
+        message: rateLimitResult.reason || 'Usage limit reached. Please upgrade for unlimited access.',
+        error: 'rate_limit_exceeded',
+        userTier: rateLimitResult.userTier,
+        isAdmin: rateLimitResult.isAdmin,
+        remaining: rateLimitResult.remaining,
+        resetTime: rateLimitResult.resetTime,
+        resetMessage: rateLimitInfo.resetMessage
+      }, { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': String(rateLimitInfo.maxGenerations),
+          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+          'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+          'Retry-After': rateLimitResult.retryAfter ? String(rateLimitResult.retryAfter) : '3600'
+        }
+      });
+    }
+
+    // Log rate limit status
+    console.log(`🎯 Rate limit check passed:`, {
+      userTier: rateLimitResult.userTier,
+      isAdmin: rateLimitResult.isAdmin,
+      remaining: rateLimitResult.remaining,
+      resetTime: rateLimitResult.resetTime
+    });
+    
+    // SMART: Use intelligent key management
+    keyResult = await geminiManager.getBestKey();
+    if (!keyResult) {
+      console.warn('⚠️ All Gemini API keys exhausted - enabling fallback mode');
+      
+      return NextResponse.json({
+        success: false,
+        message: "Our AI servers are currently at capacity. Please try again in a few hours.",
+        error: 'all_keys_exhausted',
+        status: geminiManager.getStatus()
+      }, { status: 503 });
+    }
+
     console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
 
     // ⚡ SPEED OPTIMIZATION: Generate captions with optimized timeout
@@ -126,6 +158,8 @@ export async function POST(req: NextRequest) {
       publicId,
       userId: session?.user?.id,
       ipAddress: clientIP,
+      // We already performed unified rate limit checks in this route, so skip the internal flow check
+      skipRateLimit: true,
     });
 
     // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
@@ -154,58 +188,55 @@ export async function POST(req: NextRequest) {
     console.log(`✅ Caption generated successfully in ${processingTime}ms`);
     console.log(`📊 Caption length: ${result.captions?.[0]?.length || 0} characters`);
 
-    // Return success response
+    // Get rate limit info for display
+    const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
+    
+    // Return success response with rate limit info
     return NextResponse.json({
       success: true,
       captions: result.captions,
       processingTime,
-      note: 'Generated with love using Gemini AI ❤️'
+      note: 'Generated with love using Gemini AI ❤️',
+      rateLimit: {
+        userTier: rateLimitInfo.userTier,
+        isAdmin: rateLimitInfo.isAdmin,
+        maxGenerations: rateLimitInfo.maxGenerations,
+        remaining: rateLimitInfo.remaining,
+        resetTime: rateLimitInfo.resetTime,
+        resetMessage: rateLimitInfo.resetMessage
+      }
     });
 
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
-    console.error('❌ Caption generation error:', error);
-
-    // Handle specific error types
-    let errorMessage = 'Failed to generate captions. Please try again.';
-    let statusCode = 500;
-    let errorType = 'unknown_error';
-
-    if (error.message?.includes('monthly limit') || 
-        error.message?.includes('quota will reset next month') ||
-        error.message?.includes('You\'ve used all') ||
-        error.message?.includes('You\'ve reached your monthly limit')) {
-      errorMessage = "You've used all 5 free images this month! That's 15 captions total. Sign up for a free account to get 25 monthly images (75 captions). Your free quota resets next month.";
-      statusCode = 429;
-      errorType = 'monthly_limit_exceeded';
-    } else if (error.message?.includes('quota') || error.message?.includes('limit')) {
-      errorMessage = "Our caption servers are resting — please try again in a few hours ❤️";
-      statusCode = 503;
-      errorType = 'quota_exceeded';
-    } else if (error.message?.includes('network') || error.message?.includes('timeout')) {
-      errorMessage = 'Network issue. Please check your connection and try again.';
-      statusCode = 503;
-      errorType = 'network_error';
-    } else if (error.message?.includes('invalid') || error.message?.includes('malformed')) {
-      errorMessage = 'Invalid request. Please check your input and try again.';
-      statusCode = 400;
-      errorType = 'invalid_request';
+    
+    // SMART: Use intelligent error handling
+    const categorized = smartErrorHandler.categorizeError(error, { 
+      clientIP, 
+      userId: session?.user?.id,
+      userEmail: session?.user?.email 
+    });
+    
+    smartErrorHandler.trackError(error, { clientIP, userId: session?.user?.id });
+    
+    // Mark key as exhausted if it's a quota error
+    if (categorized.category === 'quota_exceeded' && keyResult) {
+      geminiManager.markKeyExhausted(keyResult.index, error);
     }
-
-    // Log error details for debugging
+    
     console.error(`💥 Error details:`, {
-      errorType,
+      category: categorized.category,
       clientIP,
       userEmail: session?.user?.email || 'anonymous',
       processingTime,
-      errorMessage: error.message
+      developerInfo: categorized.developerInfo
     });
 
     return NextResponse.json({
       success: false,
-      message: errorMessage,
-      error: errorType,
+      message: categorized.userMessage,
+      error: categorized.category,
       processingTime
-    }, { status: statusCode });
+    }, { status: 500 });
   }
 }

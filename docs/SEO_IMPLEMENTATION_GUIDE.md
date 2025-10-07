@@ -250,3 +250,5 @@ Allow: /cookies
 ---
 
 *This guide provides everything needed to understand, monitor, and maintain the SEO optimizations implemented for Capsera.online.*
+
+

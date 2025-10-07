@@ -14,7 +14,7 @@ import {z} from 'genkit';
 import dbConnect from '@/lib/db';
 import { Types } from 'mongoose';
 import { clientPromise } from '@/lib/db';
-import { checkRateLimit, generateRateLimitKey, RATE_LIMITS } from '@/lib/rate-limit';
+import { checkRateLimit, generateRateLimitKey, DEFAULT_RATE_LIMITS } from '@/lib/unified-rate-limiter';
 import { checkImageContentSafety, reportInappropriateContent } from '@/lib/content-safety';
 
 const GenerateCaptionsInputSchema = z.object({
@@ -29,6 +29,7 @@ const GenerateCaptionsInputSchema = z.object({
   publicId: z.string().optional().describe('The Cloudinary public ID for image deletion.'),
   userId: z.string().optional().describe("The ID of the user generating the captions."),
   ipAddress: z.string().optional().describe("The IP address of the user (for rate limiting)."),
+  skipRateLimit: z.boolean().optional().describe('If true, skip the internal rate limit check (useful when caller already enforced limits).'),
 });
 
 export type GenerateCaptionsInput = z.infer<typeof GenerateCaptionsInputSchema>;
@@ -159,30 +160,33 @@ const generateCaptionsFlow = ai.defineFlow(
 
     // 🚦 RATE LIMITING CHECK
     const isAuthenticated = !!input.userId;
-    const rateLimitConfig = isAuthenticated ? RATE_LIMITS.AUTHENTICATED : RATE_LIMITS.ANONYMOUS;
+    const rateLimitConfig = isAuthenticated ? DEFAULT_RATE_LIMITS.REGISTERED : DEFAULT_RATE_LIMITS.ANONYMOUS;
     const rateLimitKey = generateRateLimitKey(input.userId, input.ipAddress);
-    
-    console.log(`🚦 Checking rate limit for ${isAuthenticated ? 'authenticated' : 'anonymous'} user...`);
-    
-    const rateLimitResult = await checkRateLimit(
-      rateLimitKey,
-      rateLimitConfig.MAX_GENERATIONS,
-      rateLimitConfig.WINDOW_HOURS,
-      input.userId
-    );
 
-    if (!rateLimitResult.allowed) {
-      const hoursRemaining = Math.ceil((rateLimitResult.resetTime - Date.now()) / (60 * 60 * 1000));
-      const userType = isAuthenticated ? 'registered users' : 'anonymous users';
-      const maxAllowed = rateLimitConfig.MAX_GENERATIONS;
-      
-      console.log(`🚫 Rate limit exceeded for user type: ${isAuthenticated ? 'authenticated' : 'anonymous'}`);
-      
+    // If caller indicates the rate limit was already checked (skipRateLimit), avoid double-checking
+    if (!input.skipRateLimit) {
+      console.log(`🚦 Checking rate limit for ${isAuthenticated ? 'authenticated' : 'anonymous'} user...`);
+
+      const rateLimitResult = await checkRateLimit(
+        rateLimitKey,
+        rateLimitConfig.MAX_GENERATIONS,
+        rateLimitConfig.WINDOW_HOURS,
+        input.userId,
+        input.ipAddress
+      );
+
+      if (!rateLimitResult.allowed) {
+        const hoursRemaining = Math.ceil((rateLimitResult.resetTime - Date.now()) / (60 * 60 * 1000));
+        const userType = isAuthenticated ? 'registered users' : 'anonymous users';
+        const maxAllowed = rateLimitConfig.MAX_GENERATIONS;
+
+        console.log(`🚫 Rate limit exceeded for user type: ${isAuthenticated ? 'authenticated' : 'anonymous'}`);
+
         const daysRemaining = Math.ceil(hoursRemaining / 24);
         console.log(`🔍 Debug: hoursRemaining=${hoursRemaining}, daysRemaining=${daysRemaining}`);
         // Always show "next month" for monthly quotas to avoid confusion
         const resetMessage = "next month";
-        
+
         if (isAuthenticated) {
           throw new Error(
             `You've reached your monthly limit of ${maxAllowed} images (${maxAllowed * 3} captions). ` +
@@ -191,13 +195,16 @@ const generateCaptionsFlow = ai.defineFlow(
         } else {
           throw new Error(
             `You've used all ${maxAllowed} free images this month! That's ${maxAllowed * 3} captions total. ` +
-            `Sign up for a free account to get ${RATE_LIMITS.AUTHENTICATED.MAX_GENERATIONS} monthly images (${RATE_LIMITS.AUTHENTICATED.MAX_GENERATIONS * 3} captions). ` +
+            `Sign up for a free account to get ${DEFAULT_RATE_LIMITS.REGISTERED.MAX_GENERATIONS} monthly images (${DEFAULT_RATE_LIMITS.REGISTERED.MAX_GENERATIONS * 3} captions). ` +
             `Your free quota resets ${resetMessage}.`
           );
         }
-    }
+      }
 
-    console.log(`✅ Rate limit check passed. Remaining: ${rateLimitResult.remaining}/${rateLimitConfig.MAX_GENERATIONS}`);
+      console.log(`✅ Rate limit check passed. Remaining: ${rateLimitResult.remaining}/${rateLimitConfig.MAX_GENERATIONS}`);
+    } else {
+      console.log('🚦 Skipping internal rate limit check (skipRateLimit=true)');
+    }
 
          // 🤖 CRITICAL FIX: Use Genkit's proper image analysis method
      console.log('🤖 Sending image to AI for analysis using Genkit...');
@@ -422,17 +429,32 @@ const generateCaptionsFlow = ai.defineFlow(
        throw new Error('AI generated unexpected output format');
      }
 
+    // Sanitize captions to remove any HTML tags
+    const sanitizeCaption = (caption: string): string => {
+      // Remove HTML tags
+      const withoutHtml = caption.replace(/<[^>]*>/g, '');
+      // Trim whitespace
+      const trimmed = withoutHtml.trim();
+      // Return sanitized caption or fallback if empty
+      return trimmed || 'Check out this amazing photo!';
+    };
+    
+    // Apply sanitization to all captions
+    captions = captions.map(sanitizeCaption);
+    
     // Ensure we have exactly 3 captions
     if (captions.length < 3) {
-                    // Generate additional captions if needed
-       const additionalPrompt = `Generate ${3 - captions.length} more captions to complete the set. Make sure they are unique and follow the same style as the previous ones.`;
-       const additionalResponse = await ai.generate([
-         { text: additionalPrompt },
-         { media: { url: input.imageUrl } }
-       ]);
+      // Generate additional captions if needed
+      const additionalPrompt = `Generate ${3 - captions.length} more captions to complete the set. Make sure they are unique and follow the same style as the previous ones.`;
+      const additionalResponse = await ai.generate([
+        { text: additionalPrompt },
+        { media: { url: input.imageUrl } }
+      ]);
       
       if (additionalResponse.output?.text) {
-        const additionalLines = additionalResponse.output.text.split('\n').filter((line: string) => line.trim());
+        const additionalLines = additionalResponse.output.text.split('\n')
+          .filter((line: string) => line.trim())
+          .map(sanitizeCaption);
         captions = [...captions, ...additionalLines].slice(0, 3);
       }
     }
@@ -466,6 +488,22 @@ const generateCaptionsFlow = ai.defineFlow(
 
     // Limit to exactly 3 captions
     captions = captions.slice(0, 3);
+    
+    // Sanitize captions to remove any HTML tags
+    captions = captions.map(caption => {
+      // Remove any HTML tags like <div>, <label>, etc.
+      let sanitized = caption.replace(/<[^>]*>/g, '');
+      
+      // Trim any extra whitespace
+      sanitized = sanitized.trim();
+      
+      // If sanitizing removed all content, provide a fallback
+      if (!sanitized) {
+        return `Amazing photo! ✨ #vibes #aesthetic #mood`;
+      }
+      
+      return sanitized;
+    });
 
     // Validate that we have valid captions
     if (captions.length === 0 || captions.every(caption => !caption || caption.trim() === '')) {

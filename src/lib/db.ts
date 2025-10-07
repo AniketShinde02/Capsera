@@ -45,7 +45,7 @@ if (!cachedClient) {
   cachedClient = (global as any).mongoClient = { client: null, promise: null };
 }
 
-async function dbConnect(): Promise<Mongoose> {
+export async function dbConnect(): Promise<Mongoose> {
   if (cached.conn) {
     console.log('🔄 Using cached Mongoose connection');
     return cached.conn;

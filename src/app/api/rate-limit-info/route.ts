@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { getRateLimitInfo, getClientIP } from '@/lib/rate-limit';
+import { consolidatedRateLimiter } from '@/lib/consolidated-rate-limiter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     
     // Get client IP for rate limiting
-    const clientIP = getClientIP(request);
+    const clientIP = consolidatedRateLimiter.getClientIP(request);
     
     // Get rate limit info
-    const rateLimitInfo = await getRateLimitInfo(session?.user?.id, clientIP);
+    const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
 
     return NextResponse.json(rateLimitInfo);
 

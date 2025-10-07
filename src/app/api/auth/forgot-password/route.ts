@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { sendPasswordResetEmail } from '@/lib/mail';
-import { getClientIP, checkRateLimit, blockCredentials, isCredentialsBlocked } from '@/lib/rate-limit';
+import { getClientIP, checkRateLimit, blockCredentials, isBlocked } from '@/lib/unified-rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,18 +26,18 @@ export async function POST(req: NextRequest) {
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
     // Check if this IP is blocked from making reset requests
-    const ipBlockStatus = await isCredentialsBlocked(`ip:${clientIP}`);
-    if (ipBlockStatus.blocked) {
-      console.log(`🚫 IP ${clientIP} is blocked from password reset requests until ${new Date(ipBlockStatus.blockedUntil!)}`);
+    const ipBlocked = await isBlocked(`ip:${clientIP}`);
+    if (ipBlocked) {
+      console.log(`🚫 IP ${clientIP} is blocked from password reset requests`);
       return NextResponse.json({ 
         message: 'Too many password reset attempts from this location. Please try again later.' 
       }, { status: 429 });
     }
 
     // Check if this email is blocked
-    const emailBlockStatus = await isCredentialsBlocked(email);
-    if (emailBlockStatus.blocked) {
-      console.log(`🚫 Email ${email} is blocked from password reset requests until ${new Date(emailBlockStatus.blockedUntil!)}`);
+    const emailBlocked = await isBlocked(email);
+    if (emailBlocked) {
+      console.log(`🚫 Email ${email} is blocked from password reset requests`);
       return NextResponse.json({ 
         message: 'Too many password reset attempts for this email. Please try again later.' 
       }, { status: 429 });

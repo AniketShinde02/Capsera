@@ -1748,8 +1748,7 @@ export function CaptionGenerator() {
                               <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                                 <UploadCloud className="w-5 h-5 text-primary" />
                               </div>
-                              <p className="text-sm text-muted-foreground font-medium">Click to upload, drag & drop, paste image, or add URL</p>
-                              <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF - Auto-compression for high-res images</p>
+            <p className="text-sm text-muted-foreground font-medium">Click to upload, drag & drop, paste image, or add URL</p>
                             </>
                           )}
                           

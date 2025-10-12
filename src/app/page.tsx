@@ -104,11 +104,11 @@ function HomeContent() {
                 .
               </p>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-2">
-                Need help? Check out our{' '}
-                <Link href="/help" className="text-foreground/70 hover:text-foreground underline" target="_blank" rel="noopener noreferrer">
-                  Help Guide
+                Help us get better! Share your{' '}
+                <Link href="https://forms.gle/Crx8voztG1TQZmBg9" className="text-foreground/70 hover:text-foreground underline" target="_blank" rel="noopener noreferrer">
+                  feedback here
                 </Link>
-                {' '}to get better results and tips for creating amazing captions.
+                {' '}to help us create amazing captions for you.
               </p>
             </div>
           </div>

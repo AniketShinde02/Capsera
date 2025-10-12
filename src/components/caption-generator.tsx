@@ -1111,6 +1111,10 @@ export function CaptionGenerator() {
         // Dispatch event for floating feedback widget
         const event = new CustomEvent('captionGenerated');
         window.dispatchEvent(event);
+        
+        // Update generation count for floating feedback widget
+        const currentCount = parseInt(localStorage.getItem('captionGenerationCount') || '0');
+        localStorage.setItem('captionGenerationCount', (currentCount + 1).toString());
 
         // Update freemium usage information from response
         if (captionData.freemium) {
@@ -1479,6 +1483,10 @@ export function CaptionGenerator() {
     // Dispatch event for floating feedback widget (generate another)
     const event = new CustomEvent('captionGenerated');
     window.dispatchEvent(event);
+    
+    // Update generation count for floating feedback widget
+    const currentCount = parseInt(localStorage.getItem('captionGenerationCount') || '0');
+    localStorage.setItem('captionGenerationCount', (currentCount + 1).toString());
     
     // Force refresh quota info to update the counter
     setTimeout(() => {

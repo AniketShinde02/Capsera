@@ -174,6 +174,7 @@ storybook-static
 .vercel
 
 # Feedback system files (contains sensitive Google Apps Script code and email addresses)
-src/lib/feedback/
-src/components/feedback/
-src/app/api/feedback/
+src/lib/feedback/google-apps-script.js
+src/lib/feedback/DEBUG_EMAIL_ISSUE.md
+src/components/feedback/FeedbackForm.tsx
+src/app/api/feedback/submit/route.ts

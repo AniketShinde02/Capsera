@@ -38,6 +38,30 @@ export async function GET() {
     return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
   }
 
+  // Ensure createdAt is always a valid date
+  if (!user.createdAt) {
+    console.log('⚠️ User missing createdAt, setting to current date');
+    user.createdAt = new Date();
+    
+    // Update the database with the current date
+    try {
+      await (User as any).findByIdAndUpdate(user._id, { createdAt: user.createdAt });
+      console.log('✅ Updated user createdAt in database');
+    } catch (updateError) {
+      console.error('❌ Failed to update createdAt in database:', updateError);
+    }
+  }
+
+  console.log('📊 User data being returned:', {
+    id: user._id,
+    email: user.email,
+    username: user.username,
+    createdAt: user.createdAt,
+    hasCreatedAt: !!user.createdAt,
+    createdAtType: typeof user.createdAt,
+    createdAtString: user.createdAt ? user.createdAt.toString() : 'null'
+  });
+
   return NextResponse.json({ success: true, data: user }, { status: 200 });
 }
 

@@ -199,7 +199,32 @@ export function clearAllNextAuthStorage() {
       });
     }
     
-    console.log('🧹 All NextAuth storage cleared aggressively');
+    // Clear Service Worker caches (critical for preventing session revival)
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => {
+          if (name.includes('next-auth') || name.includes('session') || name.includes('auth')) {
+            caches.delete(name);
+          }
+        });
+      }).catch(err => console.log('Service Worker cache clear failed:', err));
+    }
+    
+    // Clear HTTP cache by making a request with cache-busting headers
+    try {
+      fetch('/api/auth/session', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
+      }).catch(() => {}); // Ignore errors
+    } catch (e) {
+      console.log('HTTP cache clear failed:', e);
+    }
+    
+    console.log('🧹 All NextAuth storage cleared aggressively including Service Worker caches');
   } catch (error) {
     console.error('Error clearing NextAuth storage:', error);
   }

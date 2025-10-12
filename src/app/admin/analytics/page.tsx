@@ -108,6 +108,38 @@ export default function AdminAnalytics() {
     setTimeout(() => setNotification(null), 2000); // 2 second timeout
   };
 
+  const fetchAnalyticsData = async () => {
+    if (isFetching) return;
+    
+    try {
+      setIsFetching(true);
+      console.log('📊 Fetching analytics data...');
+      
+      const response = await fetch(`/api/admin/analytics?timeRange=${selectedTimeRange}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result && result.success && result.data) {
+          setAnalyticsData(result.data);
+          console.log('✅ Analytics data received:', result.data);
+        } else {
+          console.error('❌ Invalid analytics data structure:', result);
+          setAnalyticsData(null);
+        }
+      } else {
+        console.error('❌ Failed to fetch analytics data:', response.status);
+        setAnalyticsData(null);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching analytics data:', error);
+      showNotification("Failed to fetch analytics data. Please try again.", "error");
+      setAnalyticsData(null);
+    } finally {
+      setIsFetching(false);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (status === 'loading') return;
     
@@ -125,37 +157,6 @@ export default function AdminAnalytics() {
       }
     }
   }, [session, status, router, realTimeMode, selectedTimeRange]);
-
-  const fetchAnalyticsData = async () => {
-    if (isFetching) return;
-    
-    try {
-      setIsFetching(true);
-      console.log('📊 Fetching analytics data...');
-      
-      const response = await fetch(`/api/admin/analytics?timeRange=${selectedTimeRange}`);
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          setAnalyticsData(result.data);
-          console.log('✅ Analytics data received:', result.data);
-        } else {
-          console.error('❌ Invalid analytics data structure:', result);
-          setAnalyticsData(null);
-        }
-      } else {
-        console.error('❌ Failed to fetch analytics data:', response.status);
-        setAnalyticsData(null);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching analytics data:', error);
-      showNotification("Failed to fetch analytics data. Please try again.", "error");
-    } finally {
-      setIsFetching(false);
-      setLoading(false);
-    }
-  };
 
   const getGrowthIcon = (value: number) => {
     if (value > 0) return <TrendingUp className="w-4 h-4 text-green-500" />;
@@ -855,7 +856,7 @@ export default function AdminAnalytics() {
           </div>
 
           {/* Alerts */}
-          {analyticsData?.insights.alerts && analyticsData.insights.alerts.length > 0 && (
+          {analyticsData?.insights?.alerts && analyticsData.insights.alerts.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

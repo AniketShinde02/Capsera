@@ -69,7 +69,12 @@ export async function POST(req: NextRequest) {
         promotional: true,
         welcome: true,
         requestConfirmations: true
-      }
+      },
+      // Set default role and status
+      role: null, // Will be set to default user role later
+      status: 'active',
+      isAdmin: false,
+      isSuperAdmin: false
     });
     
     // Send welcome email

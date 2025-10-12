@@ -84,6 +84,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: userId } = await params;
+    console.log('🔄 PATCH /api/admin/users/[id] - Updating user:', userId);
+    
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -97,8 +100,9 @@ export async function PATCH(
     }
 
     const { db } = await connectToDatabase();
-    const { id: userId } = await params;
     const updates = await request.json();
+    
+    console.log('📊 Update data received:', updates);
 
     // Check if user exists in either collection
     let user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
@@ -122,23 +126,36 @@ export async function PATCH(
     const allowedUpdates: any = {};
     
     if (updates.isActive !== undefined) {
+      // Both collections use status field, but with different enum values
       if (isAdminUser) {
-        allowedUpdates.status = updates.isActive ? 'active' : 'inactive';
+        allowedUpdates.status = updates.isActive ? 'active' : 'suspended';
       } else {
-        allowedUpdates.isActive = updates.isActive;
+        allowedUpdates.status = updates.isActive ? 'active' : 'suspended';
       }
     }
     
-    if (updates.role && updates.role.name) {
-      // Verify role exists
-      const role = await db.collection('roles').findOne({ name: updates.role.name });
-      if (!role) {
-        return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    if (updates.role) {
+      // Handle role updates - can be string or object
+      let roleName = updates.role;
+      if (typeof updates.role === 'object' && updates.role.name) {
+        roleName = updates.role.name;
       }
-      allowedUpdates.role = {
-        name: role.name,
-        displayName: role.displayName
-      };
+      
+      // Check if role exists in roles collection
+      const role = await db.collection('roles').findOne({ name: roleName.toLowerCase() });
+      if (role) {
+        // Use role from roles collection
+        allowedUpdates.role = {
+          name: role.name,
+          displayName: role.displayName
+        };
+      } else {
+        // Create simple role object for basic roles
+        allowedUpdates.role = {
+          name: roleName.toLowerCase(),
+          displayName: roleName.charAt(0).toUpperCase() + roleName.slice(1)
+        };
+      }
     }
 
     if (updates.username !== undefined) {
@@ -157,12 +174,14 @@ export async function PATCH(
     );
 
     if (result.modifiedCount === 1) {
+      console.log('✅ User updated successfully:', { userId, allowedUpdates });
       return NextResponse.json({ 
         success: true, 
         message: 'User updated successfully',
         updates: allowedUpdates
       });
     } else {
+      console.error('❌ Failed to update user - no documents modified:', { userId, allowedUpdates });
       return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
     }
 

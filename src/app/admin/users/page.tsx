@@ -196,7 +196,26 @@ export default function UsersPage() {
 
   // CRUD Functions for User Management
   const handleCreateUser = async () => {
+    // Validate form data
+    if (!createFormData.email || !createFormData.password) {
+      showNotification("Email and password are required", "error");
+      return;
+    }
+
+    if (createFormData.password.length < 8) {
+      showNotification("Password must be at least 8 characters long", "error");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(createFormData.email)) {
+      showNotification("Please enter a valid email address", "error");
+      return;
+    }
+
     try {
+      console.log('🔄 Creating user with data:', createFormData);
+      
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
@@ -205,19 +224,30 @@ export default function UsersPage() {
         body: JSON.stringify(createFormData)
       });
 
+      console.log('📊 Create user response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ User created successfully:', data);
         setUsers([...users, data.user]);
         setShowCreateModal(false);
         setCreateFormData({ email: '', username: '', password: '', role: 'user', isAdmin: false });
         showNotification("User created successfully", "success");
+        
+        // Refresh users list to get updated data
+        const refreshResponse = await fetch('/api/admin/users');
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          setUsers(refreshData.users || []);
+        }
       } else {
         const errorData = await response.json();
-        showNotification(`Failed to create user: ${errorData.error}`, "error");
+        console.error('❌ Failed to create user:', errorData);
+        showNotification(`Failed to create user: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
       }
     } catch (error) {
-      console.error('Error creating user:', error);
-      showNotification("Error creating user", "error");
+      console.error('❌ Error creating user:', error);
+      showNotification(`Error creating user: ${error.message || 'Network error'}`, "error");
     }
   };
 
@@ -235,6 +265,8 @@ export default function UsersPage() {
     if (!editingUser) return;
 
     try {
+      console.log('🔄 Updating user:', editingUser._id, 'with data:', editFormData);
+      
       const response = await fetch(`/api/admin/users/${editingUser._id}`, {
         method: 'PATCH',
         headers: {
@@ -243,8 +275,13 @@ export default function UsersPage() {
         body: JSON.stringify(editFormData)
       });
 
+      console.log('📊 Update user response status:', response.status);
+
       if (response.ok) {
-        // Update user in local state
+        const data = await response.json();
+        console.log('✅ User updated successfully:', data);
+        
+        // Update user in local state - handle schema differences
         setUsers(users.map(u => 
           u._id === editingUser._id ? { 
             ...u, 
@@ -253,39 +290,65 @@ export default function UsersPage() {
               name: editFormData.role, 
               displayName: editFormData.role 
             },
-            isActive: editFormData.isActive
+            isActive: editFormData.isActive,
+            status: editFormData.isActive ? 'active' : 'suspended' // Update status field too
           } : u
         ));
         setShowEditModal(false);
         setEditingUser(null);
         showNotification("User updated successfully", "success");
+        
+        // Refresh users list to get updated data
+        const refreshResponse = await fetch('/api/admin/users');
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          setUsers(refreshData.users || []);
+        }
       } else {
-        showNotification("Failed to update user", "error");
+        const errorData = await response.json();
+        console.error('❌ Failed to update user:', errorData);
+        showNotification(`Failed to update user: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
       }
     } catch (error) {
-      console.error('Error updating user:', error);
-      showNotification("Error updating user", "error");
+      console.error('❌ Error updating user:', error);
+      showNotification(`Error updating user: ${error.message || 'Network error'}`, "error");
     }
   };
 
   const handleDeleteUser = async (user: User) => {
     if (confirm(`Are you sure you want to delete user: ${user.email}?`)) {
       try {
+        console.log('🔄 Deleting user:', user._id);
+        
         const response = await fetch(`/api/admin/users/${user._id}`, {
           method: 'DELETE'
         });
         
+        console.log('📊 Delete user response status:', response.status);
+        
         if (response.ok) {
-                  // Remove user from local state
-        setUsers(users.filter(u => u._id !== user._id));
-        showNotification("User deleted successfully", "success");
-      } else {
-        showNotification("Failed to delete user", "error");
+          const data = await response.json();
+          console.log('✅ User deleted successfully:', data);
+          
+          // Remove user from local state
+          setUsers(users.filter(u => u._id !== user._id));
+          showNotification("User deleted successfully", "success");
+          
+          // Refresh users list to get updated data
+          const refreshResponse = await fetch('/api/admin/users');
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            setUsers(refreshData.users || []);
+          }
+        } else {
+          const errorData = await response.json();
+          console.error('❌ Failed to delete user:', errorData);
+          showNotification(`Failed to delete user: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
+        }
+      } catch (error) {
+        console.error('❌ Error deleting user:', error);
+        showNotification(`Error deleting user: ${error.message || 'Network error'}`, "error");
       }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      showNotification("Error deleting user", "error");
-    }
     }
   };
 
@@ -296,6 +359,8 @@ export default function UsersPage() {
 
   const handleToggleUserStatus = async (user: User) => {
     try {
+      console.log('🔄 Toggling user status:', user._id, 'from', user.isActive, 'to', !user.isActive);
+      
       const response = await fetch(`/api/admin/users/${user._id}`, {
         method: 'PATCH',
         headers: {
@@ -306,18 +371,36 @@ export default function UsersPage() {
         })
       });
       
+      console.log('📊 Toggle status response:', response.status);
+      
       if (response.ok) {
-        // Update user status in local state
+        const data = await response.json();
+        console.log('✅ User status updated successfully:', data);
+        
+        // Update user status in local state - handle schema differences
         setUsers(users.map(u => 
-          u._id === user._id ? { ...u, isActive: !u.isActive } : u
+          u._id === user._id ? { 
+            ...u, 
+            isActive: !u.isActive,
+            status: !u.isActive ? 'active' : 'suspended' // Update status field too
+          } : u
         ));
         showNotification(`User ${user.isActive ? 'deactivated' : 'activated'} successfully`, "success");
+        
+        // Refresh users list to get updated data
+        const refreshResponse = await fetch('/api/admin/users');
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          setUsers(refreshData.users || []);
+        }
       } else {
-        showNotification("Failed to update user status", "error");
+        const errorData = await response.json();
+        console.error('❌ Failed to update user status:', errorData);
+        showNotification(`Failed to update user status: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
       }
     } catch (error) {
-      console.error('Error updating user status:', error);
-      showNotification("Error updating user status", "error");
+      console.error('❌ Error updating user status:', error);
+      showNotification(`Error updating user status: ${error.message || 'Network error'}`, "error");
     }
   };
 

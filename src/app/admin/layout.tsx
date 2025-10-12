@@ -50,7 +50,7 @@ export default async function AdminLayout({
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-sidebar-foreground">CaptionCraft</h1>
+                  <h1 className="text-lg font-bold text-sidebar-foreground">Capsera</h1>
                   <p className="text-sm text-sidebar-foreground/60">Admin Panel</p>
                 </div>
               </div>
@@ -61,13 +61,13 @@ export default async function AdminLayout({
             </div>
           </div>
 
-          {/* Sidebar - Mobile First */}
-          <div className="lg:w-64 lg:flex-shrink-0">
+          {/* Sidebar - Fixed on desktop, mobile overlay */}
+          <div className="lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 lg:z-30">
             <AdminSidebar />
           </div>
           
-          {/* Main content area - Mobile First */}
-          <div className="flex-1 flex flex-col min-w-0">
+          {/* Main content area - With left margin on desktop to account for fixed sidebar */}
+          <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
             {/* Desktop Header - Only show on desktop */}
             <div className="hidden lg:block">
               <AdminHeader user={{ 

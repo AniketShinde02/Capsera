@@ -152,7 +152,12 @@ export class UnifiedRateLimiter {
     try {
       const { db } = await connectToDatabase();
       const usersCollection = db.collection('users');
-      const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+      
+      // Check if userId is a valid MongoDB ObjectId
+      let user = null;
+      if (userId && userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)) {
+        user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+      }
       
       if (user?.isAdmin) {
         return { tier: 'pro', isAdmin: true };
@@ -408,8 +413,18 @@ export class UnifiedRateLimiter {
       // Increment count - only increment if this is a new request, not a duplicate
       // This prevents double-counting when the same request is made multiple times
       const requestId = `${key}_${now.getTime()}`;
+      const oldCount = rateLimitRecord.count;
+      
       if (!rateLimitRecord.processedRequests || !rateLimitRecord.processedRequests.includes(requestId)) {
         rateLimitRecord.count += 1;
+        
+        console.log(`📊 Incrementing rate limit count:`, {
+          key,
+          oldCount,
+          newCount: rateLimitRecord.count,
+          requestId,
+          processedRequests: rateLimitRecord.processedRequests?.length || 0
+        });
         
         // Track this request to prevent double counting
         if (!rateLimitRecord.processedRequests) {
@@ -422,7 +437,23 @@ export class UnifiedRateLimiter {
         }
         
         rateLimitRecord.processedRequests.push(requestId);
-        await rateLimitRecord.save();
+        
+        try {
+          await rateLimitRecord.save();
+          console.log(`✅ Rate limit record saved successfully:`, {
+            key,
+            count: rateLimitRecord.count,
+            resetTime: rateLimitRecord.resetTime
+          });
+        } catch (saveError) {
+          console.error(`❌ Failed to save rate limit record:`, saveError);
+        }
+      } else {
+        console.log(`📊 Request already processed, skipping increment:`, {
+          key,
+          requestId,
+          currentCount: rateLimitRecord.count
+        });
       }
       
       return {
@@ -496,10 +527,28 @@ export class UnifiedRateLimiter {
       if (rateLimitRecord && now <= rateLimitRecord.resetTime) {
         currentUsage = rateLimitRecord.count;
         actualResetTime = rateLimitRecord.resetTime.getTime();
+        console.log(`📊 Found rate limit record:`, {
+          key,
+          count: rateLimitRecord.count,
+          resetTime: rateLimitRecord.resetTime,
+          now
+        });
+      } else {
+        console.log(`📊 No valid rate limit record found for key:`, key);
       }
       
       const remaining = Math.max(0, config.MAX_GENERATIONS - currentUsage);
       const hoursUntilReset = Math.ceil((actualResetTime - now.getTime()) / (60 * 60 * 1000));
+      
+      console.log(`📊 Rate limit info calculation:`, {
+        userId: userId || 'anonymous',
+        key,
+        config: config.MAX_GENERATIONS,
+        currentUsage,
+        remaining,
+        resetTime: actualResetTime,
+        now: now.getTime()
+      });
       
       // Generate friendly reset message
       let resetMessage = 'tomorrow';

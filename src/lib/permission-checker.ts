@@ -76,12 +76,6 @@ export async function canViewAnalytics(user: UserWithRole): Promise<boolean> {
   return checkPermission(user, 'analytics', 'read');
 }
 
-/**
- * Check if user can access data recovery
- */
-export async function canAccessDataRecovery(user: UserWithRole): Promise<boolean> {
-  return checkPermission(user, 'data-recovery', 'read');
-}
 
 /**
  * Check if user can manage archived profiles
@@ -175,7 +169,7 @@ export function getRoleBasedAccess(user: UserWithRole) {
     canManageUsers: canManageUsers(user),
     canModerateContent: canModerateContent(user),
     canViewAnalytics: canViewAnalytics(user),
-    canAccessDataRecovery: canAccessDataRecovery(user),
+    // canAccessDataRecovery: canAccessDataRecovery(user), // Function removed
     canManageArchivedProfiles: canManageArchivedProfiles(user),
     rolePriority: getUserRolePriority(user),
     roleName: user.role?.name || 'guest',

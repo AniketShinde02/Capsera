@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -102,15 +102,17 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Real API data fetching
   const fetchRealStats = async (): Promise<DashboardStats> => {
     try {
-      const response = await fetch('/api/admin/dashboard-stats');
+      const response = await fetch(`/api/admin/dashboard-stats?t=${Date.now()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard stats');
       }
       const data = await response.json();
+      console.log('📊 Dashboard API response:', data);
       
       if (data.success && data.stats) {
         // Transform API data to match our DashboardStats interface
@@ -186,6 +188,20 @@ export default function AdminDashboard() {
     }
   };
 
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    setLastRefresh(new Date());
+    try {
+      const newStats = await fetchRealStats();
+      setStats(newStats);
+    } catch (error) {
+      console.error('Failed to refresh dashboard stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (status === 'loading') return;
     
@@ -211,17 +227,6 @@ export default function AdminDashboard() {
     loadStats();
   }, [session, status, router]);
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const realStats = await fetchRealStats();
-      setStats(realStats);
-    } catch (error) {
-      console.error('Failed to refresh dashboard stats:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   if (status === 'loading') {
     return (

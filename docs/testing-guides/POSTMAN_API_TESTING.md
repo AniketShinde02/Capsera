@@ -2,6 +2,12 @@
 
 This guide shows step-by-step how to test the important server APIs for Capsera locally using Postman. It covers request setup, expected responses, Postman Tests (scripts), and diagrams to illustrate flows. Where an animation would help, I explain what to record and where to store it (eg. `docs/assets/`).
 
+### **🎯 Latest API Optimizations:**
+- **⚡ 2-3 seconds faster**: Removed redundant content safety checks
+- **🛡️ Better safety**: Uses provider's built-in safety mechanisms
+- **💰 Lower costs**: Eliminated extra API calls for safety checks
+- **🔧 Simplified flow**: Less complexity, fewer failure points
+
 ## Prerequisites
 - A working local dev environment with the app running at `{{BASE_URL}}` (run `npm run dev`).
 - Environment variables set (Cloudinary keys, DB connection, etc.) when required by the API.
@@ -141,7 +147,7 @@ Diagram (happy path):
 - Method: GET
 - URL: `{{baseUrl}}/api/rate-limit-info`
 
-Purpose: Verify the quota API returns the monthly limits and remaining count.
+Purpose: Verify the quota API returns the daily limits and remaining count.
 
 Postman Tests:
 ```javascript

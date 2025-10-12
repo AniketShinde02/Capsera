@@ -33,7 +33,7 @@ export async function checkImageContentSafety(
 ): Promise<ContentSafetyResult> {
   try {
     // If no API key provided, use environment variable
-    const geminiKey = apiKey || process.env.GEMINI_API_KEY;
+    const geminiKey = apiKey || process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY_3 || process.env.GEMINI_API_KEY_4;
     
     if (!geminiKey) {
       console.warn('⚠️ No Gemini API key available for content safety check');

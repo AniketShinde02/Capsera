@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Wrench, Clock, Zap, Star, Twitter, Instagram, Facebook, RefreshCw, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface MaintenanceStatus {
   enabled: boolean;
@@ -18,6 +19,7 @@ export default function MaintenancePage() {
   const [status, setStatus] = useState<MaintenanceStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const fetchMaintenanceStatus = async () => {
     try {
@@ -26,6 +28,13 @@ export default function MaintenancePage() {
       if (response.ok) {
         const data = await response.json();
         setStatus(data.status);
+        
+        // CRITICAL FIX: If maintenance mode is disabled, redirect to home page
+        if (!data.status.enabled) {
+          console.log('🔧 Maintenance mode is OFF - redirecting to home page');
+          router.push('/');
+          return;
+        }
       } else {
         setError('Failed to fetch maintenance status');
       }
@@ -38,7 +47,8 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     fetchMaintenanceStatus();
-    const interval = setInterval(fetchMaintenanceStatus, 30000);
+    // Check every 10 seconds for faster response when maintenance is turned off
+    const interval = setInterval(fetchMaintenanceStatus, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -156,9 +166,13 @@ export default function MaintenancePage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <Button onClick={() => router.push('/')} size="lg" className="bg-green-600 hover:bg-green-700 text-white">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Return to Site
+          </Button>
           <Button onClick={() => window.location.reload()} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">
             <RefreshCw className="w-4 h-4 mr-2" />
-            Try Again
+            Check Status
           </Button>
           <Link href="/emergency-access">
             <Button variant="outline" size="lg" className="border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-gray-900">

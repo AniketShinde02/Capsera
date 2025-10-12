@@ -41,24 +41,45 @@ export default function SEOManagementPage() {
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  // Mock data for now - would be replaced with real API calls
+  // Fetch real SEO data from API
   useEffect(() => {
-    setSeoMetrics({
-      sitemapStatus: 'active',
-      robotsStatus: 'active',
-      metaTagsStatus: 'active',
-      structuredDataStatus: 'active',
-      lastUpdated: new Date().toISOString()
-    });
+    const fetchSEOData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch real SEO metrics from API
+        const seoResponse = await fetch('/api/admin/seo/metrics');
+        if (seoResponse.ok) {
+          const seoData = await seoResponse.json();
+          if (seoData.success) {
+            setSeoMetrics(seoData.metrics);
+          }
+        }
 
-    setPageSpeedMetrics({
-      overallScore: 92,
-      performance: 89,
-      accessibility: 95,
-      bestPractices: 93,
-      seo: 96,
-      lastTested: new Date().toISOString()
-    });
+        // Fetch real page speed metrics from API
+        const speedResponse = await fetch('/api/admin/seo/pagespeed');
+        if (speedResponse.ok) {
+          const speedData = await speedResponse.json();
+          if (speedData.success) {
+            setPageSpeedMetrics(speedData.metrics);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching SEO data:', error);
+        // Fallback to basic status if API fails
+        setSeoMetrics({
+          sitemapStatus: 'active',
+          robotsStatus: 'active',
+          metaTagsStatus: 'active',
+          structuredDataStatus: 'active',
+          lastUpdated: new Date().toISOString()
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSEOData();
   }, []);
 
   const getStatusColor = (status: string) => {

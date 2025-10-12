@@ -128,7 +128,6 @@ export async function DELETE(req: NextRequest) {
                 'Your account has been successfully deleted',
                 'All your data has been archived securely',
                 'Your images are being moved to our secure archive system',
-                'You can request data recovery within 30 days if needed',
                 'Your email has been blocked from re-registration for security'
               ]
             });

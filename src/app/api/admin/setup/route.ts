@@ -102,12 +102,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!email) {
-        return NextResponse.json(
-          { success: false, message: 'Email is required for PIN verification' },
-          { status: 400 }
-        );
-      }
+      // Email not required for PIN-only verification
 
       try {
         // Check if system lock is enabled
@@ -117,24 +112,25 @@ export async function POST(request: NextRequest) {
         });
 
         if (!lockDoc || !lockDoc.isActive) {
+          // No system lock configured - require admin to set PIN first
           return NextResponse.json(
-            { success: false, message: 'System lock not configured. Please set up PIN protection first.' },
+            { success: false, message: 'System lock not configured. Please set a PIN in admin dashboard first.' },
             { status: 400 }
           );
-        }
+        } else {
+          // Verify the PIN against the stored hashed PIN
+          const isValid = await bcrypt.compare(pin, lockDoc.value);
+          
+          if (!isValid) {
+            return NextResponse.json(
+              { success: false, message: 'Invalid PIN' },
+              { status: 400 }
+            );
+          }
 
-        // Verify the PIN against the stored hashed PIN
-        const isValid = await bcrypt.compare(pin, lockDoc.value);
-        
-        if (!isValid) {
-          return NextResponse.json(
-            { success: false, message: 'Invalid PIN' },
-            { status: 400 }
-          );
+          pinVerified = true;
+          console.log('✅ PIN verified successfully');
         }
-
-        pinVerified = true;
-        console.log('✅ PIN verified successfully for:', email);
         
         return NextResponse.json({
           success: true,

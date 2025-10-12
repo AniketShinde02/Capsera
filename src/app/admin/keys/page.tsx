@@ -143,7 +143,7 @@ export default function AdminKeysPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Gemini API Key Management</h1>
+          <h1 className="text-3xl font-bold">API Key Management</h1>
           <p className="text-muted-foreground">
             Monitor and manage your API keys for optimal quota usage
           </p>

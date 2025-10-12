@@ -43,8 +43,9 @@ export default function MaintenancePage() {
   useEffect(() => {
     // Load current maintenance settings from server
     loadMaintenanceSettings();
-    // Set stable date format to avoid hydration issues
-    setLastUpdated(new Date().toISOString().split('T')[0] + ' ' + new Date().toTimeString().split(' ')[0]);
+    // Set stable date format to avoid hydration issues - use current date, not future
+    const now = new Date();
+    setLastUpdated(now.toISOString().split('T')[0] + ' ' + now.toTimeString().split(' ')[0]);
     // Set environment config to avoid hydration issues
     setEnvConfig(getMaintenanceConfig());
   }, []);

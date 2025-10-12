@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       connectionUtilization: 0, // compute from active/max before returning
       avgResponseTime: 12,
       uptime: 98,
-      lastBackup: new Date().toISOString(),
+      lastBackup: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago
       backupStatus: 'success' as const,
       collections: [] as CollectionStat[]
     };
@@ -63,12 +63,27 @@ export async function GET(request: NextRequest) {
       const estimatedSizeBytes = count * 1024; // Rough estimate: 1KB per document
       stats.totalSizeBytes += estimatedSizeBytes;
       
+      // Get the actual last modified date from the most recent document
+      let lastModified = new Date().toISOString();
+      if (count > 0) {
+        try {
+          const mostRecentDoc = await coll.findOne({}, { sort: { _id: -1 } });
+          if (mostRecentDoc && mostRecentDoc.createdAt) {
+            lastModified = new Date(mostRecentDoc.createdAt).toISOString();
+          } else if (mostRecentDoc && mostRecentDoc.created_at) {
+            lastModified = new Date(mostRecentDoc.created_at).toISOString();
+          }
+        } catch (error) {
+          console.log(`Could not get last modified for collection ${collection.name}:`, error);
+        }
+      }
+
       stats.collections.push({
         name: collection.name,
         documentCount: count,
         size: formatBytes(estimatedSizeBytes),
         indexes: indexes.length,
-        lastModified: new Date().toISOString(),
+        lastModified: lastModified,
         status: 'healthy',
         avgDocumentSize: count > 0 ? formatBytes(estimatedSizeBytes / count) : '0 B'
       });

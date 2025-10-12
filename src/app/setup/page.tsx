@@ -857,8 +857,7 @@ export default function SetupPage() {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                              pin: setupPin.trim(),
-                              email: 'sunnyshinde2601@gmail.com'
+                              pin: setupPin.trim()
                             })
                           });
                           const data = await response.json();

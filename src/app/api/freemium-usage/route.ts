@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     
     // Get freemium usage information
     const usageInfo = await getFreemiumUsageInfo(session?.user?.id, clientIP);
+    console.log('📊 Freemium usage info for API response:', usageInfo);
     
     // Calculate time until reset
     const now = Date.now();
@@ -36,16 +37,15 @@ export async function GET(req: NextRequest) {
     const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
     
     // Generate friendly reset message
-    let resetMessage = 'next month';
+    let resetMessage = 'tomorrow';
     if (hoursUntilReset < 24) {
       if (hoursUntilReset < 1) {
         resetMessage = 'in less than an hour';
       } else {
         resetMessage = `in ${hoursUntilReset} hours`;
       }
-    } else if (hoursUntilReset < 168) { // Less than a week
-      const daysUntilReset = Math.ceil(hoursUntilReset / 24);
-      resetMessage = `in ${daysUntilReset} days`;
+    } else if (hoursUntilReset < 48) { // Less than 2 days
+      resetMessage = 'tomorrow';
     }
     
     return NextResponse.json({
@@ -67,17 +67,17 @@ export async function GET(req: NextRequest) {
       error: 'Failed to get usage information',
       usage: {
         tier: 'free',
-        monthlyUsage: 0,
+        dailyUsage: 0,
         weeklyUsage: 0,
-        monthlyLimit: 5,
+        dailyLimit: 5,
         weeklyLimit: 1,
-        remainingMonthly: 5,
+        remainingDaily: 5,
         remainingWeekly: 1,
-        resetTime: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days from now
+        resetTime: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
         isInGracePeriod: false,
         upgradePrompt: false,
-        resetMessage: 'next month',
-        timeUntilReset: 30 * 24 * 60 * 60 * 1000,
+        resetMessage: 'tomorrow',
+        timeUntilReset: 24 * 60 * 60 * 1000,
         isAuthenticated: false,
         userEmail: null,
       }

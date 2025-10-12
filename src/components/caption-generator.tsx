@@ -7,6 +7,7 @@ import * as z from "zod";
 import { Loader2, Sparkles, UploadCloud, AlertTriangle, AlertCircle, ImageIcon, Zap, Brain, CheckCircle2, Camera, Palette, Wand2, Clock, CheckSquare, Square, Trash2, UserPlus, Crown, Star, Upload } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
+import { useAuthModal } from "@/context/AuthModalContext";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -165,6 +166,9 @@ export function CaptionGenerator() {
     ? parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE) 
     : 4 * 1024 * 1024; // 4MB default for Vercel compatibility
 
+  // Auth modal context
+  const { setOpen: setAuthModalOpen } = useAuthModal();
+
   const [captions, setCaptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -189,12 +193,74 @@ export function CaptionGenerator() {
   const [currentDescription, setCurrentDescription] = useState<string>('');
   const [isOnline, setIsOnline] = useState(true);
   const [isDeletingImage, setIsDeletingImage] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [isPasting, setIsPasting] = useState(false);
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
   const [hasExplicitlyReset, setHasExplicitlyReset] = useState(false);
   const [isImageDeleted, setIsImageDeleted] = useState(false);
   const [freemiumUsage, setFreemiumUsage] = useState<any>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { data: session } = useSession();
+
+  // Helper function to get dynamic color based on quota usage
+  const getQuotaColor = (remaining: number, total: number) => {
+    const percentage = (remaining / total) * 100;
+    if (percentage >= 60) return 'text-green-600 dark:text-green-400'; // Green: 60-100%
+    if (percentage >= 30) return 'text-yellow-600 dark:text-yellow-400'; // Yellow: 30-59%
+    return 'text-red-600 dark:text-red-400'; // Red: 0-29%
+  };
+
+  // Helper function to get quota display text with X/Y format (remaining/total)
+  const getQuotaDisplayText = (remaining: number, total: number, planType: string) => {
+    console.log(`📊 Quota display: ${planType} - remaining: ${remaining}, total: ${total}`);
+    // Show remaining images out of total (e.g., 19/20 means 19 remaining out of 20 total)
+    return `${planType} • ${remaining}/${total} images today`;
+  };
+
+  // Helper function to get cached image from localStorage
+  const getCachedImage = (publicId: string): string | null => {
+    try {
+      const cacheKey = `image_${publicId}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const data = JSON.parse(cached);
+        // Check if cache is not too old (24 hours)
+        if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+          return data.url;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to retrieve cached image:', error);
+    }
+    return null;
+  };
+
+  // Helper function to clean up old cached images
+  const cleanupImageCache = () => {
+    try {
+      const keys = Object.keys(localStorage);
+      const imageKeys = keys.filter(key => key.startsWith('image_'));
+      const now = Date.now();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      
+      imageKeys.forEach(key => {
+        try {
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const data = JSON.parse(cached);
+            if (now - data.timestamp > maxAge) {
+              localStorage.removeItem(key);
+              console.log('🧹 Cleaned up old cached image:', key);
+            }
+          }
+        } catch (error) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to cleanup image cache:', error);
+    }
+  };
 
   // Fetch freemium usage information
   const fetchFreemiumUsage = async () => {
@@ -206,6 +272,8 @@ export function CaptionGenerator() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
+          console.log('📊 Freemium usage data received:', data.usage);
+          console.log('📊 Freemium remainingDaily:', data.usage.remainingDaily, 'dailyLimit:', data.usage.dailyLimit);
           setFreemiumUsage(data.usage);
           setShowUpgradePrompt(data.usage.upgradePrompt);
         }
@@ -215,10 +283,24 @@ export function CaptionGenerator() {
     }
   };
 
-  // Fetch usage info on component mount
+  // Fetch usage info on component mount and when refreshTrigger changes
   useEffect(() => {
     fetchFreemiumUsage();
-  }, [session]);
+  }, [session, refreshTrigger]);
+
+  // Cleanup old cached images on component mount
+  useEffect(() => {
+    cleanupImageCache();
+  }, []);
+
+  // Force refresh quota info (can be called manually)
+  const forceRefreshQuota = () => {
+    console.log('🔄 Force refreshing quota info...');
+    setRefreshTrigger(prev => prev + 1);
+    setTimeout(() => {
+      fetchFreemiumUsage();
+    }, 100);
+  };
 
   // Enhanced image compression function for large files
   const compressImageForUpload = (file: File): Promise<File> => {
@@ -365,15 +447,15 @@ export function CaptionGenerator() {
 
   // Function to clear error when user has used all free tokens
   const clearRateLimitError = () => {
-    if (error && (error.includes('free images this month') ||
-      error.includes('monthly limit') ||
+    if (error && (error.includes('free images today') ||
+      error.includes('daily limit') ||
       error.includes('free tokens') ||
-      error.includes('hit your monthly limit') ||
-      error.includes('quota will reset next month') ||
+      error.includes('hit your daily limit') ||
+      error.includes('quota will reset tomorrow') ||
       error.includes('used all your free requests') ||
-      error.includes('used all 5 free images this month') ||
+      error.includes('used all 5 free images today') ||
       error.includes('You\'ve used all') ||
-      error.includes('You\'ve reached your monthly limit'))) {
+      error.includes('You\'ve reached your daily limit'))) {
       // Don't clear error immediately - let the timer handle it
       // setError(''); // Commented out to respect the 10-second timer
 
@@ -514,12 +596,106 @@ export function CaptionGenerator() {
       setImageLoading(false);
     }
 
-    // Clear any previous errors
+    // Clear any previous errors (except rate limit errors)
+    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
     setError('');
+    }
     setUploadStage('idle');
     
     // Note: setImageLoading(false) will be called by the ImageRenderer component's onLoad handler
     // when the image is successfully loaded
+  };
+
+  // Handle URL upload
+  const handleUrlUpload = async (url: string) => {
+    if (!url.trim()) {
+      setError('Please enter a valid image URL');
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      setError('Please enter a valid URL');
+      return;
+    }
+
+    setUploadStage('uploading');
+    setError('');
+    setImageLoading(true);
+    
+    try {
+      // Create preview URL immediately
+      setImagePreview(url);
+      setImageUrl(url);
+      setUploadStage('processing');
+      
+      // Upload URL to our backend
+      const response = await fetch('/api/upload-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'URL upload failed');
+      }
+      
+      const uploadData = await response.json();
+      console.log('✅ URL upload successful:', uploadData);
+      
+      setCurrentImageData({
+        url: uploadData.secure_url,
+        publicId: uploadData.public_id
+      });
+      
+      setUploadStage('idle');
+      setButtonState('generate');
+      setButtonMessage('Generate Captions');
+      setButtonIcon(<Wand2 className="mr-2 h-4 w-4" />);
+      setImageLoading(false);
+      
+    } catch (error) {
+      console.error('❌ URL upload error:', error);
+      setError(error instanceof Error ? error.message : 'URL upload failed. Please try again.');
+      setUploadStage('idle');
+      setImagePreview(null);
+      setImageUrl('');
+      setImageLoading(false);
+    }
+  };
+
+  // Handle paste image
+  const handlePasteImage = async (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        setIsPasting(true);
+        
+        const file = item.getAsFile();
+        if (file) {
+          // Use the existing file upload logic
+          const input = document.createElement('input');
+          input.type = 'file';
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+          
+          // Trigger the file upload
+          await handleImageChange({ target: { files: input.files } } as any);
+          setIsPasting(false);
+        }
+        break;
+      }
+    }
   };
 
   // Image compression function for preview
@@ -616,8 +792,8 @@ export function CaptionGenerator() {
     // Validation passed, checking rate limit first
     setIsLoading(true);
     setCaptions([]);
-    // Don't clear monthly limit errors - let them stay visible
-    if (!error.includes('monthly limit') && !error.includes('used all') && !error.includes('quota will reset')) {
+    // Don't clear daily limit errors - let them stay visible
+    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset')) {
       setError('');
     }
     updateButtonState('processing');
@@ -678,8 +854,8 @@ export function CaptionGenerator() {
       if (quotaData.remaining <= 0 && !quotaData.isAdmin) {
         // User has no quota left - don't upload image (unless admin)
         const errorMessage = quotaData.isAuthenticated
-          ? "You've hit your monthly limit! Your quota will reset next month. Upgrade your plan for unlimited captions!"
-          : "You've used all your free images this month! Sign up for a free account to get 25 monthly images (75 captions). Your free quota resets next month.";
+          ? "You've hit your daily limit! Your quota will reset tomorrow. Upgrade your plan for unlimited captions!"
+          : "You've used all your free images today! Sign up for a free account to get 20 daily images (60 captions). Your free quota resets tomorrow.";
 
         setErrorWithTimer(errorMessage, 10000);
         setShowLimitShake(true);
@@ -935,27 +1111,33 @@ export function CaptionGenerator() {
         if (uploadData.url) {
           console.log('🖼️ Setting image display after successful generation:', uploadData.url.substring(0, 50) + '...');
           
-          // Always set the Cloudinary URL for display
-          setImagePreview(uploadData.url);
+          // Store Cloudinary URL in local storage for instant access
+          if (uploadedFile) {
+            const cacheKey = `image_${uploadData.public_id}`;
+            localStorage.setItem(cacheKey, JSON.stringify({
+              url: uploadData.url,
+              publicId: uploadData.public_id,
+              timestamp: Date.now()
+            }));
+            console.log('💾 Image cached in localStorage:', cacheKey);
+          }
+          
+          // Keep the local blob URL for instant display, but store Cloudinary data
           setCurrentImageData({
             url: uploadData.url,
             publicId: uploadData.public_id
           });
           setHasExplicitlyReset(false);
           
-          // Clean up the old object URL since we're now using Cloudinary URL
-          if (objectUrl && objectUrl.startsWith('blob:')) {
-            console.log('🧹 Cleaning up old blob URL:', objectUrl.substring(0, 30) + '...');
-            URL.revokeObjectURL(objectUrl);
-            setObjectUrl(null);
-          }
+          // Don't clean up the object URL - keep it for instant display
+          // The image will show instantly from blob URL while Cloudinary loads in background
           
-          // Preload the Cloudinary image for better performance
+          // Preload the Cloudinary image for better performance (background)
           preloadImage(uploadData.url).catch(err => {
             console.warn('Failed to preload image:', err);
           });
           
-          console.log('✅ Image display state updated successfully');
+          console.log('✅ Image display state updated successfully - keeping local blob for instant display');
         } else {
           console.warn('⚠️ No upload data URL available for image display');
         }
@@ -979,6 +1161,11 @@ export function CaptionGenerator() {
 
         // Refresh quota info after successful generation
         setRefreshTrigger(prev => prev + 1);
+        
+        // Also manually refresh freemium usage to ensure it updates
+        setTimeout(() => {
+          fetchFreemiumUsage();
+        }, 500);
         // Captions set successfully
 
         // 🗑️ AUTO-ARCHIVE IMAGE FOR ANONYMOUS USERS (Privacy Protection)
@@ -1049,27 +1236,27 @@ export function CaptionGenerator() {
       }
 
       // Only log non-rate-limit errors to avoid console spam
-      if (!error.message?.includes('free images this month') &&
-        !error.message?.includes('monthly limit') &&
+      if (!error.message?.includes('free images today') &&
+        !error.message?.includes('daily limit') &&
         !error.message?.includes('quota will reset') &&
-        !error.message?.includes('hit your monthly limit') &&
+        !error.message?.includes('hit your daily limit') &&
         !error.message?.includes('used all your free requests') &&
-        !error.message?.includes('used all 5 free images this month') &&
+        !error.message?.includes('used all 5 free images today') &&
         !error.message?.includes('You\'ve used all') &&
-        !error.message?.includes('You\'ve reached your monthly limit')) {
+        !error.message?.includes('You\'ve reached your daily limit')) {
         // console.error("Caption Generation Error:", error);
       }
 
       // If it's a rate limit error, trigger quota refresh and shake animation
-      if (error.message?.includes('free images this month') ||
-        error.message?.includes('monthly limit') ||
+      if (error.message?.includes('free images today') ||
+        error.message?.includes('daily limit') ||
         error.message?.includes('quota will reset') ||
-        error.message?.includes('hit your monthly limit') ||
+        error.message?.includes('hit your daily limit') ||
         error.message?.includes('used all your free requests') ||
-        error.message?.includes('used all 5 free images this month') ||
+        error.message?.includes('used all 5 free images today') ||
         error.message?.includes('You\'ve used all') ||
-        error.message?.includes('You\'ve reached your monthly limit')) {
-        // Monthly limit detected, triggering shake animation and quota refresh
+        error.message?.includes('You\'ve reached your daily limit')) {
+        // Daily limit detected, triggering shake animation and quota refresh
         setRefreshTrigger(prev => prev + 1);
         setShowLimitShake(true);
         // Force immediate quota refresh
@@ -1083,7 +1270,7 @@ export function CaptionGenerator() {
                 isAuthenticated: data.isAuthenticated,
                 isAdmin: data.isAdmin
               });
-              // Forced quota refresh after monthly limit
+              // Forced quota refresh after daily limit
             })
             .catch(err => {
               // Failed to force refresh quota
@@ -1092,7 +1279,7 @@ export function CaptionGenerator() {
         // Reset shake animation after animation completes
         setTimeout(() => setShowLimitShake(false), 600);
 
-        // Set error with timer for monthly limit errors
+        // Set error with timer for daily limit errors
         setErrorWithTimer(error.message, 10000);
       } else {
         // Set error with timer for other errors
@@ -1137,21 +1324,22 @@ export function CaptionGenerator() {
           // FIXED: Only update if data has actually changed to prevent flashing
           setQuotaInfo(prevInfo => {
             const newInfo = {
-              remaining: data.remaining,
-              total: data.maxGenerations,
-              isAuthenticated: data.isAuthenticated,
-              isAdmin: data.isAdmin
+            remaining: data.remaining,
+            total: data.maxGenerations,
+            isAuthenticated: data.isAuthenticated,
+            isAdmin: data.isAdmin
             };
             
-            // Only update if the values have actually changed
-            if (!prevInfo || 
-                prevInfo.remaining !== newInfo.remaining || 
-                prevInfo.total !== newInfo.total ||
-                prevInfo.isAuthenticated !== newInfo.isAuthenticated ||
-                prevInfo.isAdmin !== newInfo.isAdmin) {
-              console.log('📊 Quota info updated:', data.remaining, '/', data.maxGenerations);
-              return newInfo;
-            }
+                // Only update if the values have actually changed
+                if (!prevInfo ||
+                    prevInfo.remaining !== newInfo.remaining ||
+                    prevInfo.total !== newInfo.total ||
+                    prevInfo.isAuthenticated !== newInfo.isAuthenticated ||
+                    prevInfo.isAdmin !== newInfo.isAdmin) {
+                  console.log('📊 Quota info updated:', data.remaining, '/', data.maxGenerations);
+                  console.log('📊 Full quota data:', data);
+                  return newInfo;
+                }
             
             return prevInfo; // No change, keep existing state
           });
@@ -1185,6 +1373,18 @@ export function CaptionGenerator() {
     };
   }, []);
 
+  // Paste event listener for image paste functionality
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      handlePasteImage(event);
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, []);
+
   // Cleanup function to prevent memory leaks
   const cleanup = () => {
     // Clear any existing timers
@@ -1208,7 +1408,10 @@ export function CaptionGenerator() {
     // Reset states
     setUploadStage('idle');
     setIsLoading(false);
+    // Only clear non-rate-limit errors
+    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
     setError('');
+    }
   };
 
   // Enhanced reset function for image upload area
@@ -1234,8 +1437,10 @@ export function CaptionGenerator() {
       fileInput.value = '';
     }
     
-    // Clear any error states
+    // Clear any error states (except rate limit errors)
+    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
     setError('');
+    }
     
     // Reset button state
     setButtonMessage('Generate Captions');
@@ -1266,7 +1471,10 @@ export function CaptionGenerator() {
     // Reset states
     setUploadStage('idle');
     setIsLoading(false);
+    // Only clear non-rate-limit errors
+    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
     setError('');
+    }
     setShowSuccessMessage(false);
     
     // Update button state to "Generate Captions"
@@ -1356,11 +1564,17 @@ export function CaptionGenerator() {
                       <span className="w-2 h-2 bg-primary rounded-full"></span>
                       Image Upload
                     </h3>
-                    <label
-                      htmlFor="file-upload"
-                      // Don't clear rate limit errors on click - let them stay visible for 10 seconds
-                      // onClick={clearRateLimitError}
-                      className={`flex flex-col items-center justify-center w-full h-32 rounded-xl transition-all duration-500 cursor-pointer shadow-sm overflow-hidden active:scale-95 upload-area-dotted ${uploadStage === 'uploading'
+                    
+                      <div
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          const url = prompt('Enter image URL:');
+                          if (url && url.trim()) {
+                            handleUrlUpload(url.trim());
+                          }
+                        }}
+                        className={`flex flex-col items-center justify-center w-full h-32 rounded-xl transition-all duration-500 cursor-pointer shadow-sm overflow-hidden active:scale-95 upload-area-dotted ${uploadStage === 'uploading'
                           ? 'border-primary/80 bg-primary/5 animate-upload-pulse'
                           : uploadStage === 'processing'
                             ? 'border-secondary/80 bg-secondary/5 animate-processing-glow'
@@ -1370,7 +1584,7 @@ export function CaptionGenerator() {
                                 ? 'border-accent/80 bg-accent/5 animate-processing-glow'
                                 : 'bg-[#F2EFE5]/50 dark:bg-background/50 border-border hover:bg-[#E3E1D9]/60 dark:hover:bg-muted/40 hover:shadow-md'
                         }`}
-                    >
+                      >
                       {uploadStage !== 'idle' ? (
                         <div className="flex flex-col items-center justify-center px-3 text-center">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-all duration-300 ${uploadStage === 'uploading'
@@ -1414,14 +1628,17 @@ export function CaptionGenerator() {
                         <div className="relative w-full h-full bg-muted/20 min-h-[120px]">
                           {/* Enhanced image rendering with better error handling */}
                           <ImageRenderer 
-                            imageSrc={currentImageData?.url || imagePreview}
+                            imageSrc={imagePreview || (currentImageData?.publicId ? getCachedImage(currentImageData.publicId) : null) || currentImageData?.url}
                             onLoadStart={() => {
                               setImageLoading(true);
                               console.log('🔄 Image loading started:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
                             }}
                             onLoad={() => {
                               setImageLoading(false);
+                              // Only clear non-rate-limit errors
+                              if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
                               setError('');
+                              }
                               console.log('✅ Image loaded successfully:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
                             }}
                             onError={(e) => {
@@ -1464,7 +1681,10 @@ export function CaptionGenerator() {
                                     console.log('🔄 Manual reset triggered');
                                     setImagePreview(null);
                                     setCurrentImageData(null);
+                                    // Only clear non-rate-limit errors
+                                    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
                                     setError('');
+                                    }
                                     setUploadStage('idle');
                                   }}
                                 >
@@ -1488,7 +1708,10 @@ export function CaptionGenerator() {
                                   onClick={() => {
                                     setImagePreview(null);
                                     setCurrentImageData(null);
+                                    // Only clear non-rate-limit errors
+                                    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
                                     setError('');
+                                    }
                                   }}
                                 >
                                   Try Again
@@ -1525,8 +1748,8 @@ export function CaptionGenerator() {
                               <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                                 <UploadCloud className="w-5 h-5 text-primary" />
                               </div>
-                              <p className="text-xs text-muted-foreground font-medium">Click to upload or drag and drop</p>
-                              <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF - Auto-compression for high-res images</p>
+                              <p className="text-sm text-muted-foreground font-medium">Click to upload, drag & drop, paste image, or add URL</p>
+                              <p className="text-xs text-muted-foreground mt-2">PNG, JPG, GIF - Auto-compression for high-res images</p>
                             </>
                           )}
                           
@@ -1542,17 +1765,17 @@ export function CaptionGenerator() {
                           )}
                         </div>
                       )}
-                      <input
-                        id="file-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/png, image/jpeg, image/gif"
-                        onChange={handleImageChange}
-                      />
-                    </label>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          className="hidden"
+                          accept="image/png, image/jpeg, image/gif"
+                          onChange={handleImageChange}
+                        />
+                      </div>
 
                     {/* Compact Error Display for Non-Monthly Limit Errors - Mobile Responsive */}
-                    {error && !error.includes('monthly limit') && !error.includes('used all') && !error.includes('quota will reset') && (
+                    {error && !error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && (
                       <div className="px-2 sm:px-3">
                         <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 text-center leading-relaxed break-words">
                           {error}
@@ -1704,10 +1927,10 @@ export function CaptionGenerator() {
                   {(freemiumUsage || quotaInfo || quotaLoading) && (
                     <div className={`${showUpgradePrompt ? 'mt-4 p-4' : 'mt-3 p-3'} ${showUpgradePrompt 
                       ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl' 
-                      : quotaInfo?.isAdmin
+                      : quotaInfo?.isAdmin || freemiumUsage?.tier === 'pro'
                         ? 'bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200'
                         : quotaInfo?.remaining === 0
-                        ? 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+                        ? 'text-red-600 dark:text-red-400'
                         : 'bg-[#E3E1D9]/30 dark:bg-muted/30 border border-[#C7C8CC]/60 dark:border-border rounded-lg'} ${showLimitShake ? 'animate-shake-limit' : ''}`}>
                       {showUpgradePrompt ? (
                         <div className="flex items-center justify-between">
@@ -1722,7 +1945,7 @@ export function CaptionGenerator() {
                               <p className="text-sm text-blue-700 dark:text-blue-300">
                                 {freemiumUsage?.gracePeriod 
                                   ? `You've used your daily limit. ${freemiumUsage.remainingWeekly} images left this week.`
-                                  : `${freemiumUsage?.remainingMonthly || quotaInfo?.remaining} images left today. Upgrade for unlimited access!`
+                                  : `Free Plan • ${freemiumUsage?.remainingDaily || quotaInfo?.remaining || 5}/5 images today. Upgrade for unlimited access!`
                                 }
                               </p>
                             </div>
@@ -1745,19 +1968,33 @@ export function CaptionGenerator() {
                             </div>
                           ) : (
                             <>
-                              {quotaInfo?.isAdmin && <span className="text-purple-600">👑</span>}
+                              {(quotaInfo?.isAdmin || freemiumUsage?.tier === 'pro') && <span className="text-purple-600">👑</span>}
                               {quotaInfo?.remaining === 0 && !quotaInfo?.isAdmin && <AlertTriangle className="w-3 h-3" />}
                               <div className="flex items-center gap-1">
                                 <div className={`w-2 h-2 rounded-full ${quotaInfo?.isAdmin ? 'bg-purple-500' : freemiumUsage?.tier === 'pro' || quotaInfo?.isAuthenticated ? 'bg-green-500' : freemiumUsage?.tier === 'basic' ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
-                                <span>
-                                  {quotaInfo?.isAdmin ? (
+                                <button 
+                                  onClick={forceRefreshQuota}
+                                  className="ml-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                  title="Refresh quota"
+                                >
+                                  🔄
+                                </button>
+                                <span className={quotaInfo?.isAdmin || freemiumUsage?.tier === 'pro' 
+                                  ? 'text-purple-600 dark:text-purple-400' 
+                                  : quotaInfo?.isAuthenticated 
+                                    ? getQuotaColor(quotaInfo.remaining, quotaInfo.total)
+                                    : freemiumUsage 
+                                      ? getQuotaColor(freemiumUsage.remainingDaily || 5, freemiumUsage.dailyLimit || 5)
+                                      : getQuotaColor(quotaInfo?.remaining || 5, 5)
+                                }>
+                                  {quotaInfo?.isAdmin || freemiumUsage?.tier === 'pro' ? (
                                     "Admin: Unlimited images"
                                   ) : quotaInfo?.isAuthenticated ? (
-                                    `Daily: ${quotaInfo.remaining}/${quotaInfo.total} images`
+                                    getQuotaDisplayText(quotaInfo.remaining, quotaInfo.total, "Daily")
                                   ) : freemiumUsage ? (
-                                    <><span className="capitalize">{freemiumUsage.tier} Plan</span> • {freemiumUsage.remainingMonthly} images left today</>
+                                    getQuotaDisplayText(freemiumUsage.remainingDaily || 5, freemiumUsage.dailyLimit || 5, `${freemiumUsage.tier.charAt(0).toUpperCase() + freemiumUsage.tier.slice(1)} Plan`)
                                   ) : (
-                                    `Free trial: ${quotaInfo?.remaining}/${quotaInfo?.total} images`
+                                    getQuotaDisplayText(quotaInfo?.remaining || 5, 5, "Free Plan")
                                   )}
                                 </span>
                               </div>
@@ -1864,7 +2101,10 @@ export function CaptionGenerator() {
 
                   {/* Enhanced Sign-up Call-to-Action */}
                   {!session && (
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 max-w-md mx-auto">
+                    <div 
+                      onClick={() => setAuthModalOpen(true)}
+                      className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 max-w-md mx-auto cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    >
                       <div className="flex items-center space-x-3">
                         {/* Prominent Crown Icon */}
                         <div className="flex-shrink-0">
@@ -1896,7 +2136,7 @@ export function CaptionGenerator() {
         </div>
 
         {/* Detailed Error Message Outside Main Container Card - Responsive & Mobile Optimized */}
-        {error && (error.includes('monthly limit') || error.includes('used all') || error.includes('quota will reset')) && (
+          {error && (error.includes('daily limit') || error.includes('used all') || error.includes('quota will reset')) && (
           <div className="mt-4 px-2 sm:px-4 max-w-2xl mx-auto">
             <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 text-center leading-relaxed break-words">
               {error}

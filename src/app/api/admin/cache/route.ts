@@ -22,6 +22,18 @@ export async function GET(req: NextRequest) {
     const stats = await CaptionCacheService.getStats();
     const hitRate = await CaptionCacheService.getHitRate();
 
+    // If no cache data exists, provide meaningful defaults
+    const defaultStats = {
+      totalEntries: 0,
+      totalUsage: 0,
+      averageUsage: 0,
+      oldestEntry: null,
+      newestEntry: null,
+      quotaSaved: 0
+    };
+
+    const cacheStats = stats || defaultStats;
+
     // Get archive statistics (basic info)
     const archiveInfo = {
       note: 'Archive cleanup available via POST /cleanup-archives action',
@@ -29,10 +41,13 @@ export async function GET(req: NextRequest) {
       archiveFolder: 'capsera_archives/'
     };
 
+    console.log('📊 Cache stats:', cacheStats);
+    console.log('📊 Cache hit rate:', hitRate);
+
     return NextResponse.json({
       success: true,
-      stats,
-      hitRate,
+      stats: cacheStats,
+      hitRate: hitRate || 0,
       archiveInfo,
       timestamp: new Date().toISOString()
     });

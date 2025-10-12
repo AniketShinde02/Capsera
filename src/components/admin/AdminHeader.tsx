@@ -64,7 +64,7 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
             </svg>
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-lg font-bold text-sidebar-foreground">CaptionCraft</h1>
+            <h1 className="text-lg font-bold text-sidebar-foreground">Capsera AI</h1>
             <p className="text-sm text-sidebar-foreground/60">Admin Panel</p>
           </div>
         </div>

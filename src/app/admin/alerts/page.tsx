@@ -109,18 +109,11 @@ export default function SystemAlertsPage() {
     }
   }, [session, status]);
 
-  // Simulate real-time updates
+  // Refresh system health data periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      // Update system health randomly
-      setSystemHealth(prev => ({
-        ...prev,
-        responseTime: Math.max(100, prev.responseTime + (Math.random() - 0.5) * 50),
-        activeUsers: Math.max(50, prev.activeUsers + Math.floor((Math.random() - 0.5) * 10)),
-        memoryUsage: Math.max(60, Math.min(95, prev.memoryUsage + (Math.random() - 0.5) * 5)),
-        cpuUsage: Math.max(20, Math.min(80, prev.cpuUsage + (Math.random() - 0.5) * 8))
-      }));
-    }, 5000);
+      fetchAlerts(); // Refresh real data from API
+    }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
   }, []);

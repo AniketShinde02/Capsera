@@ -73,11 +73,6 @@ const AVAILABLE_RESOURCES = [
     description: 'Manage caption generation features'
   },
   {
-    key: 'data-recovery',
-    label: 'Data Recovery',
-    description: 'Access data recovery and restoration tools'
-  },
-  {
     key: 'archived-profiles',
     label: 'Archived Profiles',
     description: 'Manage archived and deleted user profiles'
@@ -449,6 +444,8 @@ export default function RolesPage() {
     }
 
     try {
+      console.log('🔄 Creating role with data:', createForm);
+      
       // Filter out permissions with no actions before sending
       const filteredPermissions = createForm.permissions.filter(p => p.actions.length > 0);
       
@@ -463,21 +460,25 @@ export default function RolesPage() {
         })
       });
 
+      console.log('📊 Create role response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Role created successfully:', data);
         setShowCreateModal(false);
-                 setCreateForm({ name: '', displayName: '', description: '', permissions: [], isSystem: false, isActive: true, autoCreateUsers: false, usersToCreate: [], sendEmailNotifications: true });
+        setCreateForm({ name: '', displayName: '', description: '', permissions: [], isSystem: false, isActive: true, autoCreateUsers: false, usersToCreate: [], sendEmailNotifications: true });
         setExpandedResources(new Set());
         showNotification("Role created successfully", "success");
         // Refresh the roles list to show the new role
         fetchRoles();
       } else {
         const errorData = await response.json();
-        showNotification(`Failed to create role: ${errorData.error}`, "error");
+        console.error('❌ Failed to create role:', errorData);
+        showNotification(`Failed to create role: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
       }
     } catch (error) {
-      console.error('Error creating role:', error);
-      showNotification("Error creating role", "error");
+      console.error('❌ Error creating role:', error);
+      showNotification(`Error creating role: ${error.message || 'Network error'}`, "error");
     }
   };
 
@@ -525,24 +526,37 @@ export default function RolesPage() {
       return;
     }
 
+    // Check if role has users assigned
+    if (role.userCount > 0) {
+      showNotification(`Cannot delete role "${role.displayName}" because it has ${role.userCount} user(s) assigned. Please reassign users first.`, "error");
+      return;
+    }
+
     // Use a more user-friendly confirmation approach
     if (window.confirm(`Are you sure you want to delete the role "${role.displayName}"? This action cannot be undone.`)) {
       try {
+        console.log('🔄 Deleting role:', role._id);
+        
         const response = await fetch(`/api/admin/roles/${role._id}`, {
           method: 'DELETE'
         });
 
+        console.log('📊 Delete role response status:', response.status);
+
         if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Role deleted successfully:', data);
           showNotification("Role deleted successfully", "success");
           // Refresh the roles list to show updated data
           fetchRoles();
         } else {
           const errorData = await response.json();
-          showNotification(`Failed to delete role: ${errorData.error}`, "error");
+          console.error('❌ Failed to delete role:', errorData);
+          showNotification(`Failed to delete role: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
         }
       } catch (error) {
-        console.error('Error deleting role:', error);
-        showNotification("Error deleting role", "error");
+        console.error('❌ Error deleting role:', error);
+        showNotification(`Error deleting role: ${error.message || 'Network error'}`, "error");
       }
     }
   };

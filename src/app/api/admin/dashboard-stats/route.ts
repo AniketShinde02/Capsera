@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('📊 Fetching real dashboard stats from database...');
+    console.log('📊 Session user ID:', session.user.id);
 
     // Get REAL user counts from both collections
     const regularUserCount = await db.collection('users').countDocuments({ 
@@ -64,8 +65,6 @@ export async function GET(request: NextRequest) {
     // Get REAL contact form submissions
     const totalContacts = await db.collection('contacts').countDocuments({}).catch(() => 0);
 
-    // Get REAL data recovery requests
-    const totalDataRecoveryRequests = await db.collection('datarecoveryrequests').countDocuments({}).catch(() => 0);
 
     // Get REAL archived profiles
     const totalArchivedProfiles = await db.collection('deletedprofiles').countDocuments({}).catch(() => 0);
@@ -116,11 +115,11 @@ export async function GET(request: NextRequest) {
     const totalSize = (dbStats.dataSize / (1024 * 1024)).toFixed(2); // Convert to MB
     const avgDocumentSize = totalDocuments > 0 ? (dbStats.avgObjSize / 1024).toFixed(2) : '0'; // Convert to KB
 
-    // Get recent activity
+    // Get recent activity (include all users including admins)
     const recentUsers = await db.collection('users')
       .find({ 
-        isDeleted: { $ne: true },
-        isAdmin: { $ne: true }
+        isDeleted: { $ne: true }
+        // Removed isAdmin filter to include admin users in recent activity
       })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -150,10 +149,8 @@ export async function GET(request: NextRequest) {
       isDeleted: { $ne: true }
     }).catch(() => 0);
 
-    // Pending actions (recovery requests, contact forms, etc.)
-    const pendingActions = await db.collection('datarecoveryrequests').countDocuments({
-      status: { $in: ['pending', 'processing'] }
-    }).catch(() => 0) + await db.collection('contacts').countDocuments({
+    // Pending actions (contact forms, etc.) - removed data recovery requests
+    const pendingActions = await db.collection('contacts').countDocuments({
       status: { $in: ['unread', 'processing'] }
     }).catch(() => 0);
 
@@ -201,9 +198,6 @@ export async function GET(request: NextRequest) {
       contacts: {
         total: totalContacts
       },
-      dataRecovery: {
-        total: totalDataRecoveryRequests
-      },
       archivedProfiles: {
         total: totalArchivedProfiles
       },
@@ -236,6 +230,9 @@ export async function GET(request: NextRequest) {
     };
 
     console.log(`📊 Dashboard stats: ${totalUsers} users, ${totalPosts} posts, ${totalImages} images`);
+    console.log('📊 Recent users found:', recentUsers.length);
+    console.log('📊 Recent posts found:', recentPosts.length);
+    console.log('📊 Recent users sample:', recentUsers.slice(0, 3).map(u => ({ email: u.email, createdAt: u.createdAt })));
 
     return NextResponse.json({
       success: true,

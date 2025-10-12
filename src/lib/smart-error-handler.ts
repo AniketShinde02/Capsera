@@ -9,7 +9,7 @@ export class SmartErrorHandler {
     if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
       return {
         category: 'quota_exceeded',
-        userMessage: 'You\'ve reached your monthly limit! Sign up for a free account to get more captions.',
+        userMessage: 'You\'ve reached your daily limit! Sign up for a free account to get more captions.',
         developerInfo: `Quota exceeded for user ${context.userId || 'anonymous'}`,
         solution: 'Consider upgrading user limits or implementing better caching'
       };

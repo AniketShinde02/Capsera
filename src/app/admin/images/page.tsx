@@ -471,9 +471,19 @@ export default function ImageManagementPage() {
   };
 
   const handleModeration = async () => {
-    if (!selectedImage || !moderationNotes) return;
+    if (!selectedImage) {
+      showNotification("No image selected for moderation", "error");
+      return;
+    }
+
+    if (!moderationNotes.trim()) {
+      showNotification("Please enter moderation notes", "error");
+      return;
+    }
 
     try {
+      console.log('🔄 Moderating image:', selectedImage.id, 'with action:', moderationAction);
+      
       // Call backend API to update image moderation status
       const response = await fetch(`/api/admin/images/${selectedImage.id}/moderate`, {
         method: 'POST',
@@ -488,7 +498,12 @@ export default function ImageManagementPage() {
         })
       });
 
+      console.log('📊 Moderation response status:', response.status);
+
       if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Image moderated successfully:', data);
+        
         // Update local state after successful API call
         const updatedImage = { ...selectedImage };
         
@@ -510,19 +525,23 @@ export default function ImageManagementPage() {
         updatedImage.moderationNotes = moderationNotes;
         setImages(prev => prev.map(img => img.id === selectedImage.id ? updatedImage : img));
         
+        showNotification(`Image ${moderationAction}d successfully`, "success");
+        
         // Refresh data after moderation
         setTimeout(() => fetchImages(), 1000);
         
         setShowModerationDialog(false);
         setSelectedImage(null);
         setModerationNotes('');
+        setModerationAction('approve');
       } else {
-        console.error('Failed to moderate image:', response.status);
-        showNotification("Failed to moderate image. Please try again.", "error");
+        const errorData = await response.json();
+        console.error('❌ Failed to moderate image:', errorData);
+        showNotification(`Failed to moderate image: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
       }
     } catch (error) {
-      console.error('Error moderating image:', error);
-      showNotification("Error moderating image. Please try again.", "error");
+      console.error('❌ Error moderating image:', error);
+      showNotification(`Error moderating image: ${error.message || 'Network error'}`, "error");
     }
   };
 

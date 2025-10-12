@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Edit, Home, Clock, Settings, Bell, LogOut, Loader2, User, Eye, AlertCircle, CheckCircle, Star, X, Trash2, Copy, MessageSquare, Image as ImageIcon, Crown, Shield, Users, Activity } from 'lucide-react';
+import { Edit, Home, Clock, Settings, Bell, LogOut, Loader2, User, AlertCircle, CheckCircle, Star, X, Trash2, Copy, MessageSquare, Image as ImageIcon, Crown, Shield, Users, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSession, signOut } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
@@ -49,10 +49,6 @@ export default function ProfilePage() {
     const [profileSuccess, setProfileSuccess] = useState('');
     const [profileImage, setProfileImage] = useState<string>('');
     const [uploadingImage, setUploadingImage] = useState(false);
-    const [showDataRecovery, setShowDataRecovery] = useState(false);
-    const [recoveryReason, setRecoveryReason] = useState('');
-    const [recoveryDetails, setRecoveryDetails] = useState('');
-    const [contactEmail, setContactEmail] = useState('');
     const [stats, setStats] = useState({
         captionsGenerated: 0,
         mostUsedMood: 'None',
@@ -142,13 +138,19 @@ export default function ProfilePage() {
                     
                     if (userRes.ok) {
                         const userData = await userRes.json();
-                        setUserData(userData); // Store user data in state
-                        setUsername(userData.username || '');
-                        setTitle(userData.title || '');
-                        setBio(userData.bio || '');
+                        console.log('📊 User data received:', {
+                            success: userData.success,
+                            data: userData.data,
+                            createdAt: userData.data?.createdAt,
+                            createdAtType: typeof userData.data?.createdAt
+                        }); // Debug log
+                        setUserData(userData.data); // Store user data in state
+                        setUsername(userData.data.username || '');
+                        setTitle(userData.data.title || '');
+                        setBio(userData.data.bio || '');
                         // Use session image if available, otherwise use database image
                         const sessionImage = sessionData?.user?.image;
-                        const dbImage = userData.image;
+                        const dbImage = userData.data.image;
                         const finalImage = sessionImage || dbImage;
                         
                         setImageUrl(finalImage || '');
@@ -204,10 +206,31 @@ export default function ProfilePage() {
     const fallbackName = userEmail ? userEmail.split('@')[0] : 'User';
     const displayName = username || fallbackName;
     
-    // Get real user creation date
-    const userJoined = userData?.createdAt 
-        ? format(new Date(userData.createdAt), 'MMM yyyy')
-        : 'Loading...';
+    // Get real user creation date with proper formatting
+    const getJoinedDate = () => {
+        // Try userData.createdAt first (from database)
+        if (userData?.createdAt) {
+            try {
+                return format(new Date(userData.createdAt), 'MMM yyyy');
+            } catch (error) {
+                console.error('Error formatting userData.createdAt:', error);
+            }
+        }
+        
+        // Try sessionData.user.createdAt as fallback      
+        if ((sessionData?.user as any)?.createdAt) {
+            try {
+                return format(new Date((sessionData.user as any).createdAt), 'MMM yyyy');                                              
+            } catch (error) {
+                console.error('Error formatting sessionData.createdAt:', error);
+            }
+        }
+        
+        // Final fallback: show current month/year
+        return format(new Date(), 'MMM yyyy');
+    };
+    
+    const userJoined = getJoinedDate();
 
     // Profile functions
     const handleSaveProfile = async () => {
@@ -333,38 +356,6 @@ export default function ProfilePage() {
         }
     };
 
-    const handleDataRecoveryRequest = async () => {
-        try {
-            const response = await fetch('/api/user/data-recovery-request', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    reason: recoveryReason,
-                    details: recoveryDetails,
-                    contactEmail: contactEmail || sessionData?.user?.email,
-                }),
-            });
-            
-            if (response.ok) {
-                setInlineMessage({
-                    type: 'success',
-                    message: "We've received your data recovery request. Our team will review it and contact you within 24-48 hours."
-                });
-                setRecoveryReason('');
-                setRecoveryDetails('');
-                setContactEmail('');
-                setShowDataRecovery(false);
-            } else {
-                const data = await response.json();
-                throw new Error(data.message || 'Failed to submit recovery request');
-            }
-        } catch (error: any) {
-            setInlineMessage({
-                type: 'error',
-                message: error.message || 'Failed to submit recovery request. Please try again.'
-            });
-        }
-    };
 
     const handleDeleteCaption = async (postId: string) => {
         if (!confirm('Are you sure you want to delete this caption? This action cannot be undone.')) {
@@ -559,15 +550,6 @@ export default function ProfilePage() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setShowDataRecovery(true)}
-                                className="border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
-                            >
-                                <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
-                                Data Recovery
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
                                 onClick={async () => {
                                   try {
                                     // Double-tap logout: NextAuth + hard-clear + redirect
@@ -630,13 +612,6 @@ export default function ProfilePage() {
                                         
                                         {/* Desktop Action Buttons */}
                                         <div className="pt-2 space-y-2">
-                                            <button 
-                                                onClick={() => setShowDataRecovery(true)}
-                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                                Data Recovery
-                                            </button>
                                             <button 
                                                 onClick={async () => {
                                                   try {
@@ -1057,62 +1032,6 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            {/* Data Recovery Dialog - Mobile Optimized */}
-            <Dialog open={showDataRecovery} onOpenChange={setShowDataRecovery}>
-                <DialogContent className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl sm:rounded-2xl shadow-xl max-w-sm sm:max-w-md mx-4">
-                    <DialogHeader className="text-center">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center">
-                            <Eye className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400" />
-                        </div>
-                        <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Data Recovery Request</DialogTitle>
-                        <p className="text-gray-600 dark:text-gray-300 mt-2 text-sm sm:text-base">Tell us what you need help with</p>
-                    </DialogHeader>
-                    <div className="grid gap-4 sm:gap-6 py-4 sm:py-6">
-                        <div className="grid gap-2 sm:gap-3">
-                            <label htmlFor="recoveryReason" className="text-sm font-semibold text-gray-700 dark:text-gray-300">Reason for Recovery</label>
-                            <select
-                                id="recoveryReason"
-                                value={recoveryReason}
-                                onChange={(e) => setRecoveryReason(e.target.value)}
-                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-white transition-all duration-200"
-                            >
-                                <option value="">Select a reason</option>
-                                <option value="Account Access">Account Access</option>
-                                <option value="Data Loss">Data Loss</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div className="grid gap-2 sm:gap-3">
-                            <label htmlFor="recoveryDetails" className="text-sm font-semibold text-gray-700 dark:text-gray-300">Details (Optional)</label>
-                            <textarea
-                                id="recoveryDetails"
-                                value={recoveryDetails}
-                                onChange={(e) => setRecoveryDetails(e.target.value)}
-                                rows={3}
-                                placeholder="Please provide more details about your request..."
-                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 resize-none transition-all duration-200"
-                            />
-                        </div>
-                        <div className="grid gap-2 sm:gap-3">
-                            <label htmlFor="contactEmail" className="text-sm font-semibold text-gray-700 dark:text-gray-300">Contact Email (Optional)</label>
-                            <input
-                                type="email"
-                                id="contactEmail"
-                                value={contactEmail}
-                                onChange={(e) => setContactEmail(e.target.value)}
-                                placeholder="Your Email"
-                                className="w-full rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-all duration-200"
-                            />
-                        </div>
-                    </div>
-                    <Button 
-                        onClick={handleDataRecoveryRequest} 
-                        className="w-full h-11 sm:h-12 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
-                    >
-                        Submit Recovery Request
-                    </Button>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

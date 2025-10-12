@@ -1,6 +1,7 @@
 'use client';
 
 import { signOut } from 'next-auth/react';
+import { clearAllNextAuthStorage } from '@/lib/session-utils';
 
 /**
  * Utility component for manually clearing tokens and refreshing session
@@ -9,13 +10,29 @@ import { signOut } from 'next-auth/react';
 export function TokenClearer() {
   const handleClearTokens = async () => {
     try {
-      // Double-tap logout: NextAuth + hard-clear + redirect
+      // Enhanced logout: Clear everything + cache busting
+      clearAllNextAuthStorage();
       await signOut({ redirect: false });
-      await fetch("/logout", { method: "POST" }).catch(() => {});
-      window.location.replace("/");
+      await fetch("/logout", { 
+        method: "POST",
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
+      }).catch(() => {});
+      
+      // Clear all caches
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      
+      window.location.replace(`/?cache-bust=${Date.now()}&logout=manual`);
     } catch (error) {
       console.error('Logout error:', error);
-      window.location.replace("/");
+      window.location.replace(`/?cache-bust=${Date.now()}&logout=error`);
     }
   };
 

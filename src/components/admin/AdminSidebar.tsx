@@ -85,12 +85,6 @@ const adminNavCategories = [
         description: 'Moderate user content'
       },
       {
-        title: 'Data Recovery',
-        href: '/admin/data-recovery',
-        icon: FileText,
-        description: 'Handle recovery requests'
-      },
-      {
         title: 'Images',
         href: '/admin/images',
         icon: ImageIcon,
@@ -205,13 +199,13 @@ export default function AdminSidebar() {
         />
       )}
 
-      {/* Sidebar - Mobile First */}
+      {/* Sidebar - Fixed on desktop, mobile overlay */}
       <div className={cn(
         "bg-sidebar border-r border-sidebar-border shadow-lg transition-transform duration-300 ease-in-out",
-        "lg:translate-x-0 lg:relative lg:z-auto",
+        "lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:translate-x-0",
         isMobileOpen 
           ? "fixed inset-y-0 left-0 z-50 w-80 translate-x-0" 
-          : "fixed inset-y-0 left-0 z-50 w-80 -translate-x-full lg:relative lg:translate-x-0 lg:w-64"
+          : "fixed inset-y-0 left-0 z-50 w-80 -translate-x-full lg:translate-x-0"
       )}>
         <div className="h-full overflow-y-auto">
           {/* Desktop Logo and Branding - Hidden on mobile */}
@@ -221,7 +215,7 @@ export default function AdminSidebar() {
                 <Zap className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-sidebar-foreground">CaptionCraft</h1>
+                <h1 className="text-lg font-bold text-sidebar-foreground">Capsera</h1>
                 <p className="text-sm text-sidebar-foreground/60">Admin Panel</p>
               </div>
             </div>

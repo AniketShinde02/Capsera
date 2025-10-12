@@ -49,15 +49,15 @@ export async function GET(request: NextRequest) {
       status: 1
     }).toArray();
 
-    // Transform regular users
+    // Transform regular users - handle schema differences
     const transformedRegularUsers = regularUsers.map((user: any) => ({
       _id: user._id?.toString?.() ?? '',
       email: user.email,
       username: user.username || user.name || '',
       role: user.role || { name: 'user', displayName: 'User' },
       createdAt: user.createdAt || user.created_at || null,
-      lastLogin: user.lastLogin || user.last_login,
-      isActive: user.isActive !== false,
+      lastLogin: user.lastLoginAt || user.lastLogin || user.last_login,
+      isActive: user.status === 'active' || (user.isActive !== false && !user.status), // Handle both status and isActive
       type: 'user'
     }));
 
@@ -94,6 +94,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔄 POST /api/admin/users - Creating new user');
+    
     // Check admin authentication using middleware
     const adminError = await verifyAdminAccess(request);
     if (adminError) return adminError;
@@ -115,8 +117,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, username, password, role, isAdmin = false } = body;
 
+    console.log('📊 User creation data:', { email, username, role, isAdmin });
+
     // Validate required fields
     if (!email || !password) {
+      console.error('❌ Missing required fields:', { email: !!email, password: !!password });
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
@@ -144,14 +149,34 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create base user object
+    // Handle role assignment
+    let userRole = { name: 'user', displayName: 'User' }; // Default role
+    
+    if (role) {
+      // Check if role exists in roles collection
+      const roleDoc = await db.collection('roles').findOne({ name: role.toLowerCase() });
+      if (roleDoc) {
+        userRole = {
+          name: roleDoc.name,
+          displayName: roleDoc.displayName
+        };
+      } else {
+        // Create simple role object for basic roles
+        userRole = {
+          name: role.toLowerCase(),
+          displayName: role.charAt(0).toUpperCase() + role.slice(1)
+        };
+      }
+    }
+
+    // Create base user object - match User model schema
     const baseUser = {
       email,
       username: username || email.split('@')[0],
       password: hashedPassword,
-      role: role || { name: 'user', displayName: 'User' },
-      isActive: true,
-      isVerified: false,
+      role: userRole, // Will be handled properly based on collection
+      status: 'active', // Use status instead of isActive
+      emailVerified: null, // Use emailVerified instead of isVerified
       createdAt: new Date(),
       createdBy: session.user.id
     };
@@ -161,16 +186,41 @@ export async function POST(request: NextRequest) {
     let newUser;
     
     if (isAdmin) {
+      // AdminUser collection schema
       newUser = {
         ...baseUser,
         status: 'active',
-        isAdmin: true
+        isAdmin: true,
+        isSuperAdmin: false,
+        isVerified: true,
+        loginAttempts: 0,
+        lockUntil: null,
+        updatedAt: new Date()
       };
     } else {
-      newUser = baseUser;
+      // Regular users collection schema
+      newUser = {
+        ...baseUser,
+        isAdmin: false,
+        isSuperAdmin: false,
+        isDeleted: false,
+        lastLoginAt: null,
+        lastSeen: new Date(),
+        emailPreferences: {
+          promotional: true,
+          welcome: true,
+          requestConfirmations: true
+        },
+        promotionalEmailSentAt: null,
+        lastPromotionalEmailDate: null,
+        promotionalEmailCount: 0,
+        unsubscribeToken: null,
+        welcomeEmailSent: false
+      };
     }
 
     const result = await db.collection(collection).insertOne(newUser);
+    console.log('✅ User created successfully:', { userId: result.insertedId, collection });
 
     // Return user without password
     const { password: _, ...userWithoutPassword } = newUser;

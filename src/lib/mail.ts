@@ -614,7 +614,6 @@ export async function sendRequestConfirmationEmail(data: RequestConfirmationData
   
   // Map request types to friendly names
   const requestTypeNames = {
-    'data_recovery': 'Data Recovery Request',
     'data_deletion': 'Data Deletion Request',
     'profile_deletion': 'Profile Deletion Request',
     'other': 'Support Request'

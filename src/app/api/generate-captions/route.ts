@@ -8,6 +8,130 @@ import { CaptionCacheService } from '@/lib/caption-cache';
 import { geminiManager } from '@/lib/smart-gemini-manager';
 import { smartErrorHandler } from '@/lib/smart-error-handler';
 
+// Groq caption generation function
+async function generateGroqCaptions(mood: string, description: string, imageUrl: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
+  const startTime = Date.now();
+  
+  try {
+    // Get Groq API key
+    const groqKey1 = process.env.GROQ_API_KEY_1;
+    const groqKey2 = process.env.GROQ_API_KEY_2;
+    const groqKey = groqKey1 || groqKey2;
+    
+    console.log('🔑 Groq key check:', {
+      hasKey1: !!groqKey1,
+      hasKey2: !!groqKey2,
+      hasAnyKey: !!groqKey,
+      key1Prefix: groqKey1 ? groqKey1.substring(0, 10) + '...' : 'none',
+      key2Prefix: groqKey2 ? groqKey2.substring(0, 10) + '...' : 'none'
+    });
+    
+    if (!groqKey) {
+      console.log('❌ No Groq API keys found in environment');
+      return {
+        success: false,
+        error: 'No Groq API keys configured',
+        processingTime: Date.now() - startTime
+      };
+    }
+
+    console.log('🚀 Generating captions with Groq (primary provider)...');
+
+    // Optimized prompt
+    const prompt = `Generate 3 unique, engaging social media captions for an image with a ${mood} mood.${
+      description ? ` Image description: ${description}` : ''
+    }
+
+Requirements:
+- Each caption should be 10-25 words
+- Include 2-3 relevant hashtags per caption
+- Match the ${mood} mood perfectly
+- Be engaging and shareable
+- Format as numbered list (1., 2., 3.)
+
+Generate exactly 3 captions:`;
+
+    // Make Groq API call
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional social media caption generator. Generate exactly 3 unique, engaging captions for the given image and mood. Each caption should be 10-25 words, include relevant hashtags, and match the specified mood perfectly.'
+          },
+          {
+            role: 'user',
+            content: `${prompt}\n\nImage URL: ${imageUrl}`
+          }
+        ],
+        max_tokens: 300,
+        temperature: 0.7,
+        stream: false
+      })
+    });
+
+    const processingTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Groq API error:', response.status, errorData);
+      
+      return {
+        success: false,
+        error: `Groq API error: ${response.status}`,
+        processingTime
+      };
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content || '';
+    
+    // Extract captions
+    const lines = content.split('\n').filter(line => line.trim());
+    const captions = [];
+    
+    for (const line of lines) {
+      const match = line.match(/^\d+[\.\)]\s*(.+)$/);
+      if (match && match[1]) {
+        captions.push(match[1].trim());
+      }
+    }
+
+    // Fallback extraction
+    if (captions.length === 0) {
+      captions.push(...lines.filter(line => line.length > 10 && line.length < 200).slice(0, 3));
+    }
+
+    // Ensure 3 captions
+    while (captions.length < 3) {
+      captions.push(captions[captions.length - 1] || 'Great moment captured! 📸 #Life #Beautiful');
+    }
+
+    console.log(`✅ Groq captions generated in ${processingTime}ms`);
+
+    return {
+      success: true,
+      captions: captions.slice(0, 3),
+      processingTime
+    };
+
+  } catch (error: any) {
+    console.error('❌ Groq generation error:', error);
+    
+    return {
+      success: false,
+      error: error.message,
+      processingTime: Date.now() - startTime
+    };
+  }
+}
+
 // Get client IP address
 function getClientIP(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
@@ -148,19 +272,36 @@ export async function POST(req: NextRequest) {
       }, { status: 503 });
     }
 
-    console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
-
-    // ⚡ SPEED OPTIMIZATION: Generate captions with optimized timeout
-    const result = await generateCaptions({
-      mood,
-      description,
-      imageUrl,
-      publicId,
-      userId: session?.user?.id,
-      ipAddress: clientIP,
-      // We already performed unified rate limit checks in this route, so skip the internal flow check
-      skipRateLimit: true,
-    });
+    // Try Groq first (faster)
+    console.log('🚀 Trying Groq first for faster generation...');
+    const groqResult = await generateGroqCaptions(mood, description, imageUrl);
+    console.log('🔍 Groq result:', { success: groqResult.success, error: groqResult.error, captionsCount: groqResult.captions?.length });
+    
+    let result;
+    if (groqResult.success && groqResult.captions) {
+      console.log(`✅ Groq generation successful in ${groqResult.processingTime}ms`);
+      result = {
+        success: true,
+        captions: groqResult.captions,
+        processingTime: groqResult.processingTime,
+        provider: 'groq'
+      };
+    } else {
+      console.log('⚠️ Groq failed, falling back to Gemini...');
+      console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
+      
+      // ⚡ SPEED OPTIMIZATION: Generate captions with optimized timeout
+      result = await generateCaptions({
+        mood,
+        description,
+        imageUrl,
+        publicId,
+        userId: session?.user?.id,
+        ipAddress: clientIP,
+        // We already performed unified rate limit checks in this route, so skip the internal flow check
+        skipRateLimit: true,
+      });
+    }
 
     // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
     if (result.captions && result.captions.length > 0) {

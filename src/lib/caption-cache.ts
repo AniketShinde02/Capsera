@@ -146,40 +146,30 @@ export class CaptionCacheService {
       // Normalize prompt to ensure consistency
       const normalizedPrompt = prompt || 'default';
       
-      // First try to find existing entry
-      let cacheEntry = await (CaptionCache as any).findOne({
-        imageHash: cacheKey,
-        prompt: normalizedPrompt,
-        mood
-      });
-
-      if (cacheEntry) {
-        // Update existing entry
-        cacheEntry = await (CaptionCache as any).findByIdAndUpdate(
-          cacheEntry._id,
-          {
-            $set: {
-              captions,
-              userId,
-              lastUsed: new Date()
-            },
-            $inc: { usageCount: 1 }
-          },
-          { new: true }
-        );
-      } else {
-        // Create new entry
-        cacheEntry = await (CaptionCache as any).create({
+      // Use upsert to avoid duplicate key errors
+      let cacheEntry = await (CaptionCache as any).findOneAndUpdate(
+        {
           imageHash: cacheKey,
           prompt: normalizedPrompt,
-          mood,
-          captions,
-          userId,
-          usageCount: 1,
-          lastUsed: new Date(),
-          createdAt: new Date()
-        });
-      }
+          mood
+        },
+        {
+          $set: {
+            captions,
+            userId,
+            lastUsed: new Date()
+          },
+          $inc: { usageCount: 1 },
+          $setOnInsert: {
+            createdAt: new Date()
+          }
+        },
+        { 
+          new: true, 
+          upsert: true,
+          runValidators: true
+        }
+      );
       
               if (cacheEntry) {
           console.log(`💾 Cache ${cacheEntry.usageCount > 1 ? 'UPDATED' : 'STORED'}: Entry for image hash ${cacheKey.substring(0, 8)}... (usage: ${cacheEntry.usageCount})`);

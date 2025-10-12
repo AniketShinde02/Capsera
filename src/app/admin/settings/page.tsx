@@ -28,7 +28,7 @@ interface MaintenanceStatus {
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState({
-    siteName: 'CaptionCraft',
+    siteName: 'Capsera',
     siteDescription: 'Generate Viral Captions in Seconds',
     maintenanceMode: false,
     allowRegistration: true,
@@ -39,7 +39,7 @@ export default function AdminSettingsPage() {
     enableNotifications: true,
     smtpHost: 'smtp.gmail.com',
     smtpPort: '587',
-    smtpUser: 'admin@captioncraft.com',
+    smtpUser: 'admin@capsera.com',
     backupFrequency: 'daily',
     retentionDays: '30'
   });

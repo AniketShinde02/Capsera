@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { signOut } from 'next-auth/react';
+import { clearAllNextAuthStorage } from '@/lib/session-utils';
 import { useRouter } from 'next/navigation';
 
 export default function ServerHeader() {
@@ -424,21 +425,41 @@ export default function ServerHeader() {
                 <button
                   onClick={async () => {
                     setShowSignoutConfirm(false);
-                    // Double-tap logout: NextAuth + hard-clear + redirect
+                    // Enhanced logout: Clear everything + cache busting
                     try {
                       if (typeof window !== 'undefined') {
                         localStorage.removeItem('theme');
-                        // 1) Ask NextAuth to invalidate
+                        
+                        // 1) Clear all client-side caches first
+                        clearAllNextAuthStorage();
+                        
+                        // 2) Ask NextAuth to invalidate
                         await signOut({ redirect: false });
-                        // 2) Hard-clear cookies server-side
-                        await fetch("/logout", { method: "POST" }).catch(() => {});
-                        // 3) Final redirect to kill any client cache state
-                        window.location.replace("/");
+                        
+                        // 3) Hard-clear cookies server-side with cache busting
+                        await fetch("/logout", { 
+                          method: "POST",
+                          headers: {
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                          },
+                          cache: 'no-store'
+                        }).catch(() => {});
+                        
+                        // 4) Additional aggressive cache clearing
+                        if ('caches' in window) {
+                          caches.keys().then(names => {
+                            names.forEach(name => caches.delete(name));
+                          });
+                        }
+                        
+                        // 5) Force redirect with cache busting parameter
+                        window.location.replace(`/?cache-bust=${Date.now()}&logout=success`);
                       }
                     } catch (error) {
                       console.error('Logout error:', error);
-                      // Fallback: force redirect
-                      window.location.replace("/");
+                      // Fallback: force redirect with cache busting
+                      window.location.replace(`/?cache-bust=${Date.now()}&logout=fallback`);
                     }
                   }}
                   className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"

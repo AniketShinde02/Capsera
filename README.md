@@ -36,7 +36,8 @@ Capsera isn't just another caption generator – it's your **AI-powered creative
 - **🛡️ Robust Error Handling**: Graceful fallback for all failure scenarios
 - **🎨 Rich UI/UX**: Professional design with reduced eye strain and smooth animations
 - **👑 Admin Unlimited Access**: No generation limits for admin users
-- **🔧 Site-Wide Maintenance Mode**: Complete system protection with admin bypass capabilities
+- **🔧 Site-Wide Maintenance Mode**: Complete system protection with admin bypass capabilities and automatic redirects
+- **🔐 Bulletproof Authentication**: All PIN systems use database storage with bcrypt hashing - NO hardcoded credentials
 - **🚀 Advanced SEO Optimization**: Optimized for "caption generator" rankings with dedicated landing pages
 
 ---
@@ -338,6 +339,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### 🐛 **Recent Bug Fixes**
 
 #### **Critical Issues Resolved**
+- **🔐 Hardcoded PIN Elimination**: Removed ALL hardcoded PINs - now everything fetches from database with bcrypt hashing
+- **🔧 Maintenance Page Redirect**: Fixed maintenance page not redirecting users when maintenance mode is turned OFF
+- **🚪 Logout Cache Clearing**: Enhanced logout system with comprehensive cache clearing including Service Worker caches
 - **Rate Limit Flash Bug**: Fixed multiple conflicting rate limiting systems causing status flashing
 - **Analytics Database Flooding**: Fixed 960+ duplicate cookie consent entries flooding database
 - **Duplicate Index Warnings**: Eliminated Mongoose duplicate index warnings during build
@@ -737,8 +741,8 @@ Capsera/
 ### **🔄 User Flow & Image Management**
 ```
 1. 🔍 Quota Check (Sequential - Required for security)
-   ├── Anonymous: 5 images/month (15 captions)
-   └── Authenticated: 25 images/month (75 captions)
+   ├── Anonymous: 5 images/day (15 captions)
+   └── Authenticated: 20 images/day (60 captions)
 
 2. 📤 Image Upload (Only if quota available)
    ├── Upload to Cloudinary
@@ -1022,7 +1026,7 @@ graph TB
     A[User Visits Homepage] --> B[Rate Limit Check]
     B --> C{Authenticated?}
     C -->|No| D[3 Free Generations]
-    C -->|Yes| E[25 Monthly Generations]
+    C -->|Yes| E[20 Daily Generations]
     
     D --> F[Upload Image]
     E --> F

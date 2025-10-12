@@ -28,6 +28,19 @@ interface SystemStatus {
   storage: 'configured' | 'not_configured';
 }
 
+interface SystemConfig {
+  mongodbUri: string;
+  nextAuthUrl: string;
+  appUrl: string;
+  hasNextAuthSecret: boolean;
+  nextAuthSecretLength: number;
+  cloudinaryCloudName: string;
+  geminiApiKeys: string[];
+  maintenanceMode: boolean;
+  maintenanceAllowedIPs: string[];
+  maintenanceAllowedEmails: string[];
+}
+
 export default function SystemSetupPage() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     database: 'disconnected',
@@ -35,17 +48,33 @@ export default function SystemSetupPage() {
     admin: 'not_exists',
     storage: 'not_configured'
   });
+  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupComplete, setSetupComplete] = useState(false);
 
   useEffect(() => {
     checkSystemStatus();
+    fetchSystemConfig();
     
     // Set up auto-refresh every 30 seconds
     const interval = setInterval(checkSystemStatus, 30000);
     
     return () => clearInterval(interval);
   }, []);
+
+  const fetchSystemConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/config');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setSystemConfig(data.config);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching system config:', error);
+    }
+  };
 
   const checkSystemStatus = async () => {
     try {
@@ -67,9 +96,17 @@ export default function SystemSetupPage() {
         setSystemStatus(prev => ({ ...prev, admin: adminExists ? 'exists' : 'not_exists' }));
       }
 
-      // Check auth configuration
-      const authSecret = process.env.NEXTAUTH_SECRET;
-      setSystemStatus(prev => ({ ...prev, auth: authSecret ? 'configured' : 'not_configured' }));
+      // Check auth configuration via API
+      try {
+        const authResponse = await fetch('/api/admin/auth-status');
+        if (authResponse.ok) {
+          setSystemStatus(prev => ({ ...prev, auth: 'configured' }));
+        } else {
+          setSystemStatus(prev => ({ ...prev, auth: 'not_configured' }));
+        }
+      } catch {
+        setSystemStatus(prev => ({ ...prev, auth: 'not_configured' }));
+      }
       
       // Check storage configuration - migrated to Cloudinary
       // const imagekitKey = process.env.IMAGEKIT_PUBLIC_KEY;
@@ -289,7 +326,7 @@ export default function SystemSetupPage() {
               <Label htmlFor="db-uri">MongoDB Connection URI</Label>
               <Input 
                 id="db-uri" 
-                value={process.env.MONGODB_URI || "mongodb://localhost:27017/captioncraft"} 
+                value={systemConfig?.mongodbUri || "mongodb://localhost:27017/capsera"} 
                 readOnly 
                 className="font-mono text-sm"
               />
@@ -325,7 +362,10 @@ export default function SystemSetupPage() {
               <Label htmlFor="auth-secret">NextAuth Secret</Label>
               <Input 
                 id="auth-secret" 
-                value="••••••••••••••••••••••••••••••••" 
+                value={systemConfig?.hasNextAuthSecret ? 
+                  `•••••••••••••••••••••••••••••••• (${systemConfig.nextAuthSecretLength} chars)` : 
+                  "Not configured"
+                } 
                 readOnly 
                 className="font-mono text-sm"
               />
@@ -334,7 +374,7 @@ export default function SystemSetupPage() {
               <Label htmlFor="auth-url">NextAuth URL</Label>
               <Input 
                 id="auth-url" 
-                value={process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"} 
+                value={systemConfig?.nextAuthUrl || "http://localhost:3000"} 
                 readOnly 
                 className="font-mono text-sm"
               />
@@ -364,7 +404,7 @@ export default function SystemSetupPage() {
               <Label htmlFor="admin-email">Admin Email</Label>
               <Input 
                 id="admin-email" 
-                value="admin@captioncraft.com" 
+                value={systemConfig?.maintenanceAllowedEmails[0] || "admin@capsera.com"} 
                 readOnly 
                 className="font-mono text-sm"
               />
@@ -421,10 +461,10 @@ export default function SystemSetupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="storage-path">Storage Provider</Label>
+              <Label htmlFor="storage-path">Cloud Name</Label>
               <Input 
                 id="storage-path" 
-                value="Cloudinary" 
+                value={systemConfig?.cloudinaryCloudName || "Not configured"} 
                 readOnly 
                 className="font-mono text-sm"
               />
@@ -458,12 +498,16 @@ export default function SystemSetupPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                const authSecret = process.env.NEXTAUTH_SECRET;
-                if (authSecret) {
-                  alert('Authentication is properly configured with NextAuth secret.');
-                } else {
-                  alert('Authentication is not configured. Please set NEXTAUTH_SECRET in your environment variables.');
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/admin/auth-status');
+                  if (response.ok) {
+                    alert('Authentication is properly configured.');
+                  } else {
+                    alert('Authentication is not configured. Please set NEXTAUTH_SECRET in your environment variables.');
+                  }
+                } catch {
+                  alert('Failed to verify authentication status.');
                 }
               }}
             >

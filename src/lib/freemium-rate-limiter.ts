@@ -1,5 +1,5 @@
 // 🎯 NEW FREEMIUM RATE LIMITER - User-Friendly Strategy
-// Implements monthly limits with graceful degradation and upgrade prompts
+// Implements daily limits with graceful degradation and upgrade prompts
 
 import dbConnect from '@/lib/db';
 import { connectToDatabase } from '@/lib/db';
@@ -9,35 +9,35 @@ import { ObjectId } from 'mongodb';
 // 🎯 NEW FREEMIUM STRATEGY - Much Better Than Blocking!
 export const FREEMIUM_LIMITS = {
   FREE_TIER: {
-    MONTHLY_IMAGES: 5,        // 5 images per month (15 captions total)
-    WEEKLY_GRACE: 1,          // 1 image per week after monthly limit
-    RESET_TYPE: 'monthly' as const,
+    DAILY_IMAGES: 5,        // 5 images per day (15 captions total)
+    WEEKLY_GRACE: 1,          // 1 image per week after daily limit
+    RESET_TYPE: 'daily' as const,
     USER_TYPE: 'free' as const,
   },
   BASIC_TIER: {
-    MONTHLY_IMAGES: 50,       // 50 images per month (150 captions total)
-    WEEKLY_GRACE: 5,          // 5 images per week after monthly limit
-    RESET_TYPE: 'monthly' as const,
+    DAILY_IMAGES: 20,       // 20 images per day (60 captions total)
+    WEEKLY_GRACE: 5,          // 5 images per week after daily limit
+    RESET_TYPE: 'daily' as const,
     USER_TYPE: 'basic' as const,
   },
   PRO_TIER: {
-    MONTHLY_IMAGES: Infinity, // Unlimited for pro users
+    DAILY_IMAGES: Infinity, // Unlimited for pro users
     WEEKLY_GRACE: Infinity,
-    RESET_TYPE: 'monthly' as const,
+    RESET_TYPE: 'daily' as const,
     USER_TYPE: 'pro' as const,
   },
 } as const;
 
 export type FreemiumTier = 'free' | 'basic' | 'pro';
-export type ResetType = 'monthly' | 'weekly';
+export type ResetType = 'daily' | 'weekly';
 
 export interface FreemiumUsage {
   userId?: string;
   ip?: string;
   tier: FreemiumTier;
-  monthlyUsage: number;
+  dailyUsage: number;
   weeklyUsage: number;
-  monthlyResetDate: Date;
+  dailyResetDate: Date;
   weeklyResetDate: Date;
   isAdmin: boolean;
   upgradePromptShown: boolean;
@@ -46,7 +46,7 @@ export interface FreemiumUsage {
 export interface FreemiumResult {
   allowed: boolean;
   reason?: string;
-  remainingMonthly: number;
+  remainingDaily: number;
   remainingWeekly: number;
   resetTime: number;
   tier: FreemiumTier;
@@ -71,6 +71,7 @@ export async function getUserFreemiumTier(userId?: string): Promise<FreemiumTier
     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
     
     if (user?.isAdmin) {
+      console.log('👑 User is admin in users collection:', user.email);
       return 'pro';
     }
 
@@ -82,6 +83,7 @@ export async function getUserFreemiumTier(userId?: string): Promise<FreemiumTier
     });
     
     if (adminUser) {
+      console.log('👑 User is admin in adminusers collection:', adminUser.email);
       return 'pro';
     }
 
@@ -95,13 +97,13 @@ export async function getUserFreemiumTier(userId?: string): Promise<FreemiumTier
 }
 
 /**
- * 🎯 Get next monthly reset date (1st of next month)
+ * 🎯 Get next daily reset date (midnight tomorrow)
  */
-export function getNextMonthlyReset(): Date {
+export function getNextDailyReset(): Date {
   const now = new Date();
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  nextMonth.setHours(0, 0, 0, 0);
-  return nextMonth;
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow;
 }
 
 /**
@@ -140,16 +142,16 @@ export async function checkFreemiumLimits(
     if (tier === 'pro') {
       return {
         allowed: true,
-        remainingMonthly: Infinity,
+        remainingDaily: Infinity,
         remainingWeekly: Infinity,
-        resetTime: getNextMonthlyReset().getTime(),
+        resetTime: getNextDailyReset().getTime(),
         tier: 'pro',
       };
     }
 
     const key = userId ? `user:${userId}` : `ip:${ip || 'unknown'}`;
     const now = new Date();
-    const monthlyReset = getNextMonthlyReset();
+    const dailyReset = getNextDailyReset();
     const weeklyReset = getNextWeeklyReset();
 
     // Get or create usage record
@@ -158,16 +160,16 @@ export async function checkFreemiumLimits(
     
     let usageRecord = await usageCollection.findOne({ key });
     
-    if (!usageRecord || now > usageRecord.monthlyResetDate) {
-      // First usage or monthly reset
+    if (!usageRecord || now > usageRecord.dailyResetDate) {
+      // First usage or daily reset
       const newUsageRecord = {
         key,
         userId,
         ip,
         tier,
-        monthlyUsage: 0,
+        dailyUsage: 0,
         weeklyUsage: 0,
-        monthlyResetDate: monthlyReset,
+        dailyResetDate: dailyReset,
         weeklyResetDate: weeklyReset,
         isAdmin: false,
         upgradePromptShown: false,
@@ -181,9 +183,9 @@ export async function checkFreemiumLimits(
           { key },
           { 
             $set: {
-              monthlyUsage: 0,
+              dailyUsage: 0,
               weeklyUsage: 0,
-              monthlyResetDate: monthlyReset,
+              dailyResetDate: dailyReset,
               weeklyResetDate: weeklyReset,
               updatedAt: now
             }
@@ -213,37 +215,37 @@ export async function checkFreemiumLimits(
       );
     }
 
-  const monthlyLimit = typeof config?.MONTHLY_IMAGES === 'number' ? config.MONTHLY_IMAGES : (FREEMIUM_LIMITS.FREE_TIER.MONTHLY_IMAGES as number);
+  const dailyLimit = typeof config?.DAILY_IMAGES === 'number' ? config.DAILY_IMAGES : (FREEMIUM_LIMITS.FREE_TIER.DAILY_IMAGES as number);
   const weeklyGrace = typeof config?.WEEKLY_GRACE === 'number' ? config.WEEKLY_GRACE : (FREEMIUM_LIMITS.FREE_TIER.WEEKLY_GRACE as number);
 
-  const currentMonthlyUsage = usageRecord.monthlyUsage || 0;
+  const currentDailyUsage = usageRecord.dailyUsage || 0;
   const currentWeeklyUsage = usageRecord.weeklyUsage || 0;
 
-  const remainingMonthly = Math.max(0, (monthlyLimit === Infinity ? Number.MAX_SAFE_INTEGER : monthlyLimit) - currentMonthlyUsage);
+  const remainingDaily = Math.max(0, (dailyLimit === Infinity ? Number.MAX_SAFE_INTEGER : dailyLimit) - currentDailyUsage);
   const remainingWeekly = Math.max(0, (weeklyGrace === Infinity ? Number.MAX_SAFE_INTEGER : weeklyGrace) - currentWeeklyUsage);
 
     // 🎯 GRACEFUL DEGRADATION LOGIC
-    if (remainingMonthly > 0) {
-      // Within monthly limit - allow and increment
+    if (remainingDaily > 0) {
+      // Within daily limit - allow and increment
       await usageCollection.updateOne(
         { key },
         { 
-          $inc: { monthlyUsage: 1 },
+          $inc: { dailyUsage: 1 },
           $set: { updatedAt: now }
         }
       );
       
       return {
         allowed: true,
-        remainingMonthly: remainingMonthly - 1,
+        remainingDaily: remainingDaily - 1,
         remainingWeekly,
-        resetTime: monthlyReset.getTime(),
+        resetTime: dailyReset.getTime(),
         tier,
-        upgradePrompt: remainingMonthly === 1, // Show upgrade prompt at last image
+        upgradePrompt: remainingDaily === 1, // Show upgrade prompt at last image
       };
     }
 
-    // Monthly limit exceeded - check weekly grace period
+    // Daily limit exceeded - check weekly grace period
     if (remainingWeekly > 0) {
       // Within weekly grace period - allow with warning
       await usageCollection.updateOne(
@@ -256,12 +258,12 @@ export async function checkFreemiumLimits(
       
       return {
         allowed: true,
-        remainingMonthly: 0,
+        remainingDaily: 0,
         remainingWeekly: remainingWeekly - 1,
         resetTime: weeklyReset.getTime(),
         tier,
         gracePeriod: true,
-        reason: `Monthly limit reached. Using weekly grace period (${remainingWeekly - 1} remaining this week).`,
+        reason: `Daily limit reached. Using weekly grace period (${remainingWeekly - 1} remaining this week).`,
         upgradePrompt: true,
       };
     }
@@ -269,11 +271,11 @@ export async function checkFreemiumLimits(
     // Both limits exceeded - show upgrade prompt but still allow (soft limit)
     return {
       allowed: true, // 🎯 SOFT LIMIT - Don't block users!
-      remainingMonthly: 0,
+      remainingDaily: 0,
       remainingWeekly: 0,
-      resetTime: monthlyReset.getTime(),
+      resetTime: dailyReset.getTime(),
       tier,
-      reason: 'Monthly and weekly limits reached. Upgrade for unlimited access!',
+      reason: 'Daily and weekly limits reached. Upgrade for unlimited access!',
       upgradePrompt: true,
       upgradeUrl: '/pricing',
     };
@@ -284,9 +286,9 @@ export async function checkFreemiumLimits(
     // Fallback to permissive mode on error
     return {
       allowed: true,
-      remainingMonthly: 5,
+      remainingDaily: 5,
       remainingWeekly: 1,
-      resetTime: getNextMonthlyReset().getTime(),
+      resetTime: getNextDailyReset().getTime(),
       tier: 'free',
       reason: 'System error - allowing access',
     };
@@ -301,11 +303,11 @@ export async function getFreemiumUsageInfo(
   ip?: string
 ): Promise<{
   tier: FreemiumTier;
-  monthlyUsage: number;
+  dailyUsage: number;
   weeklyUsage: number;
-  monthlyLimit: number;
+  dailyLimit: number;
   weeklyLimit: number;
-  remainingMonthly: number;
+  remainingDaily: number;
   remainingWeekly: number;
   resetTime: number;
   isInGracePeriod: boolean;
@@ -313,6 +315,7 @@ export async function getFreemiumUsageInfo(
 }> {
   try {
     const tier = await getUserFreemiumTier(userId);
+    console.log('📊 Getting freemium usage info - userId:', userId, 'tier:', tier);
     const tierKeyMap: Record<string, keyof typeof FREEMIUM_LIMITS> = {
       free: 'FREE_TIER',
       basic: 'BASIC_TIER',
@@ -320,17 +323,18 @@ export async function getFreemiumUsageInfo(
     };
     const configKey = tierKeyMap[tier] || 'FREE_TIER';
     const config = FREEMIUM_LIMITS[configKey];
+    console.log('📊 Config for tier:', tier, 'config:', config);
     
     if (tier === 'pro') {
       return {
         tier: 'pro',
-        monthlyUsage: 0,
+        dailyUsage: 0,
         weeklyUsage: 0,
-        monthlyLimit: Infinity,
+        dailyLimit: Infinity,
         weeklyLimit: Infinity,
-        remainingMonthly: Infinity,
+        remainingDaily: Infinity,
         remainingWeekly: Infinity,
-        resetTime: getNextMonthlyReset().getTime(),
+        resetTime: getNextDailyReset().getTime(),
         isInGracePeriod: false,
         upgradePrompt: false,
       };
@@ -343,49 +347,51 @@ export async function getFreemiumUsageInfo(
     const usageRecord = await usageCollection.findOne({ key });
     const now = new Date();
     
-    let monthlyUsage = 0;
+    let dailyUsage = 0;
     let weeklyUsage = 0;
     
-    if (usageRecord && now <= usageRecord.monthlyResetDate) {
-      monthlyUsage = usageRecord.monthlyUsage || 0;
+    if (usageRecord && now <= usageRecord.dailyResetDate) {
+      dailyUsage = usageRecord.dailyUsage || 0;
     }
     
     if (usageRecord && now <= usageRecord.weeklyResetDate) {
       weeklyUsage = usageRecord.weeklyUsage || 0;
     }
 
-  const monthlyLimit = typeof config?.MONTHLY_IMAGES === 'number' ? config.MONTHLY_IMAGES : (FREEMIUM_LIMITS.FREE_TIER.MONTHLY_IMAGES as number);
+  const dailyLimit = typeof config?.DAILY_IMAGES === 'number' ? config.DAILY_IMAGES : (FREEMIUM_LIMITS.FREE_TIER.DAILY_IMAGES as number);
   const weeklyGrace = typeof config?.WEEKLY_GRACE === 'number' ? config.WEEKLY_GRACE : (FREEMIUM_LIMITS.FREE_TIER.WEEKLY_GRACE as number);
 
-  const remainingMonthly = Math.max(0, (monthlyLimit === Infinity ? Number.MAX_SAFE_INTEGER : monthlyLimit) - monthlyUsage);
+  const remainingDaily = Math.max(0, (dailyLimit === Infinity ? Number.MAX_SAFE_INTEGER : dailyLimit) - dailyUsage);
   const remainingWeekly = Math.max(0, (weeklyGrace === Infinity ? Number.MAX_SAFE_INTEGER : weeklyGrace) - weeklyUsage);
-  const isInGracePeriod = remainingMonthly === 0 && remainingWeekly > 0;
+  const isInGracePeriod = remainingDaily === 0 && remainingWeekly > 0;
 
-    return {
+    const result = {
       tier,
-      monthlyUsage,
+      dailyUsage,
       weeklyUsage,
-      monthlyLimit: config.MONTHLY_IMAGES,
+      dailyLimit: config.DAILY_IMAGES,
       weeklyLimit: config.WEEKLY_GRACE,
-      remainingMonthly,
+      remainingDaily,
       remainingWeekly,
-      resetTime: getNextMonthlyReset().getTime(),
+      resetTime: getNextDailyReset().getTime(),
       isInGracePeriod,
-      upgradePrompt: remainingMonthly <= 1 || isInGracePeriod,
+      upgradePrompt: remainingDaily <= 1 || isInGracePeriod,
     };
+    console.log('📊 Returning freemium usage info:', result);
+    return result;
   } catch (error) {
     console.error('Error getting freemium usage info:', error);
     
     // Fallback info
     return {
       tier: 'free',
-      monthlyUsage: 0,
+      dailyUsage: 0,
       weeklyUsage: 0,
-      monthlyLimit: 5,
+      dailyLimit: 5,
       weeklyLimit: 1,
-      remainingMonthly: 5,
+      remainingDaily: 5,
       remainingWeekly: 1,
-      resetTime: getNextMonthlyReset().getTime(),
+      resetTime: getNextDailyReset().getTime(),
       isInGracePeriod: false,
       upgradePrompt: false,
     };

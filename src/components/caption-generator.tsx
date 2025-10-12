@@ -30,6 +30,7 @@ import { CaptionCard } from "./caption-card";
 import { Textarea } from "./ui/textarea";
 import { trackCaptionGeneration, hasConsent, saveFavoriteMood } from "@/lib/cookie-utils";
 import { compressWithWorker } from '@/lib/worker-client';
+import { FloatingFeedbackWidget } from "./feedback/FloatingFeedbackWidget";
 
 const formSchema = z.object({
   mood: z.string({
@@ -299,6 +300,18 @@ export function CaptionGenerator() {
     setRefreshTrigger(prev => prev + 1);
     setTimeout(() => {
       fetchFreemiumUsage();
+      // Also fetch regular quota info for anonymous users
+      fetch('/api/rate-limit-info')
+        .then(response => response.json())
+        .then(data => {
+          setQuotaInfo({
+            remaining: data.remaining,
+            total: data.maxGenerations,
+            isAuthenticated: data.isAuthenticated,
+            isAdmin: data.isAdmin
+          });
+        })
+        .catch(err => console.error('Error refreshing quota info:', err));
     }, 100);
   };
 
@@ -1095,11 +1108,20 @@ export function CaptionGenerator() {
 
         setCaptions(validCaptions);
 
+        // Dispatch event for floating feedback widget
+        const event = new CustomEvent('captionGenerated');
+        window.dispatchEvent(event);
+
         // Update freemium usage information from response
         if (captionData.freemium) {
           setFreemiumUsage(captionData.freemium);
           setShowUpgradePrompt(captionData.freemium.upgradePrompt);
         }
+
+        // Force refresh quota info to update the counter
+        setTimeout(() => {
+          forceRefreshQuota();
+        }, 500);
 
         // Immediately change button state after successful generation
         setButtonState('generate-another');
@@ -1454,6 +1476,15 @@ export function CaptionGenerator() {
     // Clear captions
     setCaptions([]);
     
+    // Dispatch event for floating feedback widget (generate another)
+    const event = new CustomEvent('captionGenerated');
+    window.dispatchEvent(event);
+    
+    // Force refresh quota info to update the counter
+    setTimeout(() => {
+      forceRefreshQuota();
+    }, 500);
+    
     // For both authenticated and anonymous users, keep the image visible
     // since they want to generate more captions for the same image
     setHasExplicitlyReset(false);
@@ -1574,7 +1605,7 @@ export function CaptionGenerator() {
                             handleUrlUpload(url.trim());
                           }
                         }}
-                        className={`flex flex-col items-center justify-center w-full h-32 rounded-xl transition-all duration-500 cursor-pointer shadow-sm overflow-hidden active:scale-95 upload-area-dotted ${uploadStage === 'uploading'
+                        className={`flex flex-col items-center justify-center w-full h-32 rounded-xl transition-all duration-500 cursor-pointer shadow-sm overflow-hidden upload-area-dotted ${uploadStage === 'uploading'
                           ? 'border-primary/80 bg-primary/5 animate-upload-pulse'
                           : uploadStage === 'processing'
                             ? 'border-secondary/80 bg-secondary/5 animate-processing-glow'
@@ -2133,6 +2164,9 @@ export function CaptionGenerator() {
             </form>
           </Form>
         </div>
+
+        {/* Floating Feedback Widget */}
+        <FloatingFeedbackWidget />
 
         {/* Detailed Error Message Outside Main Container Card - Responsive & Mobile Optimized */}
           {error && (error.includes('daily limit') || error.includes('used all') || error.includes('quota will reset')) && (

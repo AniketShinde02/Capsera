@@ -176,12 +176,44 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
 
   // Admin creation
   const handleAdminCreation = async () => {
-    // Admin creation process (removed debug logging for security)
-    
-    if (!email.trim() || !password.trim() || !username.trim()) {
-      setError('All fields are required');
+    // Ensure we're in the right step
+    if (step !== 'otp') {
+      console.log('❌ Wrong step for admin creation:', step);
+      setError('Please complete OTP verification first');
       return;
     }
+    
+    // Debug: Log current form values
+    console.log('🔍 Form validation - Current values:', {
+      step: step,
+      email: email ? `"${email}"` : 'empty',
+      username: username ? `"${username}"` : 'empty', 
+      password: password ? `"${password}"` : 'empty',
+      emailLength: email?.length || 0,
+      usernameLength: username?.length || 0,
+      passwordLength: password?.length || 0
+    });
+    
+    // More robust validation with better error messages
+    if (!email || !email.trim()) {
+      console.log('❌ Email validation failed:', email);
+      setError('Email is required');
+      return;
+    }
+    
+    if (!username || !username.trim()) {
+      console.log('❌ Username validation failed:', username);
+      setError('Username is required');
+      return;
+    }
+    
+    if (!password || !password.trim()) {
+      console.log('❌ Password validation failed:', password);
+      setError('Password is required');
+      return;
+    }
+    
+    console.log('✅ All form fields validated successfully');
     
     // Check if OTP is verified
     if (!otpVerified) {

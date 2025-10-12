@@ -10,10 +10,10 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { name, email, category, subject, message } = body;
+    const { name, email, category, message } = body;
 
     // Validate required fields
-    if (!name || !email || !category || !subject || !message) {
+    if (!name || !email || !category || !message) {
       return NextResponse.json(
         { success: false, message: 'All fields are required.' },
         { status: 400 }
@@ -28,12 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (subject.trim().length < 5) {
-      return NextResponse.json(
-        { success: false, message: 'Subject must be at least 5 characters long.' },
-        { status: 400 }
-      );
-    }
+    // Subject validation removed - not part of frontend form
 
     if (message.trim().length < 10) {
       return NextResponse.json(
@@ -56,7 +51,7 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       category: category.trim(),
-      subject: subject.trim(),
+      subject: `${category} - ${name}`, // Auto-generate subject from category and name
       message: message.trim(),
       status: 'new'
     });

@@ -66,6 +66,27 @@
 
 ## 🔧 Technical Implementation Details
 
+### Updated Multi-Provider System
+```typescript
+const providerRequest: AIProviderRequest = {
+  imageUrl: input.imageUrl,
+  mood: input.mood,
+  description: input.description,
+  temperature: 0.7, // Balance between creativity and accuracy
+  maxRetries: 3,
+  timeout: 25000,
+  systemPrompt: enhancedSystemPrompt // Detailed analysis prompt
+};
+```
+
+### Enhanced Image Analysis Features
+- Two-step analysis process (Image Analysis → Caption Generation)
+- Temperature control for balanced creativity
+- Structured output format
+- Improved error handling and validation
+- Better prompt clarity and specificity
+- Direct reference to visual elements
+
 ### Caching System
 ```typescript
 const captionCache = new Map<string, GenerateCaptionsOutput>();
@@ -74,26 +95,48 @@ function generateCacheKey(imageUrl: string, mood: string, description?: string):
 }
 ```
 
-### Optimized AI Prompt
+### Enhanced Image Analysis & Caption Generation System
 ```typescript
-const optimizedPrompt = `Create 3 viral social media captions for this image.
+const enhancedSystemPrompt = `Analyze this image and create viral social media captions.
 
-MOOD: ${input.mood}
-${input.description ? `CONTEXT: ${input.description}` : ''}
+STEP 1: IMAGE ANALYSIS
+Examine and describe:
+- Main subject/focus
+- Actions/activities shown
+- Location/setting
+- Dominant colors
+- Lighting conditions
+- Overall aesthetic/style
+- Unique details or standout elements
 
-REQUIREMENTS:
-- Analyze the actual image content (colors, objects, people, setting)
-- Match the mood perfectly
-- Include 2-4 emojis and 3-5 hashtags per caption
-- Keep under 150 characters each
-- Make each caption completely different in style
+STEP 2: CAPTION CREATION
+Create 3 distinct captions that:
+1. Reference specific visual elements you see in the image
+2. Match the mood: "${input.mood}"
+3. Include 2-3 relevant emojis
+4. Add 2-3 trending hashtags
+5. Keep under 150 characters
 
-CAPTION STYLES:
-1. Direct & descriptive (what you see)
-2. Emotional & relatable (how it feels) 
-3. Trendy & creative (current slang/viral phrases)
+Make each caption unique:
+- First: Direct & descriptive about what you see
+- Second: Emotional & relatable based on the image
+- Third: Trendy & creative using current phrases
 
-Return as JSON array: ["caption1", "caption2", "caption3"]`;
+RULES:
+✓ MUST mention actual things from the image
+✓ MUST match the requested mood perfectly
+✓ Make each caption completely different
+✓ Be authentic and engaging for social media
+✓ NO generic captions - prove you analyzed this specific image`;
+
+// New configuration for better image analysis
+const providerRequest: AIProviderRequest = {
+  imageUrl: input.imageUrl,
+  mood: input.mood,
+  description: input.description,
+  temperature: 0.7, // Balance between creativity and accuracy
+  systemPrompt: enhancedSystemPrompt
+};
 ```
 
 ### Non-Blocking Database Operations
@@ -148,6 +191,35 @@ dbConnect()
 - ✅ Performance monitoring
 - ✅ Cache management
 - ✅ Streaming response option
+
+## 🎯 Enhanced Image Analysis System (October 2025 Update)
+
+### Key Improvements
+
+1. **Detailed Image Analysis Pipeline**
+   - Step-by-step visual element analysis
+   - Structured examination of image components
+   - Comprehensive visual context understanding
+
+2. **Enhanced Caption Generation Process**
+   - Three distinct caption styles for variety
+   - Direct reference to image elements
+   - Mood-specific customization
+   - Balanced emoji and hashtag usage
+
+3. **Technical Enhancements**
+   - Temperature setting of 0.7 for balanced creativity
+   - Structured two-step analysis process
+   - Improved prompt clarity and specificity
+   - Better error handling and validation
+
+### Impact on Caption Quality
+
+- More relevant and specific captions
+- Better reference to actual image content
+- Improved mood matching
+- Reduced generic responses
+- Better engagement potential
 
 ## 🔍 Monitoring & Debugging
 

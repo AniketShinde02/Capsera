@@ -128,7 +128,40 @@ export const generateCaptionsFlowMulti =
         userId: input.userId,
         ipAddress: input.ipAddress,
         maxRetries: 3,
-        timeout: 25000 // 25 seconds timeout
+        timeout: 25000, // 25 seconds timeout
+        temperature: 0.7, // Add some creativity while keeping focused
+        systemPrompt: `Analyze this image and create viral social media captions.
+
+STEP 1: IMAGE ANALYSIS
+Examine and describe:
+- Main subject/focus
+- Actions/activities shown
+- Location/setting
+- Dominant colors
+- Lighting conditions
+- Overall aesthetic/style
+- Unique details or standout elements
+
+STEP 2: CAPTION CREATION
+Create 3 distinct captions that:
+1. Reference specific visual elements you see in the image
+2. Match the mood: "${input.mood}"
+3. Include 2-3 relevant emojis
+4. Add 2-3 trending hashtags
+5. Keep under 150 characters
+
+Make each caption unique:
+- First: Direct & descriptive about what you see
+- Second: Emotional & relatable based on the image
+- Third: Trendy & creative using current phrases
+
+RULES:
+✓ MUST mention actual things from the image
+✓ MUST match the requested mood perfectly
+✓ Make each caption completely different
+✓ Be authentic and engaging for social media
+✓ NO generic captions - prove you analyzed this specific image`
+       
       };
 
       const result = await multiProviderGenerateCaptions(providerRequest);

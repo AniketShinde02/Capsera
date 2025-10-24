@@ -49,6 +49,8 @@ export interface AIProviderRequest {
   ipAddress?: string;
   maxRetries?: number;
   timeout?: number;
+  systemPrompt?: string;
+  temperature?: number;
 }
 
 export interface ProviderHealthCheck {

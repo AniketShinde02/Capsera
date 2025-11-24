@@ -8,7 +8,7 @@ function getClientIP(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
   const realIP = req.headers.get('x-real-ip');
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
-  
+
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
@@ -18,7 +18,7 @@ function getClientIP(req: NextRequest): string {
   if (cfConnectingIP) {
     return cfConnectingIP;
   }
-  
+
   return 'unknown';
 }
 
@@ -26,16 +26,17 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const clientIP = getClientIP(req);
-    
+    console.log('📊 Freemium usage info for API response:', { clientIP, userId: session?.user?.id });
+
     // Get freemium usage information
     const usageInfo = await getFreemiumUsageInfo(session?.user?.id, clientIP);
     console.log('📊 Freemium usage info for API response:', usageInfo);
-    
+
     // Calculate time until reset
     const now = Date.now();
     const timeUntilReset = usageInfo.resetTime - now;
     const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
-    
+
     // Generate friendly reset message
     let resetMessage = 'tomorrow';
     if (hoursUntilReset < 24) {
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
     } else if (hoursUntilReset < 48) { // Less than 2 days
       resetMessage = 'tomorrow';
     }
-    
+
     return NextResponse.json({
       success: true,
       usage: {
@@ -58,10 +59,10 @@ export async function GET(req: NextRequest) {
         userEmail: session?.user?.email || null,
       }
     });
-    
+
   } catch (error) {
     console.error('Error getting freemium usage info:', error);
-    
+
     return NextResponse.json({
       success: false,
       error: 'Failed to get usage information',

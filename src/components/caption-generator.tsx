@@ -199,7 +199,14 @@ export function CaptionGenerator() {
   const [showTrashAnimation, setShowTrashAnimation] = useState(false);
   const [hasExplicitlyReset, setHasExplicitlyReset] = useState(false);
   const [isImageDeleted, setIsImageDeleted] = useState(false);
-  const [freemiumUsage, setFreemiumUsage] = useState<any>(null);
+  const [freemiumUsage, setFreemiumUsage] = useState<{
+    remainingDaily: number;
+    dailyLimit: number;
+    upgradePrompt: boolean;
+    tier: 'free' | 'basic' | 'pro';
+    gracePeriod?: boolean;
+    remainingWeekly?: number;
+  } | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { data: session } = useSession();
 
@@ -266,21 +273,53 @@ export function CaptionGenerator() {
   // Fetch freemium usage information
   const fetchFreemiumUsage = async () => {
     try {
-      const response = await fetch('/api/freemium-usage', {
+      setQuotaLoading(true);
+      
+      const timestamp = Date.now();
+      const response = await fetch(`/api/freemium-usage?t=${timestamp}`, {
         credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
       });
       
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
-          console.log('📊 Freemium usage data received:', data.usage);
-          console.log('📊 Freemium remainingDaily:', data.usage.remainingDaily, 'dailyLimit:', data.usage.dailyLimit);
-          setFreemiumUsage(data.usage);
-          setShowUpgradePrompt(data.usage.upgradePrompt);
+        if (data.success && data.usage) {
+          const newUsage = {
+            remainingDaily: data.usage.remainingDaily ?? 5,
+            dailyLimit: data.usage.dailyLimit ?? 5,
+            upgradePrompt: data.usage.upgradePrompt ?? false,
+            tier: data.usage.tier ?? 'free',
+            gracePeriod: data.usage.gracePeriod ?? false,
+            remainingWeekly: data.usage.remainingWeekly ?? 0
+          };
+          
+          console.log('📊 Fresh usage data:', {
+            remainingDaily: newUsage.remainingDaily,
+            dailyLimit: newUsage.dailyLimit,
+            tier: newUsage.tier,
+            totalUsed: newUsage.dailyLimit - newUsage.remainingDaily
+          });
+          
+          setFreemiumUsage(newUsage);
+          setShowUpgradePrompt(newUsage.remainingDaily <= 1 || newUsage.upgradePrompt);
+          
+          // Update quota info
+          if (typeof newUsage.remainingDaily === 'number') {
+            setQuotaInfo(prev => ({
+              ...prev,
+              remaining: newUsage.remainingDaily,
+              total: newUsage.dailyLimit
+            }));
+          }
         }
       }
     } catch (error) {
       console.error('Error fetching freemium usage:', error);
+    } finally {
+      setQuotaLoading(false);
     }
   };
 
@@ -1983,7 +2022,13 @@ export function CaptionGenerator() {
                               <p className="text-sm text-blue-700 dark:text-blue-300">
                                 {freemiumUsage?.gracePeriod 
                                   ? `You've used your daily limit. ${freemiumUsage.remainingWeekly} images left this week.`
-                                  : `Free Plan • ${freemiumUsage?.remainingDaily || quotaInfo?.remaining || 5}/5 images today. Upgrade for unlimited access!`
+                                  : `Free Plan • ${
+                                      typeof freemiumUsage?.remainingDaily === 'number'
+                                        ? Math.max(0, freemiumUsage.remainingDaily)
+                                        : typeof quotaInfo?.remaining === 'number'
+                                          ? Math.max(0, quotaInfo.remaining)
+                                          : '...'
+                                    }/5 images today`
                                 }
                               </p>
                             </div>

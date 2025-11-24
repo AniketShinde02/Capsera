@@ -31,6 +31,102 @@ interface UserRoleAssignment {
   adminEmail: string;
 }
 
+// --- Email Template Helper ---
+
+interface EmailTemplateOptions {
+  title: string;
+  previewText: string;
+  heading: string;
+  content: string;
+  cta?: {
+    text: string;
+    url: string;
+  };
+  footerText?: string;
+  baseUrl: string;
+}
+
+function getHtmlTemplate({ title, previewText, heading, content, cta, footerText, baseUrl }: EmailTemplateOptions): string {
+  const logoUrl = `${baseUrl}/web-app-manifest-192x192.png`;
+  const year = new Date().getFullYear();
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>${title}</title>
+      <meta name="description" content="${previewText}">
+      <!--[if mso]>
+      <style type="text/css">
+        body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      </style>
+      <![endif]-->
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #e2e8f0;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #0f172a;">
+        
+        <!-- Container -->
+        <div style="margin: 40px auto; background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+          
+          <!-- Header -->
+          <div style="padding: 32px; text-align: center; border-bottom: 1px solid #334155; background-color: #1e293b;">
+            <div style="margin-bottom: 16px;">
+              <img src="${logoUrl}" alt="Capsera Logo" width="48" height="48" style="display: inline-block; border-radius: 10px;">
+            </div>
+            <h1 style="margin: 0; color: #f8fafc; font-size: 24px; font-weight: 700; letter-spacing: -0.025em;">Capsera</h1>
+          </div>
+          
+          <!-- Content -->
+          <div style="padding: 40px 32px; background-color: #1e293b;">
+            <h2 style="margin: 0 0 24px 0; color: #f8fafc; font-size: 24px; font-weight: 600; text-align: center; letter-spacing: -0.025em;">${heading}</h2>
+            
+            <div style="color: #cbd5e1; font-size: 16px; line-height: 1.6;">
+              ${content}
+            </div>
+            
+            ${cta ? `
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${cta.url}" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; transition: all 0.2s ease;">${cta.text}</a>
+            </div>
+            ` : ''}
+            
+            ${footerText ? `
+            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #334155; font-size: 14px; color: #94a3b8; text-align: center;">
+              ${footerText}
+            </div>
+            ` : ''}
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #0f172a; padding: 32px; text-align: center; border-top: 1px solid #334155;">
+            <p style="margin: 0 0 12px 0; color: #f8fafc; font-weight: 600; font-size: 14px;">The Capsera Team</p>
+            
+            <div style="margin: 20px 0;">
+              <a href="${baseUrl}" style="color: #38bdf8; text-decoration: none; font-size: 14px; font-weight: 500;">Visit Capsera →</a>
+            </div>
+            
+            <p style="margin: 16px 0 0 0; color: #64748b; font-size: 12px;">
+              Capsera - AI-Powered Caption Generation<br>
+              © ${year} Capsera. All rights reserved.
+            </p>
+          </div>
+          
+        </div>
+        
+        <!-- Email client compatibility styles -->
+        <div style="display: none; max-height: 0; overflow: hidden; color: #0f172a;">
+          ${previewText}
+        </div>
+        
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 class BrevoEmailService {
   private transporter: nodemailer.Transporter;
   private config: EmailConfig;
@@ -55,7 +151,7 @@ class BrevoEmailService {
   async sendRoleAssignmentEmail(userData: UserRoleAssignment): Promise<boolean> {
     try {
       const template = this.getRoleAssignmentTemplate(userData);
-      
+
       const mailOptions = {
         from: `"${process.env.APP_NAME || 'Capsera'}" <${this.config.auth.user}>`,
         to: userData.email,
@@ -97,10 +193,10 @@ class BrevoEmailService {
         }
       } catch (error) {
         failed++;
-        results.push({ 
-          email: user.email, 
-          success: false, 
-          error: error instanceof Error ? error.message : 'Unknown error' 
+        results.push({
+          email: user.email,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -120,7 +216,7 @@ class BrevoEmailService {
   }): Promise<boolean> {
     try {
       const template = this.getRoleCreationTemplate(roleData);
-      
+
       const mailOptions = {
         from: `"${process.env.APP_NAME || 'Capsera'}" <${this.config.auth.user}>`,
         to: adminEmail,
@@ -150,7 +246,7 @@ class BrevoEmailService {
   }): Promise<boolean> {
     try {
       const template = this.getUserAccountTemplate(userData);
-      
+
       const mailOptions = {
         from: `"${process.env.APP_NAME || 'Capsera'}" <${this.config.auth.user}>`,
         to: userData.email,
@@ -173,59 +269,34 @@ class BrevoEmailService {
    */
   private getRoleAssignmentTemplate(userData: UserRoleAssignment): EmailTemplate {
     const permissionsList = userData.permissions.map(p => `• ${p}`).join('\n');
-    
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+
     return {
       subject: `🎭 New Role Assigned: ${userData.roleDisplayName}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Role Assignment</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-            .role-badge { display: inline-block; background: #667eea; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin: 10px 0; }
-            .permissions { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .btn { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🎭 Role Assignment</h1>
-              <p>You have been assigned a new role in Capsera</p>
-            </div>
-            
-            <div class="content">
-              <h2>Hello ${userData.username || userData.email}!</h2>
-              
-              <p>Great news! You have been assigned the <span class="role-badge">${userData.roleDisplayName}</span> role in our system.</p>
-              
-              <div class="permissions">
-                <h3>🔐 Your New Permissions:</h3>
-                <ul>
-                  ${userData.permissions.map(p => `<li>${p}</li>`).join('')}
-                </ul>
-              </div>
-              
-              <p>This role gives you access to specific features and areas of the system based on your responsibilities.</p>
-              
-              <a href="${userData.loginUrl}" class="btn">🚀 Access Your Account</a>
-              
-              <p><strong>Need help?</strong> Contact your administrator at <a href="mailto:${userData.adminEmail}">${userData.adminEmail}</a></p>
-            </div>
-            
-            <div class="footer">
-              <p>This is an automated message from Capsera. Please do not reply to this email.</p>
-            </div>
+      html: getHtmlTemplate({
+        title: 'Role Assignment',
+        previewText: 'You have been assigned a new role in Capsera.',
+        heading: 'Role Assignment 🎭',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">Hello <strong>${userData.username || userData.email}</strong>!</p>
+          <p style="margin-bottom: 24px;">Great news! You have been assigned the <span style="display: inline-block; background: #06b6d4; color: #000000; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 14px;">${userData.roleDisplayName}</span> role in our system.</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #f59e0b; font-size: 16px; font-weight: 600;">🔐 Your New Permissions</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #d1d5db; font-size: 14px; line-height: 1.6;">
+              ${userData.permissions.map(p => `<li style="margin-bottom: 4px;">${p}</li>`).join('')}
+            </ul>
           </div>
-        </body>
-        </html>
-      `,
+          
+          <p style="color: #9ca3af; font-size: 14px;">This role gives you access to specific features and areas of the system based on your responsibilities.</p>
+        `,
+        cta: {
+          text: 'Access Your Account',
+          url: userData.loginUrl
+        },
+        footerText: `Need help? Contact your administrator at <a href="mailto:${userData.adminEmail}" style="color: #06b6d4; text-decoration: none;">${userData.adminEmail}</a>`
+      }),
       text: `
 Role Assignment - Capsera
 
@@ -252,57 +323,42 @@ This is an automated message from Capsera. Please do not reply to this email.
    * Get role creation notification template
    */
   private getRoleCreationTemplate(roleData: any): EmailTemplate {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+
     return {
       subject: `✅ New Role Created: ${roleData.displayName}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Role Created</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-            .role-info { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .permissions { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>✅ Role Created Successfully</h1>
-              <p>A new role has been created in Capsera</p>
-            </div>
-            
-            <div class="content">
-              <div class="role-info">
-                <h3>🎭 Role Details:</h3>
-                <p><strong>Name:</strong> ${roleData.name}</p>
-                <p><strong>Display Name:</strong> ${roleData.displayName}</p>
-                <p><strong>Description:</strong> ${roleData.description}</p>
-                <p><strong>Assigned Users:</strong> ${roleData.assignedUsers}</p>
-              </div>
-              
-              <div class="permissions">
-                <h3>🔐 Permissions:</h3>
-                <ul>
-                  ${roleData.permissions.map((p: string) => `<li>${p}</li>`).join('')}
-                </ul>
-              </div>
-              
-              <p>The role has been created and is ready for user assignment.</p>
-            </div>
-            
-            <div class="footer">
-              <p>This is an automated message from Capsera. Please do not reply to this email.</p>
+      html: getHtmlTemplate({
+        title: 'Role Created',
+        previewText: 'A new role has been created in Capsera.',
+        heading: 'Role Created Successfully ✅',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">A new role has been created in Capsera.</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #ffffff; font-size: 16px; font-weight: 600;">🎭 Role Details</h3>
+            <div style="display: grid; gap: 12px;">
+              <div><strong style="color: #9ca3af;">Name:</strong> <span style="color: #e5e7eb;">${roleData.name}</span></div>
+              <div><strong style="color: #9ca3af;">Display Name:</strong> <span style="color: #e5e7eb;">${roleData.displayName}</span></div>
+              <div><strong style="color: #9ca3af;">Description:</strong> <span style="color: #e5e7eb;">${roleData.description}</span></div>
+              <div><strong style="color: #9ca3af;">Assigned Users:</strong> <span style="color: #e5e7eb;">${roleData.assignedUsers}</span></div>
             </div>
           </div>
-        </body>
-        </html>
-      `,
+          
+          <div style="background-color: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #60a5fa; font-size: 16px; font-weight: 600;">🔐 Permissions</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #93c5fd; font-size: 14px; line-height: 1.6;">
+              ${roleData.permissions.map((p: string) => `<li style="margin-bottom: 4px;">${p}</li>`).join('')}
+            </ul>
+          </div>
+          
+          <p style="color: #9ca3af; font-size: 14px;">The role has been created and is ready for user assignment.</p>
+        `,
+        cta: {
+          text: 'View Roles',
+          url: `${baseUrl}/admin/roles`
+        }
+      }),
       text: `
 Role Created Successfully - Capsera
 
@@ -329,58 +385,40 @@ This is an automated message from Capsera. Please do not reply to this email.
    * Get user account creation template
    */
   private getUserAccountTemplate(userData: any): EmailTemplate {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+
     return {
       subject: `🚀 Welcome to Capsera - Your Account is Ready!`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Welcome to Capsera</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-            .credentials { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
-            .btn { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🚀 Welcome to Capsera!</h1>
-              <p>Your account has been created and is ready to use</p>
-            </div>
-            
-            <div class="content">
-              <h2>Hello ${userData.username}!</h2>
-              
-              <p>Welcome to Capsera! Your account has been created with the <strong>${userData.roleName}</strong> role.</p>
-              
-              <div class="credentials">
-                <h3>🔑 Your Login Credentials:</h3>
-                <p><strong>Username:</strong> ${userData.username}</p>
-                <p><strong>Email:</strong> ${userData.email}</p>
-                <p><strong>Password:</strong> ${userData.password}</p>
-                <p><strong>Role:</strong> ${userData.roleName}</p>
-              </div>
-              
-              <p><strong>⚠️ Important:</strong> Please change your password after your first login for security.</p>
-              
-              <a href="${userData.loginUrl}" class="btn">🚀 Login to Your Account</a>
-              
-              <p>If you have any questions or need assistance, please contact your administrator.</p>
-            </div>
-            
-            <div class="footer">
-              <p>This is an automated message from Capsera. Please do not reply to this email.</p>
+      html: getHtmlTemplate({
+        title: 'Welcome to Capsera',
+        previewText: 'Your account has been created and is ready to use.',
+        heading: 'Welcome to Capsera! 🚀',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">Hello <strong>${userData.username}</strong>!</p>
+          <p style="margin-bottom: 24px;">Welcome to Capsera! Your account has been created with the <strong>${userData.roleName}</strong> role.</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #06b6d4; font-size: 16px; font-weight: 600;">🔑 Your Login Credentials</h3>
+            <div style="display: grid; gap: 12px;">
+              <div><strong style="color: #9ca3af;">Username:</strong> <span style="color: #e5e7eb;">${userData.username}</span></div>
+              <div><strong style="color: #9ca3af;">Email:</strong> <span style="color: #e5e7eb;">${userData.email}</span></div>
+              <div><strong style="color: #9ca3af;">Password:</strong> <code style="background: #000; padding: 4px 8px; border-radius: 4px; color: #06b6d4;">${userData.password}</code></div>
+              <div><strong style="color: #9ca3af;">Role:</strong> <span style="color: #e5e7eb;">${userData.roleName}</span></div>
             </div>
           </div>
-        </body>
-        </html>
-      `,
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 8px;">
+            <p style="margin: 0 0 8px 0; color: #f59e0b; font-weight: 600; font-size: 14px;">⚠️ Important:</p>
+            <p style="margin: 0; color: #d1d5db; font-size: 14px;">Please change your password after your first login for security.</p>
+          </div>
+        `,
+        cta: {
+          text: 'Login to Your Account',
+          url: userData.loginUrl
+        },
+        footerText: 'If you have any questions or need assistance, please contact your administrator.'
+      }),
       text: `
 Welcome to Capsera - Your Account is Ready!
 

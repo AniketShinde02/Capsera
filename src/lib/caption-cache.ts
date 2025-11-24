@@ -1,5 +1,19 @@
-  import CaptionCache, { ICaptionCache } from '../models/CaptionCache';
+import CaptionCache, { ICaptionCache } from '../models/CaptionCache';
 import { generateImageHash, generateImageUrlHash, generateCloudinaryHash } from './image-hash';
+import fs from 'fs';
+import path from 'path';
+
+const DEBUG_LOG_FILE = path.join(process.cwd(), 'debug-rate-limit.log');
+
+function logDebug(message: string, data?: any) {
+  try {
+    const timestamp = new Date().toISOString();
+    const logLine = `${timestamp} - ${message} ${data ? JSON.stringify(data) : ''}\n`;
+    fs.appendFileSync(DEBUG_LOG_FILE, logLine);
+  } catch (e) {
+    // Ignore logging errors
+  }
+}
 
 export interface CacheResult {
   found: boolean;
@@ -22,7 +36,7 @@ export interface CacheStats {
  * Manages caching of generated captions to avoid duplicate API calls
  */
 export class CaptionCacheService {
-  
+
   /**
    * Check if a caption exists in cache
    */
@@ -34,7 +48,7 @@ export class CaptionCacheService {
     try {
       // Generate a more reliable cache key
       let cacheKey: string;
-      
+
       if (typeof imageData === 'string') {
         if (imageData.startsWith('data:image/')) {
           // Base64 image data
@@ -51,32 +65,33 @@ export class CaptionCacheService {
         // Buffer data
         cacheKey = generateImageHash(imageData);
       }
-      
+
       // Normalize prompt to ensure consistency
       const normalizedPrompt = prompt || 'default';
-      
+
       console.log(`🔑 Generated cache key: ${cacheKey.substring(0, 16)}...`);
       console.log(`🔍 Looking for cache entry with:`, {
         imageHash: cacheKey.substring(0, 8) + '...',
         prompt: normalizedPrompt,
         mood: mood
       });
-      
+
       const cacheEntry = await (CaptionCache as any).findOne({
         imageHash: cacheKey,
         prompt: normalizedPrompt,
         mood
       });
-      
+
       if (cacheEntry) {
         // Increment usage count manually
         await (CaptionCache as any).findByIdAndUpdate(cacheEntry._id, {
           $inc: { usageCount: 1 },
           $set: { lastUsed: new Date() }
         });
-        
+
         console.log(`🎯 Cache HIT: Found existing captions for image hash ${cacheKey.substring(0, 8)}...`);
-        
+        logDebug('Cache Hit', { cacheKey, prompt: normalizedPrompt, mood });
+
         return {
           found: true,
           captions: cacheEntry.captions,
@@ -84,14 +99,15 @@ export class CaptionCacheService {
           savedQuota: true
         };
       }
-      
+
       console.log(`❌ Cache MISS: No existing captions for image hash ${cacheKey.substring(0, 8)}...`);
-      
+      logDebug('Cache Miss', { cacheKey, prompt: normalizedPrompt, mood });
+
       return {
         found: false,
         savedQuota: false
       };
-      
+
     } catch (error) {
       console.error('❌ Cache check error:', error);
       return {
@@ -100,7 +116,7 @@ export class CaptionCacheService {
       };
     }
   }
-  
+
   /**
    * Store captions in cache
    */
@@ -114,7 +130,7 @@ export class CaptionCacheService {
     try {
       // Generate the same cache key logic as checkCache
       let cacheKey: string;
-      
+
       if (typeof imageData === 'string') {
         if (imageData.startsWith('data:image/')) {
           // Base64 image data
@@ -131,7 +147,7 @@ export class CaptionCacheService {
         // Buffer data
         cacheKey = generateImageHash(imageData);
       }
-      
+
       const cacheData = {
         imageHash: cacheKey,
         prompt,
@@ -142,10 +158,10 @@ export class CaptionCacheService {
         lastUsed: new Date(),
         createdAt: new Date()
       };
-      
+
       // Normalize prompt to ensure consistency
       const normalizedPrompt = prompt || 'default';
-      
+
       // Use upsert to avoid duplicate key errors
       let cacheEntry = await (CaptionCache as any).findOneAndUpdate(
         {
@@ -164,25 +180,25 @@ export class CaptionCacheService {
             createdAt: new Date()
           }
         },
-        { 
-          new: true, 
+        {
+          new: true,
           upsert: true,
           runValidators: true
         }
       );
-      
-              if (cacheEntry) {
-          console.log(`💾 Cache ${cacheEntry.usageCount > 1 ? 'UPDATED' : 'STORED'}: Entry for image hash ${cacheKey.substring(0, 8)}... (usage: ${cacheEntry.usageCount})`);
-        }
-      
+
+      if (cacheEntry) {
+        console.log(`💾 Cache ${cacheEntry.usageCount > 1 ? 'UPDATED' : 'STORED'}: Entry for image hash ${cacheKey.substring(0, 8)}... (usage: ${cacheEntry.usageCount})`);
+      }
+
       return cacheEntry;
-      
+
     } catch (error) {
       console.error('❌ Cache store error:', error);
       return null;
     }
   }
-  
+
   /**
    * Get cache statistics
    */
@@ -200,7 +216,7 @@ export class CaptionCacheService {
           }
         }
       ]);
-      
+
       if (stats && stats.length > 0) {
         const stat = stats[0];
         return {
@@ -212,15 +228,15 @@ export class CaptionCacheService {
           quotaSaved: (stat.totalUsage || 0) - (stat.totalEntries || 0) // Each cache hit saves one API call
         };
       }
-      
+
       return null;
-      
+
     } catch (error) {
       console.error('❌ Cache stats error:', error);
       return null;
     }
   }
-  
+
   /**
    * Clean old cache entries
    */
@@ -228,22 +244,22 @@ export class CaptionCacheService {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-      
+
       const result = await (CaptionCache as any).deleteMany({
         createdAt: { $lt: cutoffDate },
         usageCount: { $lt: 2 } // Only delete entries used less than 2 times
       });
-      
+
       console.log(`🧹 Cache CLEANED: Removed ${result.deletedCount} old entries`);
-      
+
       return result.deletedCount || 0;
-      
+
     } catch (error) {
       console.error('❌ Cache cleanup error:', error);
       return 0;
     }
   }
-  
+
   /**
    * Search cache by various criteria
    */
@@ -256,7 +272,7 @@ export class CaptionCacheService {
   }): Promise<ICaptionCache[]> {
     try {
       const query: any = {};
-      
+
       if (criteria.userId) query.userId = criteria.userId;
       if (criteria.mood) query.mood = criteria.mood;
       if (criteria.prompt) query.prompt = { $regex: criteria.prompt, $options: 'i' };
@@ -267,19 +283,19 @@ export class CaptionCacheService {
         };
       }
       if (criteria.minUsage) query.usageCount = { $gte: criteria.minUsage };
-      
+
       const results = await (CaptionCache as any).find(query)
         .sort({ lastUsed: -1 })
         .limit(100);
-      
+
       return results;
-      
+
     } catch (error) {
       console.error('❌ Cache search error:', error);
       return [];
     }
   }
-  
+
   /**
    * Get cache entry by ID
    */
@@ -291,7 +307,7 @@ export class CaptionCacheService {
       return null;
     }
   }
-  
+
   /**
    * Delete specific cache entry
    */
@@ -304,23 +320,23 @@ export class CaptionCacheService {
       return false;
     }
   }
-  
+
   /**
    * Get cache hit rate (percentage of requests served from cache)
    */
   static async getHitRate(): Promise<number> {
     try {
       const stats = await this.getStats();
-      
+
       if (!stats || stats.totalUsage === 0) {
         return 0;
       }
-      
+
       // Hit rate = (total usage - total entries) / total usage
       const hitRate = ((stats.totalUsage - stats.totalEntries) / stats.totalUsage) * 100;
-      
+
       return Math.round(hitRate * 100) / 100;
-      
+
     } catch (error) {
       console.error('❌ Cache hit rate error:', error);
       return 0;

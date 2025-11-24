@@ -7,17 +7,31 @@ import { getNextGeminiKey, getGeminiUsageStats } from '@/lib/gemini-keys';
 import { CaptionCacheService } from '@/lib/caption-cache';
 import { geminiManager } from '@/lib/smart-gemini-manager';
 import { smartErrorHandler } from '@/lib/smart-error-handler';
+import fs from 'fs';
+import path from 'path';
+
+const DEBUG_LOG_FILE = path.join(process.cwd(), 'debug-rate-limit.log');
+
+function logDebug(message: string, data?: any) {
+  try {
+    const timestamp = new Date().toISOString();
+    const logLine = `${timestamp} - ${message} ${data ? JSON.stringify(data) : ''}\n`;
+    fs.appendFileSync(DEBUG_LOG_FILE, logLine);
+  } catch (e) {
+    // Ignore logging errors
+  }
+}
 
 // Groq caption generation function
 async function generateGroqCaptions(mood: string, description: string, imageUrl: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
   const startTime = Date.now();
-  
+
   try {
     // Get Groq API key
     const groqKey1 = process.env.GROQ_API_KEY_1;
     const groqKey2 = process.env.GROQ_API_KEY_2;
     const groqKey = groqKey1 || groqKey2;
-    
+
     console.log('🔑 Groq key check:', {
       hasKey1: !!groqKey1,
       hasKey2: !!groqKey2,
@@ -25,7 +39,7 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
       key1Prefix: groqKey1 ? groqKey1.substring(0, 10) + '...' : 'none',
       key2Prefix: groqKey2 ? groqKey2.substring(0, 10) + '...' : 'none'
     });
-    
+
     if (!groqKey) {
       console.log('❌ No Groq API keys found in environment');
       return {
@@ -38,9 +52,8 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
     console.log('🚀 Generating captions with Groq (primary provider)...');
 
     // Optimized prompt
-    const prompt = `Generate 3 unique, engaging social media captions for an image with a ${mood} mood.${
-      description ? ` Image description: ${description}` : ''
-    }
+    const prompt = `Generate 3 unique, engaging social media captions for an image with a ${mood} mood.${description ? ` Image description: ${description}` : ''
+      }
 
 Requirements:
 - Each caption should be 10-25 words
@@ -81,7 +94,7 @@ Generate exactly 3 captions:`;
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('❌ Groq API error:', response.status, errorData);
-      
+
       return {
         success: false,
         error: `Groq API error: ${response.status}`,
@@ -91,11 +104,11 @@ Generate exactly 3 captions:`;
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content || '';
-    
+
     // Extract captions
     const lines = content.split('\n').filter(line => line.trim());
     const captions = [];
-    
+
     for (const line of lines) {
       const match = line.match(/^\d+[\.\)]\s*(.+)$/);
       if (match && match[1]) {
@@ -123,7 +136,7 @@ Generate exactly 3 captions:`;
 
   } catch (error: any) {
     console.error('❌ Groq generation error:', error);
-    
+
     return {
       success: false,
       error: error.message,
@@ -137,7 +150,7 @@ function getClientIP(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
   const realIP = req.headers.get('x-real-ip');
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
-  
+
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
@@ -147,7 +160,7 @@ function getClientIP(req: NextRequest): string {
   if (cfConnectingIP) {
     return cfConnectingIP;
   }
-  
+
   return 'unknown';
 }
 
@@ -173,7 +186,7 @@ export async function POST(req: NextRequest) {
         message: 'Mood and image are required'
       }, { status: 400 });
     }
-    
+
     // ⚡ SPEED OPTIMIZATION: Quick cache check with optimized query
     console.log(`🔍 Checking cache for existing captions...`);
     console.log(`📊 Cache key components:`, {
@@ -181,22 +194,24 @@ export async function POST(req: NextRequest) {
       description: description || 'default',
       mood: mood
     });
-    
+
     const cacheResult = await CaptionCacheService.checkCache(
       imageUrl,
       description || 'default',
       mood
     );
 
+    console.log(`🔍 Cache check result: found=${cacheResult.found}`);
+
     if (cacheResult.found && cacheResult.captions) {
       console.log(`🎯 Cache HIT! Serving ${cacheResult.captions.length} captions from cache`);
       console.log(`💰 API quota saved: ${cacheResult.savedQuota ? 'YES' : 'NO'}`);
-      
+
       const processingTime = Date.now() - startTime;
-      
+
       // Get rate limit info for display without incrementing usage
       const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-      
+
       return NextResponse.json({
         success: true,
         captions: cacheResult.captions,
@@ -216,21 +231,23 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`❌ Cache MISS - generating new captions with AI`);
-    
+
     // 🎯 CONSOLIDATED RATE LIMITER: Check usage limits with primary + secondary systems
     // Only check rate limit if we need to generate new captions
+    console.log('🔒 Checking rate limit...');
+    logDebug('Checking Rate Limit in Route', { clientIP, userId: session?.user?.id });
     rateLimitResult = await consolidatedRateLimiter.checkRateLimit(
-      session?.user?.id, 
+      session?.user?.id,
       clientIP
     );
     rateLimitChecked = true;
-    
+
     if (!rateLimitResult.allowed) {
       console.log(`🚫 Rate limit exceeded: ${clientIP} - ${rateLimitResult.reason}`);
-      
+
       // Get rate limit info for display
       const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-      
+
       return NextResponse.json({
         success: false,
         message: rateLimitResult.reason || 'Usage limit reached. Please upgrade for unlimited access.',
@@ -240,7 +257,7 @@ export async function POST(req: NextRequest) {
         remaining: rateLimitResult.remaining,
         resetTime: rateLimitResult.resetTime,
         resetMessage: rateLimitInfo.resetMessage
-      }, { 
+      }, {
         status: 429,
         headers: {
           'X-RateLimit-Limit': String(rateLimitInfo.maxGenerations),
@@ -258,12 +275,12 @@ export async function POST(req: NextRequest) {
       remaining: rateLimitResult.remaining,
       resetTime: rateLimitResult.resetTime
     });
-    
+
     // SMART: Use intelligent key management
     keyResult = await geminiManager.getBestKey();
     if (!keyResult) {
       console.warn('⚠️ All Gemini API keys exhausted - enabling fallback mode');
-      
+
       return NextResponse.json({
         success: false,
         message: "Our AI servers are currently at capacity. Please try again in a few hours.",
@@ -276,7 +293,7 @@ export async function POST(req: NextRequest) {
     console.log('🚀 Trying Groq first for faster generation...');
     const groqResult = await generateGroqCaptions(mood, description, imageUrl);
     console.log('🔍 Groq result:', { success: groqResult.success, error: groqResult.error, captionsCount: groqResult.captions?.length });
-    
+
     let result;
     if (groqResult.success && groqResult.captions) {
       console.log(`✅ Groq generation successful in ${groqResult.processingTime}ms`);
@@ -289,7 +306,7 @@ export async function POST(req: NextRequest) {
     } else {
       console.log('⚠️ Groq failed, falling back to Gemini...');
       console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
-      
+
       // ⚡ SPEED OPTIMIZATION: Generate captions with optimized timeout
       result = await generateCaptions({
         mood,
@@ -325,13 +342,13 @@ export async function POST(req: NextRequest) {
     }
 
     const processingTime = Date.now() - startTime;
-    
+
     console.log(`✅ Caption generated successfully in ${processingTime}ms`);
     console.log(`📊 Caption length: ${result.captions?.[0]?.length || 0} characters`);
 
     // Get rate limit info for display
     const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-    
+
     // Return success response with rate limit info
     return NextResponse.json({
       success: true,
@@ -350,21 +367,21 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
-    
+
     // SMART: Use intelligent error handling
-    const categorized = smartErrorHandler.categorizeError(error, { 
-      clientIP, 
+    const categorized = smartErrorHandler.categorizeError(error, {
+      clientIP,
       userId: session?.user?.id,
-      userEmail: session?.user?.email 
+      userEmail: session?.user?.email
     });
-    
+
     smartErrorHandler.trackError(error, { clientIP, userId: session?.user?.id });
-    
+
     // Mark key as exhausted if it's a quota error
     if (categorized.category === 'quota_exceeded' && keyResult) {
       geminiManager.markKeyExhausted(keyResult.index, error);
     }
-    
+
     console.error(`💥 Error details:`, {
       category: categorized.category,
       clientIP,

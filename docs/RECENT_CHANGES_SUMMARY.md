@@ -442,18 +442,6 @@ The platform is now **production-ready** with a solid foundation for future enha
 
 #### **Fetch Request Timeout & Headers**
 - **Issue**: External API calls lacked timeout configuration and User-Agent headers
-- **Fix**: Added proper timeout and User-Agent headers to all external API calls
-- **Implementation**:
-  - **Brevo Email API**: 30-second timeout + `'User-Agent': 'Capsera/1.0'`
-  - **Gemini AI API**: 60-second timeout + `'User-Agent': 'Capsera/1.0'`
-  - **Image Fetching**: 15-second timeout for base64 conversion
-  - **Internal API Calls**: 10-second timeout for content reporting
-- **Files Modified**:
-  - `src/lib/email.ts`
-  - `src/lib/content-safety.ts`
-- **Result**: Prevents hanging requests, follows API best practices, improves user experience
-
-### **🔧 Technical Improvements**
 
 #### **Code Quality Enhancements**
 - **Removed Unnecessary Padding**: Simplified image display without extra padding
@@ -473,3 +461,23 @@ The platform is now **production-ready** with a solid foundation for future enha
 **Version**: 2.3  
 **Status**: Production Ready with Latest Updates  
 **Next Review**: February 2025
+ 
+ ## 2025-11-24: Email System Redesign & Branding Update
+ 
+ ### Overview
+ Completely redesigned the email system to align with the "Capsera" brand and improve user experience with a "Clean Premium Dark" theme.
+ 
+ ### Key Changes
+ - **Design**: Implemented a "Clean Premium Dark" (Slate) theme for all emails.
+ - **Branding**: Replaced "CaptionCraft" with "Capsera" and updated logos.
+ - **Reliability**: Updated `baseUrl` logic to fallback to `https://www.capsera.online` for robust production linking.
+ - **Documentation**: Created `docs/EMAIL_REDESIGN_AND_BRANDING.md` detailing the changes.
+ 
+ ### Files Affected
+ - `src/lib/mail.ts`
+ - `src/lib/brevo-email.ts`
+ - `public/email_preview.html`
+ 
+ ---
+ 
+ ## 2025-11-23: Initial "Neon Dark" Concept

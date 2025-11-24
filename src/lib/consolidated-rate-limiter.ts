@@ -2,28 +2,26 @@
  * CONSOLIDATED RATE LIMITER
  * 
  * This is the SINGLE SOURCE OF TRUTH for all rate limiting in the application.
- * All other rate limiters should be deprecated and replaced with this one.
- * 
- * PRIMARY SYSTEM: UnifiedRateLimiter (main functionality)
- * SECONDARY SYSTEM: SmartRateLimiter (for additional security features)
+ * It now delegates to the Freemium Rate Limiter strategy which supports:
+ * - Daily limits (5 for free, 20 for basic)
+ * - Weekly grace periods
+ * - Upgrade prompts
  */
 
-import { UnifiedRateLimiter } from './unified-rate-limiter';
+import { checkFreemiumLimits, getFreemiumUsageInfo, FreemiumResult } from './freemium-rate-limiter';
 import { SmartRateLimiter } from './smart-rate-limiter';
 import { NextRequest } from 'next/server';
 
 export class ConsolidatedRateLimiter {
-  private primaryLimiter: UnifiedRateLimiter;
   private secondaryLimiter: SmartRateLimiter;
-  
+
   constructor() {
-    this.primaryLimiter = new UnifiedRateLimiter();
     this.secondaryLimiter = new SmartRateLimiter();
   }
 
   /**
    * PRIMARY RATE LIMITING - Main quota system
-   * Uses UnifiedRateLimiter for daily quotas and user tiers
+   * Uses FreemiumRateLimiter for daily quotas and user tiers
    */
   async checkPrimaryRateLimit(userId?: string, ip?: string): Promise<{
     allowed: boolean;
@@ -33,37 +31,28 @@ export class ConsolidatedRateLimiter {
     isAdmin?: boolean;
     reason?: string;
     retryAfter?: number;
+    upgradePrompt?: boolean;
   }> {
     try {
-      const key = this.primaryLimiter.generateRateLimitKey(userId, ip);
-      const userTier = userId ? 'registered' : 'anonymous';
-      const config = await this.primaryLimiter.getRateLimitConfig(userTier);
-      
-      const result = await this.primaryLimiter.checkRateLimit(
-        key,
-        config.MAX_GENERATIONS,
-        config.WINDOW_HOURS,
-        userId,
-        ip
-      );
-      
+      const result = await checkFreemiumLimits(userId, ip);
+
       return {
         allowed: result.allowed,
-        remaining: result.remaining,
+        remaining: result.remainingDaily, // Map daily remaining to generic remaining
         resetTime: result.resetTime,
-        userTier: result.userTier,
-        isAdmin: result.isAdmin,
+        userTier: result.tier,
+        isAdmin: result.tier === 'pro',
         reason: result.reason,
-        retryAfter: result.retryAfter
+        upgradePrompt: result.upgradePrompt
       };
     } catch (error: any) {
       console.error('Primary rate limit check failed:', error);
       // Fail open - allow request if primary system fails
       return {
         allowed: true,
-        remaining: 999,
+        remaining: 5,
         resetTime: Date.now() + 24 * 60 * 60 * 1000,
-        userTier: 'anonymous',
+        userTier: 'free',
         isAdmin: false,
         reason: 'Rate limit system temporarily unavailable'
       };
@@ -105,10 +94,11 @@ export class ConsolidatedRateLimiter {
     reason?: string;
     retryAfter?: number;
     securityLimited?: boolean;
+    upgradePrompt?: boolean;
   }> {
     // Step 1: Check primary rate limit (quotas)
     const primaryResult = await this.checkPrimaryRateLimit(userId, ip);
-    
+
     if (!primaryResult.allowed) {
       return {
         ...primaryResult,
@@ -118,7 +108,7 @@ export class ConsolidatedRateLimiter {
 
     // Step 2: Check secondary rate limit (security)
     const secondaryResult = await this.checkSecondaryRateLimit(ip || 'unknown', userId);
-    
+
     if (secondaryResult.limited) {
       return {
         allowed: false,
@@ -128,7 +118,8 @@ export class ConsolidatedRateLimiter {
         isAdmin: primaryResult.isAdmin,
         reason: secondaryResult.reason || 'Security rate limit exceeded',
         retryAfter: secondaryResult.retryAfter,
-        securityLimited: true
+        securityLimited: true,
+        upgradePrompt: primaryResult.upgradePrompt
       };
     }
 
@@ -152,22 +143,61 @@ export class ConsolidatedRateLimiter {
     isAdmin?: boolean;
     userTier?: string;
     resetMessage?: string;
+    upgradePrompt?: boolean;
   }> {
-    return await this.primaryLimiter.getRateLimitInfo(userId, ip);
+    try {
+      const info = await getFreemiumUsageInfo(userId, ip);
+
+      // Calculate reset message
+      const now = Date.now();
+      const timeUntilReset = info.resetTime - now;
+      const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
+
+      let resetMessage = 'tomorrow';
+      if (hoursUntilReset < 24) {
+        if (hoursUntilReset < 1) {
+          resetMessage = 'in less than an hour';
+        } else {
+          resetMessage = `in ${hoursUntilReset} hours`;
+        }
+      }
+
+      return {
+        isAuthenticated: !!userId,
+        maxGenerations: info.dailyLimit,
+        currentUsage: info.dailyUsage,
+        remaining: info.remainingDaily,
+        resetTime: info.resetTime,
+        windowHours: 24,
+        isAdmin: info.tier === 'pro',
+        userTier: info.tier,
+        resetMessage,
+        upgradePrompt: info.upgradePrompt
+      };
+    } catch (error) {
+      console.error('Error getting rate limit info:', error);
+      return {
+        isAuthenticated: !!userId,
+        maxGenerations: 5,
+        currentUsage: 0,
+        remaining: 5,
+        resetTime: Date.now() + 24 * 60 * 60 * 1000,
+        windowHours: 24,
+        isAdmin: false,
+        userTier: 'free',
+        resetMessage: 'tomorrow'
+      };
+    }
   }
 
   /**
    * Generate rate limit key (consistent across systems)
    */
   generateRateLimitKey(userId?: string, ip?: string): string {
-    return this.primaryLimiter.generateRateLimitKey(userId, ip);
-  }
-
-  /**
-   * Get rate limit configuration
-   */
-  async getRateLimitConfig(tier: string) {
-    return await this.primaryLimiter.getRateLimitConfig(tier as any);
+    if (userId) {
+      return `user:${userId}`;
+    }
+    return `ip:${ip || 'unknown'}`;
   }
 
   /**
@@ -177,7 +207,7 @@ export class ConsolidatedRateLimiter {
     const forwarded = request.headers.get('x-forwarded-for');
     const realIP = request.headers.get('x-real-ip');
     const cfConnectingIP = request.headers.get('cf-connecting-ip');
-    
+
     if (forwarded) {
       return forwarded.split(',')[0].trim();
     }
@@ -187,7 +217,7 @@ export class ConsolidatedRateLimiter {
     if (cfConnectingIP) {
       return cfConnectingIP;
     }
-    
+
     return 'unknown';
   }
 }

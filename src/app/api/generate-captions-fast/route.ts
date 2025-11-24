@@ -8,7 +8,7 @@ function getClientIP(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
   const realIP = req.headers.get('x-real-ip');
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
-  
+
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
@@ -18,18 +18,18 @@ function getClientIP(req: NextRequest): string {
   if (cfConnectingIP) {
     return cfConnectingIP;
   }
-  
+
   return 'unknown';
 }
 
 // Fast Groq caption generation with basic rate limiting
 async function generateFastCaptions(mood: string, description: string, imageUrl: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
   const startTime = Date.now();
-  
+
   try {
     // Get the best Groq key
     const groqKey = process.env.GROQ_API_KEY_1 || process.env.GROQ_API_KEY_2;
-    
+
     if (!groqKey) {
       return {
         success: false,
@@ -70,7 +70,7 @@ async function generateFastCaptions(mood: string, description: string, imageUrl:
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Handle content safety responses
       if (response.status === 400 && errorData.error?.message?.includes('safety')) {
         return {
@@ -79,7 +79,7 @@ async function generateFastCaptions(mood: string, description: string, imageUrl:
           processingTime: Date.now() - startTime
         };
       }
-      
+
       if (response.status === 400 && errorData.error?.message?.includes('policy')) {
         return {
           success: false,
@@ -87,7 +87,7 @@ async function generateFastCaptions(mood: string, description: string, imageUrl:
           processingTime: Date.now() - startTime
         };
       }
-      
+
       return {
         success: false,
         error: `Groq API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`,
@@ -109,7 +109,7 @@ async function generateFastCaptions(mood: string, description: string, imageUrl:
     // Extract captions
     const lines = content.split('\n').filter(line => line.trim());
     const captions: string[] = [];
-    
+
     for (const line of lines) {
       const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
       if (cleanLine && cleanLine.length > 10) {
@@ -166,7 +166,8 @@ export async function POST(req: NextRequest) {
 
     // ⚡ FAST RATE LIMITING: Quick check
     const rateLimitResult = await consolidatedRateLimiter.checkRateLimit(
-      session?.user?.id || clientIP
+      session?.user?.id,
+      clientIP
     );
 
     if (!rateLimitResult.allowed) {
@@ -184,9 +185,9 @@ export async function POST(req: NextRequest) {
 
     // ⚡ FAST GENERATION: Direct Groq API call (no content safety - providers handle this)
     console.log('⚡ Starting fast caption generation...');
-    
+
     const result = await generateFastCaptions(mood, description || '', imageUrl);
-    
+
     if (!result.success) {
       return NextResponse.json({
         success: false,
@@ -196,12 +197,12 @@ export async function POST(req: NextRequest) {
     }
 
     const processingTime = Date.now() - startTime;
-    
+
     console.log(`⚡ Fast caption generated successfully in ${processingTime}ms`);
 
     // Get rate limit info for display
     const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-    
+
     // Return success response
     return NextResponse.json({
       success: true,
@@ -222,7 +223,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
-    
+
     console.error(`❌ Fast caption generation failed after ${processingTime}ms:`, error);
 
     // Get rate limit info for error response

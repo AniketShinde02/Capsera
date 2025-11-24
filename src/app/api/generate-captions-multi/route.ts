@@ -12,7 +12,7 @@ function getClientIP(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
   const realIP = req.headers.get('x-real-ip');
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
-  
+
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
@@ -22,7 +22,7 @@ function getClientIP(req: NextRequest): string {
   if (cfConnectingIP) {
     return cfConnectingIP;
   }
-  
+
   return 'unknown';
 }
 
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       description: description || 'default',
       mood: mood
     });
-    
+
     const cacheResult = await CaptionCacheService.checkCache(
       imageUrl,
       description || 'default',
@@ -64,10 +64,10 @@ export async function POST(req: NextRequest) {
 
     if (cacheResult.found && cacheResult.captions) {
       console.log(`🎯 Cache HIT - returning cached captions`);
-      
+
       // Get rate limit info for display
       const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-      
+
       return NextResponse.json({
         success: true,
         captions: cacheResult.captions,
@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
     if (!rateLimitChecked) {
       console.log('🔒 Checking unified rate limits...');
       rateLimitResult = await consolidatedRateLimiter.checkRateLimit(
-        session?.user?.id || clientIP
+        session?.user?.id,
+        clientIP
       );
 
       if (!rateLimitResult.allowed) {
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
 
     // 🎯 MULTI-PROVIDER GENERATION: Use new multi-provider system
     console.log('🚀 Starting multi-provider caption generation...');
-    
+
     const result = await generateCaptionsFlowMulti({
       mood,
       description,
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
     }
 
     const processingTime = Date.now() - startTime;
-    
+
     console.log(`✅ Multi-provider caption generated successfully in ${processingTime}ms`);
     console.log(`📊 Caption length: ${result.captions?.[0]?.length || 0} characters`);
     console.log(`🎯 Provider used: ${result.provider}`);
@@ -161,10 +162,10 @@ export async function POST(req: NextRequest) {
 
     // Get rate limit info for display
     const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-    
+
     // Get provider status for debugging
     const providerStatus = getProviderStatus();
-    
+
     // Return success response with enhanced info
     return NextResponse.json({
       success: true,
@@ -196,10 +197,10 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
-    
+
     // SMART: Use intelligent error handling
-    const categorized = smartErrorHandler.categorizeError(error, { 
-      clientIP, 
+    const categorized = smartErrorHandler.categorizeError(error, {
+      clientIP,
       userId: session?.user?.id,
       endpoint: 'generate-captions-multi'
     });

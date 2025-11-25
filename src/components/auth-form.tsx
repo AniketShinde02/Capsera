@@ -815,7 +815,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
           if (result?.ok) {
             setOpen(false);
             router.refresh();
-            router.push("/profile");
+            router.push("/");
           } else {
             // Fallback if auto-login fails
             setVerificationStep(false);
@@ -902,7 +902,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
           if (result?.ok) {
             setOpen(false);
             router.refresh();
-            router.push("/profile");
+            router.push("/");
           }
         }
       } else {
@@ -931,7 +931,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
       } else {
         setOpen(false);
         router.refresh();
-        router.push("/profile");
+        router.push("/");
       }
     } catch (error) {
       setSignInError("Something went wrong. Please try again.");

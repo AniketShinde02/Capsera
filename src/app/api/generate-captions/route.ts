@@ -7,20 +7,6 @@ import { getNextGeminiKey, getGeminiUsageStats } from '@/lib/gemini-keys';
 import { CaptionCacheService } from '@/lib/caption-cache';
 import { geminiManager } from '@/lib/smart-gemini-manager';
 import { smartErrorHandler } from '@/lib/smart-error-handler';
-import fs from 'fs';
-import path from 'path';
-
-const DEBUG_LOG_FILE = path.join(process.cwd(), 'debug-rate-limit.log');
-
-function logDebug(message: string, data?: any) {
-  try {
-    const timestamp = new Date().toISOString();
-    const logLine = `${timestamp} - ${message} ${data ? JSON.stringify(data) : ''}\n`;
-    fs.appendFileSync(DEBUG_LOG_FILE, logLine);
-  } catch (e) {
-    // Ignore logging errors
-  }
-}
 
 // Groq caption generation function
 async function generateGroqCaptions(mood: string, description: string, imageUrl: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
@@ -234,8 +220,6 @@ export async function POST(req: NextRequest) {
 
     // 🎯 CONSOLIDATED RATE LIMITER: Check usage limits with primary + secondary systems
     // Only check rate limit if we need to generate new captions
-    console.log('🔒 Checking rate limit...');
-    logDebug('Checking Rate Limit in Route', { clientIP, userId: session?.user?.id });
     rateLimitResult = await consolidatedRateLimiter.checkRateLimit(
       session?.user?.id,
       clientIP
@@ -289,36 +273,21 @@ export async function POST(req: NextRequest) {
       }, { status: 503 });
     }
 
-    // Try Groq first (faster)
-    console.log('🚀 Trying Groq first for faster generation...');
-    const groqResult = await generateGroqCaptions(mood, description, imageUrl);
-    console.log('🔍 Groq result:', { success: groqResult.success, error: groqResult.error, captionsCount: groqResult.captions?.length });
+    // 🚀 Using Gemini (Primary Provider) for multimodal analysis
+    // We prioritize Gemini because it can "see" the image, whereas Groq Llama 3.1 is text-only.
+    console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
 
     let result;
-    if (groqResult.success && groqResult.captions) {
-      console.log(`✅ Groq generation successful in ${groqResult.processingTime}ms`);
-      result = {
-        success: true,
-        captions: groqResult.captions,
-        processingTime: groqResult.processingTime,
-        provider: 'groq'
-      };
-    } else {
-      console.log('⚠️ Groq failed, falling back to Gemini...');
-      console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
-
-      // ⚡ SPEED OPTIMIZATION: Generate captions with optimized timeout
-      result = await generateCaptions({
-        mood,
-        description,
-        imageUrl,
-        publicId,
-        userId: session?.user?.id,
-        ipAddress: clientIP,
-        // We already performed unified rate limit checks in this route, so skip the internal flow check
-        skipRateLimit: true,
-      });
-    }
+    result = await generateCaptions({
+      mood,
+      description,
+      imageUrl,
+      publicId,
+      userId: session?.user?.id,
+      ipAddress: clientIP,
+      // We already performed unified rate limit checks in this route, so skip the internal flow check
+      skipRateLimit: true,
+    });
 
     // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
     if (result.captions && result.captions.length > 0) {
@@ -345,6 +314,9 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ Caption generated successfully in ${processingTime}ms`);
     console.log(`📊 Caption length: ${result.captions?.[0]?.length || 0} characters`);
+
+    // 🎯 INCREMENT USAGE: Only now that we have successful captions
+    await consolidatedRateLimiter.incrementUsage(session?.user?.id, clientIP);
 
     // Get rate limit info for display
     const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);

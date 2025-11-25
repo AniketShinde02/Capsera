@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCredentialsBlocked } from '@/lib/rate-limit';
+import { isCredentialsBlocked } from '@/lib/_deprecated_rate_limiters/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {

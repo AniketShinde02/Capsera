@@ -7,10 +7,10 @@ The Content Safety System is a comprehensive AI-powered solution designed to aut
 ## 🚀 Key Features
 
 ### **1. Automated Content Detection**
-- **AI-Powered Analysis**: Uses Google Gemini Vision API to analyze image content
+- **AI-Powered Analysis**: Uses Google **Gemini 1.5 Flash** (Multimodal) to analyze image content with high accuracy
 - **Multi-Category Screening**: Detects adult content, violence, hate speech, and more
 - **Real-Time Processing**: Analyzes images during upload and caption generation
-- **Fallback Protection**: Basic heuristic checks when AI analysis fails
+- **Strict Enforcement**: Blocks content immediately if AI analysis fails or detects violations (no "fail-open" in any environment)
 
 ### **2. Content Validation**
 - **File Type Validation**: Ensures only image files are processed

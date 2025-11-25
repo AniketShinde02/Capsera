@@ -42,14 +42,14 @@ export const metadata: Metadata = {
     title: 'Free AI Caption Generator Online | Capsera - Best Instagram Caption Tool 2024',
     description: 'Free AI caption generator online. Create viral Instagram captions instantly with Capsera. Best caption tool for social media. No signup required.',
     siteName: 'Capsera',
-          images: [
-        {
-          url: '/favicon.svg',
-          width: 1200,
-          height: 630,
-          alt: 'Capsera - AI Caption Generator',
-        },
-      ],
+    images: [
+      {
+        url: '/favicon.svg',
+        width: 1200,
+        height: 630,
+        alt: 'Capsera - AI Caption Generator',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
@@ -121,17 +121,24 @@ const structuredData = {
   "keywords": "free caption generator, AI caption generator, Instagram caption generator, online caption maker, viral captions, social media captions, best caption tool"
 }
 
-export default function RootLayout({
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Preload critical resources */}
         <link rel="preload" href="/favicon-32x32.png" as="image" />
-        
+
         {/* Structured data */}
         <script
           type="application/ld+json"
@@ -143,21 +150,21 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        
+
         {/* Manifest and theme */}
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#667eea" />
         <meta name="msapplication-TileColor" content="#667eea" />
-        
+
         {/* Using locally hosted fonts */}
-        
+
         {/* DNS prefetch for external domains */}
         <link rel="dns-prefetch" href="//res.cloudinary.com" />
         <link rel="dns-prefetch" href="//ik.imagekit.io" />
       </head>
       <body className={`${inter.variable} ${poppins.variable} ${satoshi.variable} font-satoshi antialiased min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden`} style={satoshi.style}>
-        <Providers>
-         
+        <Providers session={session}>
+
           <PerformanceOptimizer />
           <MaintenanceCheck />
           <ServerHeader />

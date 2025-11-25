@@ -360,4 +360,13 @@ function CaptionGenerator() {
 }
 ```
 
-In short, you would be cleanly separating the "Storefront" and the "Back Room" into two completely different applications that talk to each other over the internet using API calls.
+
+---
+
+### 4. Smart Features (New!)
+
+We've added some "Smart UX" features to make your life easier:
+
+*   **Remembering Your Choices:** When you click "Generate Another Set", the app now remembers the Mood and Description you just used. This means you can generate captions for a new image with the same style without typing everything again!
+*   **Smarter Uploads:** You can now paste an image directly from your clipboard (Ctrl+V) or use an image URL.
+*   **Auto-Cleanup:** For privacy, if you're not logged in, your images are automatically archived after you get your captions.

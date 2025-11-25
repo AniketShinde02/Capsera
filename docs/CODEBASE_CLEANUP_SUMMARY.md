@@ -271,4 +271,29 @@ The Capsera codebase is now:
 ✅ **Testable** - Complete Postman testing collection  
 ✅ **Scalable** - Multi-provider architecture for future growth  
 
-**The codebase cleanup is complete and the system is ready for production!** 🚀
+
+---
+
+## 🛠️ **Recent Refactoring: CaptionGenerator Component** (2025-11-25)
+
+We performed a targeted cleanup of the `src/components/caption-generator.tsx` file to resolve critical stability issues and improve maintainability.
+
+### **Key Changes:**
+
+1.  **Fixed Structural Integrity:**
+    *   Resolved incorrect nesting of functions (e.g., `handleUrlUpload` inside `handleImageChange`).
+    *   Fixed broken `try/catch` blocks in the `onSubmit` handler that were causing crashes.
+    *   Corrected scope issues for variables like `url`, `startTime`, and `captionData`.
+
+2.  **Restored Missing Functionality:**
+    *   Restored `handleGenerateAnother` to support the "Smart UX" flow.
+    *   Restored `handleAnimatedImageDeletion` for better visual feedback.
+    *   Restored `handlePasteImage` and `handleUrlUpload`.
+
+3.  **Code Deduplication:**
+    *   Removed a massive block of duplicate code (approx. 200 lines) that had been accidentally pasted into the file.
+    *   Removed unused variables (`err`, `e`) and redundant cleanup effects.
+
+4.  **Type Safety:**
+    *   Achieved **0 TypeScript errors** in the component.
+    *   Fixed implicit `any` types and scope resolution errors.

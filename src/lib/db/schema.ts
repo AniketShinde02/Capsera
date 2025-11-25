@@ -45,7 +45,7 @@ const emailSubscriptionSchema = new Schema<IEmailSubscription>({
 
 // Create index for faster queries (only if not already exists)
 if (!mongoose.models.EmailSubscription) {
-  emailSubscriptionSchema.index({ email: 1 });
+  // emailSubscriptionSchema.index({ email: 1 }); // REMOVED: Duplicate - unique: true already creates this index
   emailSubscriptionSchema.index({ status: 1 });
   emailSubscriptionSchema.index({ createdAt: -1 });
 }

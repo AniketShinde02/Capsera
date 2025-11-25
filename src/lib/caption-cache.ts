@@ -1,19 +1,5 @@
 import CaptionCache, { ICaptionCache } from '../models/CaptionCache';
 import { generateImageHash, generateImageUrlHash, generateCloudinaryHash } from './image-hash';
-import fs from 'fs';
-import path from 'path';
-
-const DEBUG_LOG_FILE = path.join(process.cwd(), 'debug-rate-limit.log');
-
-function logDebug(message: string, data?: any) {
-  try {
-    const timestamp = new Date().toISOString();
-    const logLine = `${timestamp} - ${message} ${data ? JSON.stringify(data) : ''}\n`;
-    fs.appendFileSync(DEBUG_LOG_FILE, logLine);
-  } catch (e) {
-    // Ignore logging errors
-  }
-}
 
 export interface CacheResult {
   found: boolean;
@@ -90,7 +76,6 @@ export class CaptionCacheService {
         });
 
         console.log(`🎯 Cache HIT: Found existing captions for image hash ${cacheKey.substring(0, 8)}...`);
-        logDebug('Cache Hit', { cacheKey, prompt: normalizedPrompt, mood });
 
         return {
           found: true,
@@ -101,7 +86,6 @@ export class CaptionCacheService {
       }
 
       console.log(`❌ Cache MISS: No existing captions for image hash ${cacheKey.substring(0, 8)}...`);
-      logDebug('Cache Miss', { cacheKey, prompt: normalizedPrompt, mood });
 
       return {
         found: false,

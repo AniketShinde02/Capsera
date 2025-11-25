@@ -34,7 +34,7 @@ export async function checkImageContentSafety(
   try {
     // If no API key provided, use environment variable
     const geminiKey = apiKey || process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY_3 || process.env.GEMINI_API_KEY_4;
-    
+
     if (!geminiKey) {
       console.warn('⚠️ No Gemini API key available for content safety check');
       // Fallback to basic checks
@@ -63,7 +63,7 @@ export async function checkImageContentSafety(
       Be strict but fair. Rate conservatively for safety.
     `;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${geminiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,7 +91,7 @@ export async function checkImageContentSafety(
 
     const data = await response.json();
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     if (!content) {
       throw new Error('No content analysis received from Gemini');
     }
@@ -116,7 +116,7 @@ export async function checkImageContentSafety(
 
     const isAppropriate = maxScore < 7; // Threshold for inappropriate content
     const confidence = Math.max(0.8, 1 - (maxScore / 10)); // Higher score = lower confidence
-    
+
     const flagged = [];
     if ((categories.adult || 0) >= 7) flagged.push('adult');
     if ((categories.violence || 0) >= 7) flagged.push('violence');
@@ -156,7 +156,7 @@ async function performBasicContentCheck(imageUrl: string): Promise<ContentSafety
   ];
 
   const hasSuspiciousPattern = suspiciousPatterns.some(pattern => url.includes(pattern));
-  
+
   return {
     isAppropriate: !hasSuspiciousPattern,
     confidence: 0.6, // Lower confidence for basic checks

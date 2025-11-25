@@ -19,9 +19,10 @@ export default function ServerHeader() {
   const [showSignoutConfirm, setShowSignoutConfirm] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const isAuthed = Boolean(session);
+  const isLoading = status === 'loading';
+  const isAuthed = status === 'authenticated';
   const userEmail = session?.user?.email || '';
   const userName = session?.user?.name || userEmail.split('@')[0] || 'User';
   const userImage = session?.user?.image || '';
@@ -82,9 +83,9 @@ export default function ServerHeader() {
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-2 sm:gap-3">
               <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg overflow-hidden flex items-center justify-center">
-                <img 
-                  src="/favicon.svg" 
-                  alt="Capsera Logo" 
+                <img
+                  src="/favicon.svg"
+                  alt="Capsera Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -140,7 +141,9 @@ export default function ServerHeader() {
           <div className="flex items-center gap-3">
             {/* Desktop Auth & Theme - Hidden on Mobile */}
             <div className="hidden md:flex items-center space-x-3 sm:space-x-4">
-              {isAuthed ? (
+              {isLoading ? (
+                <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+              ) : isAuthed ? (
                 <div className="flex items-center space-x-3">
                   <Link href="/profile" className="flex items-center space-x-2 text-white hover:text-cyan-300 transition-colors duration-300 ease-out">
                     <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
@@ -151,9 +154,9 @@ export default function ServerHeader() {
               ) : (
                 <SignUpButton />
               )}
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="h-7 w-7 sm:h-8 sm:w-8 p-0 rounded-lg border-slate-300/60 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all duration-300 ease-out hover:scale-110"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
@@ -198,14 +201,14 @@ export default function ServerHeader() {
       {isMenuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm transition-all duration-500 ease-out"
             onClick={closeMenu}
           />
-          
+
           {/* Top Slide Down Container */}
           <div className="absolute inset-0 flex items-start justify-center pt-16">
-            <div 
+            <div
               className={`
                 relative w-full max-w-xs bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-xl 
                 rounded-b-2xl shadow-2xl border border-slate-300/60 dark:border-slate-700/50 overflow-hidden
@@ -239,9 +242,9 @@ export default function ServerHeader() {
 
               {/* Theme Toggle - Top Right with Margin */}
               <div className="absolute top-7 right-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="h-8 w-8 p-0 rounded-lg border-slate-300/60 dark:border-slate-500/60 hover:bg-slate-200/80 dark:hover:bg-slate-600/80 transition-all duration-300 ease-out hover:scale-110 bg-white/80 dark:bg-slate-700/80 shadow-sm"
                   onClick={() => {
                     const html = document.documentElement;
@@ -269,74 +272,66 @@ export default function ServerHeader() {
               <div className="px-3 py-3 mt-8">
                 {/* First Row - Two Columns */}
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <Link 
-                    href="/features" 
+                  <Link
+                    href="/features"
                     onClick={closeMenu}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${
-                      pathname === '/features' 
-                        ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60' 
-                        : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
-                    }`}
+                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${pathname === '/features'
+                      ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60'
+                      : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
+                      }`}
                   >
-                    <Star className={`w-4 h-4 ${
-                      pathname === '/features' 
-                        ? 'text-blue-600 dark:text-blue-400' 
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`} />
+                    <Star className={`w-4 h-4 ${pathname === '/features'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-slate-700 dark:text-slate-300'
+                      }`} />
                     <span>Features</span>
                   </Link>
-                  
-                  <Link 
-                    href="/about" 
+
+                  <Link
+                    href="/about"
                     onClick={closeMenu}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${
-                      pathname === '/about' 
-                        ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60' 
-                        : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
-                    }`}
+                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${pathname === '/about'
+                      ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60'
+                      : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
+                      }`}
                   >
-                    <Info className={`w-4 h-4 ${
-                      pathname === '/about' 
-                        ? 'text-blue-600 dark:text-blue-400' 
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`} />
+                    <Info className={`w-4 h-4 ${pathname === '/about'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-slate-700 dark:text-slate-300'
+                      }`} />
                     <span>About</span>
                   </Link>
                 </div>
-                
+
                 {/* Second Row - Two Columns */}
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <Link 
-                    href="/contact" 
+                  <Link
+                    href="/contact"
                     onClick={closeMenu}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${
-                      pathname === '/contact' 
-                        ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60' 
-                        : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
-                    }`}
+                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${pathname === '/contact'
+                      ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60'
+                      : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
+                      }`}
                   >
-                    <Mail className={`w-4 h-4 ${
-                      pathname === '/contact' 
-                        ? 'text-blue-600 dark:text-blue-400' 
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`} />
+                    <Mail className={`w-4 h-4 ${pathname === '/contact'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-slate-700 dark:text-slate-300'
+                      }`} />
                     <span>Contact</span>
                   </Link>
-                  
-                  <Link 
-                    href="/pricing" 
+
+                  <Link
+                    href="/pricing"
                     onClick={closeMenu}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${
-                      pathname === '/pricing' 
-                        ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60' 
-                        : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
-                    }`}
+                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg text-xs font-medium transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border shadow-sm ${pathname === '/pricing'
+                      ? 'text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-900/20 border-blue-300/60 dark:border-blue-600/60'
+                      : 'text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 border-[#C7C8CC]/60 dark:border-slate-700/60'
+                      }`}
                   >
-                    <div className={`w-4 h-4 flex items-center justify-center ${
-                      pathname === '/pricing' 
-                        ? 'text-blue-600 dark:text-blue-400' 
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`}>
+                    <div className={`w-4 h-4 flex items-center justify-center ${pathname === '/pricing'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-slate-700 dark:text-slate-300'
+                      }`}>
                       <span className="text-sm font-bold">₹</span>
                     </div>
                     <span>Pricing</span>
@@ -345,18 +340,23 @@ export default function ServerHeader() {
 
                 {/* Third Row - Profile & Logout Side by Side */}
                 <div className="mb-2">
-                  {isAuthed ? (
+                  {isLoading ? (
+                    <div className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[#F2EFE5]/90 dark:bg-slate-800/80 border border-[#C7C8CC]/60 dark:border-slate-700/60 shadow-sm animate-pulse">
+                      <div className="w-4 h-4 rounded-full bg-slate-300 dark:bg-slate-600" />
+                      <div className="h-4 w-20 bg-slate-300 dark:bg-slate-600 rounded" />
+                    </div>
+                  ) : isAuthed ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <Link 
-                        href="/profile" 
+                      <Link
+                        href="/profile"
                         onClick={closeMenu}
                         className="flex items-center justify-center gap-2 p-2.5 rounded-lg text-xs font-medium text-slate-800 dark:text-white bg-[#F2EFE5]/90 dark:bg-slate-800/80 hover:bg-[#E3E1D9]/90 dark:hover:bg-slate-700/80 transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] border border-[#C7C8CC]/60 dark:border-slate-700/60 shadow-sm"
                       >
                         <User className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                         <span>My Profile</span>
                       </Link>
-                      
-                      <button 
+
+                      <button
                         onClick={() => {
                           closeMenu(); // Close menu modal first
                           setShowSignoutConfirm(true); // Show signout popup on same page
@@ -373,7 +373,7 @@ export default function ServerHeader() {
                     <div className="text-center p-2.5 rounded-lg bg-[#F2EFE5]/90 dark:bg-slate-800/80 border border-[#C7C8CC]/60 dark:border-slate-700/60 shadow-sm">
                       <p className="text-xs text-slate-700 dark:text-slate-300">
                         <User className="w-3 h-3 inline mr-1 text-slate-700 dark:text-slate-300" />
-                        Please <button 
+                        Please <button
                           onClick={() => {
                             closeMenu();
                             // You can add logic to open signup modal here
@@ -390,7 +390,9 @@ export default function ServerHeader() {
 
               {/* Bottom Actions - Only Sign Up Button (No Generate Captions) */}
               <div className="px-3 pb-3">
-                {!isAuthed && (
+                {isLoading ? (
+                  <div className="w-full h-9 rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                ) : !isAuthed && (
                   <SignUpButton className="w-full h-9 text-xs rounded-lg font-semibold shadow-lg transition-all duration-300 ease-out" />
                 )}
               </div>
@@ -429,30 +431,30 @@ export default function ServerHeader() {
                     try {
                       if (typeof window !== 'undefined') {
                         localStorage.removeItem('theme');
-                        
+
                         // 1) Clear all client-side caches first
                         clearAllNextAuthStorage();
-                        
+
                         // 2) Ask NextAuth to invalidate
                         await signOut({ redirect: false });
-                        
+
                         // 3) Hard-clear cookies server-side with cache busting
-                        await fetch("/logout", { 
+                        await fetch("/logout", {
                           method: "POST",
                           headers: {
                             'Cache-Control': 'no-cache',
                             'Pragma': 'no-cache'
                           },
                           cache: 'no-store'
-                        }).catch(() => {});
-                        
+                        }).catch(() => { });
+
                         // 4) Additional aggressive cache clearing
                         if ('caches' in window) {
                           caches.keys().then(names => {
                             names.forEach(name => caches.delete(name));
                           });
                         }
-                        
+
                         // 5) Force redirect with cache busting parameter
                         window.location.replace(`/?cache-bust=${Date.now()}&logout=success`);
                       }
@@ -468,8 +470,8 @@ export default function ServerHeader() {
                 </button>
               </div>
             </div>
+          </div>
         </div>
-      </div>
       )}
     </>
   );

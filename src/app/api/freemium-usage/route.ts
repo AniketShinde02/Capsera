@@ -26,11 +26,9 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const clientIP = getClientIP(req);
-    console.log('📊 Freemium usage info for API response:', { clientIP, userId: session?.user?.id });
 
     // Get freemium usage information
     const usageInfo = await getFreemiumUsageInfo(session?.user?.id, clientIP);
-    console.log('📊 Freemium usage info for API response:', usageInfo);
 
     // Calculate time until reset
     const now = Date.now();

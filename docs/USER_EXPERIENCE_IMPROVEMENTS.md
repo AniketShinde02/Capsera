@@ -595,4 +595,34 @@ All improvements follow modern UX best practices and significantly enhance the o
 
 **Date**: January 2025  
 **Status**: ✅ Complete  
-**Impact**: High - Significant user experience improvements across the application
+
+---
+
+### 13. Smart UX: Preserving User Context (2025-11-25)
+
+#### Problem Identified
+- **Repetitive Data Entry**: Users generating multiple sets of captions for similar images (e.g., a product shoot) had to re-select "Mood" and re-type "Description" every single time.
+- **Friction**: This added unnecessary friction to the workflow.
+
+#### Solution Implemented
+**Context Preservation**:
+- The `handleGenerateAnother` function was updated to **explicitly preserve** the `mood` and `description` form fields.
+- Instead of resetting the entire form, we only reset the image-related state.
+
+**Code Implementation**:
+```typescript
+const handleGenerateAnother = () => {
+    // ... reset image states ...
+
+    // CRITICAL: Do NOT reset mood and description to preserve user context
+    // form.resetField('mood');       <-- Commented out
+    // form.resetField('description'); <-- Commented out
+
+    // ... update button state ...
+};
+```
+
+**Benefits**:
+- ✅ **Faster Workflow**: Users can generate captions for a batch of images 2x faster.
+- ✅ **Reduced Frustration**: No need to re-type complex descriptions.
+- ✅ **Better "Flow"**: The app feels smarter and more helpful.

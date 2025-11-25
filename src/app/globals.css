@@ -366,7 +366,7 @@
   }
 }
 
-/* Input field fixes */
+/* Input field fixes - Updated to use theme variables */
 @layer components {
   input[type="text"],
   input[type="email"],
@@ -375,7 +375,7 @@
   input[type="tel"],
   input[type="url"],
   input[type="number"] {
-    @apply text-gray-900 bg-white border-gray-300;
+    @apply text-foreground bg-background border-input;
   }
   
   input[type="text"]:focus,
@@ -385,11 +385,11 @@
   input[type="tel"]:focus,
   input[type="url"]:focus,
   input[type="number"]:focus {
-    @apply border-blue-500 ring-blue-500 text-gray-900 bg-white;
+    @apply border-ring ring-ring text-foreground bg-background;
   }
   
   input::placeholder {
-    @apply text-gray-500;
+    @apply text-muted-foreground;
   }
 }
 

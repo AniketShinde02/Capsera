@@ -5,20 +5,6 @@ import dbConnect from '@/lib/db';
 import { connectToDatabase } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import { ObjectId } from 'mongodb';
-import fs from 'fs';
-import path from 'path';
-
-const DEBUG_LOG_FILE = path.join(process.cwd(), 'debug-rate-limit.log');
-
-function logDebug(message: string, data?: any) {
-  try {
-    const timestamp = new Date().toISOString();
-    const logLine = `${timestamp} - ${message} ${data ? JSON.stringify(data) : ''}\n`;
-    fs.appendFileSync(DEBUG_LOG_FILE, logLine);
-  } catch (e) {
-    // Ignore logging errors
-  }
-}
 
 // 🎯 NEW FREEMIUM STRATEGY - Much Better Than Blocking!
 export const FREEMIUM_LIMITS = {
@@ -87,7 +73,7 @@ export async function getUserFreemiumTier(userId?: string): Promise<FreemiumTier
       const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
       if (user?.isAdmin) {
-        console.log('👑 User is admin in users collection:', user.email);
+        // console.log('👑 User is admin in users collection:', user.email);
         return 'pro';
       }
     }
@@ -100,7 +86,7 @@ export async function getUserFreemiumTier(userId?: string): Promise<FreemiumTier
     });
 
     if (adminUser) {
-      console.log('👑 User is admin in adminusers collection:', adminUser.email);
+      // console.log('👑 User is admin in adminusers collection:', adminUser.email);
       return 'pro';
     }
 
@@ -178,7 +164,6 @@ export async function checkFreemiumLimits(
     }
 
     const key = userId ? `user:${userId}` : `ip:${ip || 'unknown'}`;
-    logDebug('checkFreemiumLimits', { userId, ip, key, tier });
     const now = new Date();
     const dailyReset = getNextDailyReset();
     const weeklyReset = getNextWeeklyReset();
@@ -188,7 +173,6 @@ export async function checkFreemiumLimits(
     const usageCollection = db.collection('freemium_usage');
 
     let usageRecord = await usageCollection.findOne({ key });
-    logDebug('Usage Record Found', { key, found: !!usageRecord });
 
     if (!usageRecord || now > usageRecord.dailyResetDate) {
       // First usage or daily reset
@@ -254,64 +238,28 @@ export async function checkFreemiumLimits(
     const remainingDaily = Math.max(0, (dailyLimit === Infinity ? Number.MAX_SAFE_INTEGER : dailyLimit) - currentDailyUsage);
     const remainingWeekly = Math.max(0, (weeklyGrace === Infinity ? Number.MAX_SAFE_INTEGER : weeklyGrace) - currentWeeklyUsage);
 
-    // 🎯 GRACEFUL DEGRADATION LOGIC
+    // 🎯 READ-ONLY CHECK - Do not increment usage here!
     if (remainingDaily > 0) {
-      // Within daily limit - increment usage and calculate remaining
-      const updateResult = await usageCollection.findOneAndUpdate(
-        { key },
-        {
-          $inc: { dailyUsage: 1 },
-          $set: { updatedAt: now }
-        },
-        { returnDocument: 'after' }
-      );
-
-      logDebug('DB Update Result', {
-        key,
-        found: !!updateResult.value,
-        dailyUsage: updateResult.value?.dailyUsage
-      });
-
-      // Calculate remaining images (starting from dailyLimit and counting down)
-      const totalUsed = updateResult.value?.dailyUsage || (currentDailyUsage + 1);
-      const actualRemainingDaily = Math.max(0, dailyLimit - totalUsed);
-
-      console.log('📊 Usage update:', {
-        totalUsed,
-        dailyLimit,
-        actualRemainingDaily,
-        tier
-      });
-
       return {
         allowed: true,
-        remainingDaily: actualRemainingDaily,
+        remainingDaily,
         remainingWeekly,
         resetTime: dailyReset.getTime(),
         tier,
-        upgradePrompt: actualRemainingDaily <= 1,
+        upgradePrompt: remainingDaily <= 1,
       };
     }
 
     // Daily limit exceeded - check weekly grace period
     if (remainingWeekly > 0) {
-      // Within weekly grace period - allow with warning
-      await usageCollection.updateOne(
-        { key },
-        {
-          $inc: { weeklyUsage: 1 },
-          $set: { updatedAt: now }
-        }
-      );
-
       return {
         allowed: true,
         remainingDaily: 0,
-        remainingWeekly: remainingWeekly - 1,
+        remainingWeekly: remainingWeekly,
         resetTime: weeklyReset.getTime(),
         tier,
         gracePeriod: true,
-        reason: `Daily limit reached. Using weekly grace period (${remainingWeekly - 1} remaining this week).`,
+        reason: `Daily limit reached. Using weekly grace period (${remainingWeekly} remaining this week).`,
         upgradePrompt: true,
       };
     }
@@ -344,6 +292,97 @@ export async function checkFreemiumLimits(
 }
 
 /**
+ * 🎯 Increment freemium usage - Call this ONLY after successful generation
+ */
+export async function incrementFreemiumUsage(
+  userId?: string,
+  ip?: string
+): Promise<void> {
+  try {
+    await dbConnect();
+    const tier = await getUserFreemiumTier(userId);
+
+    // Pro users don't need usage tracking for limits
+    if (tier === 'pro') return;
+
+    const key = userId ? `user:${userId}` : `ip:${ip || 'unknown'}`;
+    const now = new Date();
+    const dailyReset = getNextDailyReset();
+    const weeklyReset = getNextWeeklyReset();
+
+    const { db } = await connectToDatabase();
+    const usageCollection = db.collection('freemium_usage');
+
+    // Get current record to decide whether to increment daily or weekly
+    const usageRecord = await usageCollection.findOne({ key });
+
+    // Determine limits based on tier
+    const tierKeyMap: Record<string, keyof typeof FREEMIUM_LIMITS> = {
+      free: 'FREE_TIER',
+      basic: 'BASIC_TIER',
+      pro: 'PRO_TIER'
+    };
+    const configKey = tierKeyMap[tier] || 'FREE_TIER';
+    const config = FREEMIUM_LIMITS[configKey];
+    const dailyLimit = typeof config?.DAILY_IMAGES === 'number' ? config.DAILY_IMAGES : 5;
+
+    // Check if we should increment daily or weekly usage
+    // If daily usage is below limit, increment daily. Otherwise, increment weekly.
+    const currentDailyUsage = usageRecord?.dailyUsage || 0;
+
+    if (currentDailyUsage < dailyLimit) {
+      // Increment daily usage
+      await usageCollection.updateOne(
+        { key },
+        {
+          $inc: { dailyUsage: 1 },
+          $set: {
+            updatedAt: now,
+            dailyResetDate: dailyReset,
+            weeklyResetDate: weeklyReset
+          },
+          $setOnInsert: {
+            userId,
+            ip,
+            tier,
+            weeklyUsage: 0,
+            isAdmin: false,
+            upgradePromptShown: false,
+            createdAt: now
+          }
+        },
+        { upsert: true }
+      );
+      // console.log(`📊 Incremented DAILY usage for ${key}`);
+    } else {
+      // Increment weekly usage (grace period)
+      await usageCollection.updateOne(
+        { key },
+        {
+          $inc: { weeklyUsage: 1 },
+          $set: { updatedAt: now },
+          $setOnInsert: {
+            userId,
+            ip,
+            tier,
+            dailyUsage: dailyLimit, // Assume daily limit reached if we're here
+            dailyResetDate: dailyReset,
+            weeklyResetDate: weeklyReset,
+            isAdmin: false,
+            upgradePromptShown: false,
+            createdAt: now
+          }
+        },
+        { upsert: true }
+      );
+      // console.log(`📊 Incremented WEEKLY usage for ${key}`);
+    }
+  } catch (error) {
+    console.error('Error incrementing freemium usage:', error);
+  }
+}
+
+/**
  * 🎯 Get freemium usage info for display
  */
 export async function getFreemiumUsageInfo(
@@ -364,8 +403,7 @@ export async function getFreemiumUsageInfo(
   try {
     const tier = await getUserFreemiumTier(userId);
     const key = userId ? `user:${userId}` : `ip:${ip || 'unknown'}`;
-    logDebug('getFreemiumUsageInfo', { userId, ip, key, tier });
-    console.log('📊 Getting freemium usage info - userId:', userId, 'tier:', tier);
+    // console.log('📊 Getting freemium usage info - userId:', userId, 'tier:', tier);
     const tierKeyMap: Record<string, keyof typeof FREEMIUM_LIMITS> = {
       free: 'FREE_TIER',
       basic: 'BASIC_TIER',
@@ -373,7 +411,7 @@ export async function getFreemiumUsageInfo(
     };
     const configKey = tierKeyMap[tier] || 'FREE_TIER';
     const config = FREEMIUM_LIMITS[configKey];
-    console.log('📊 Config for tier:', tier, 'config:', config);
+    // console.log('📊 Config for tier:', tier, 'config:', config);
 
     if (tier === 'pro') {
       return {
@@ -394,12 +432,6 @@ export async function getFreemiumUsageInfo(
     const usageCollection = db.collection('freemium_usage');
 
     const usageRecord = await usageCollection.findOne({ key });
-    logDebug('getFreemiumUsageInfo Record', {
-      key,
-      found: !!usageRecord,
-      dailyUsage: usageRecord?.dailyUsage,
-      resetDate: usageRecord?.dailyResetDate
-    });
 
     const now = new Date();
 
@@ -433,7 +465,7 @@ export async function getFreemiumUsageInfo(
       isInGracePeriod,
       upgradePrompt: remainingDaily <= 1 || isInGracePeriod,
     };
-    console.log('📊 Returning freemium usage info:', result);
+    // console.log('📊 Returning freemium usage info:', result);
     return result;
   } catch (error) {
     console.error('Error getting freemium usage info:', error);

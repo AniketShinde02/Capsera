@@ -38,9 +38,9 @@ const RateLimitConfigSchema: Schema = new Schema({
 });
 
 // Update the updatedAt field on save
-RateLimitConfigSchema.pre('save', function(next) {
+RateLimitConfigSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });
 
-export default mongoose.models.RateLimitConfig || mongoose.model<IRateLimitConfig>('RateLimitConfig', RateLimitConfigSchema);
+export default (mongoose.models.RateLimitConfig || mongoose.model<IRateLimitConfig>('RateLimitConfig', RateLimitConfigSchema)) as mongoose.Model<IRateLimitConfig>;

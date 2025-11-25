@@ -2,7 +2,65 @@
 
 All notable changes to the Capsera AI Caption Generator project are documented in this file.
 
-## [2025-01-XX] - Major Image Display & Performance Update
+## [2025-11-25] - Auth UI Restoration & Admin Access Integration
+
+### 🚀 Added
+- **Admin Access**: Integrated a secure, multi-step "Register as Admin" flow directly into the Auth Form.
+  - **System Verification**: Requires a system-level password to unlock.
+  - **OTP Verification**: Implemented a 6-digit OTP email verification step for admin creation.
+  - **Dual Mode**: Supports both creating a new admin account and logging in as an existing admin.
+- **Social Logins**: Added UI buttons for Google and Apple sign-in (backend integration pending).
+- **Forgot Password**: Added a dedicated "Forgot Password" tab and flow.
+
+### 🎨 UI/UX Improvements
+- **Auth Form Restoration**: Completely reverted and refined the `AuthForm` UI to match the original dark-themed design.
+  - **Dark Mode Perfection**: Deep space black backgrounds (`bg-slate-900`) with high-contrast white text.
+  - **Light Mode Support**: Implemented a clean, Vercel-inspired light mode with semantic colors (`bg-background`, `text-foreground`).
+  - **Input Styling**: Fixed input fields to adapt perfectly to both themes (no more white inputs in dark mode).
+  - **Tab Contrast**: Enhanced the contrast of the Sign In/Sign Up toggle for better visibility.
+  - **Button Aesthetics**: Upgraded primary buttons with a vibrant Blue-to-Indigo gradient and glow effects.
+- **Visual Polish**: Added smooth transitions, focus rings, and better spacing throughout the form.
+
+### 🔧 Fixed
+- **Admin Button Placement**: Moved the "Register as Admin" button to the Sign Up tab only, keeping the Sign In flow clean.
+- **Button Text**: Renamed "Create Account" to "Sign Up" for consistency.
+- **Theme Consistency**: Ensured all modal elements (close button, headers, inputs) respect the active theme.
+
+## [2025-11-25] - Critical Fixes & Smart UX Enhancements
+
+### 🚀 Added
+- **Smart UX**: "Generate Another Set" now preserves your selected Mood and Description, so you don't have to re-enter them!
+- **Restored Functionality**: Brought back missing features like animated image deletion and paste-to-upload.
+
+### 🐛 Fixed
+- **Critical Crash**: Fixed a major issue where the app would crash during caption generation due to a broken error handler.
+- **Image Upload**: Fixed issues with image pasting and URL uploads not working correctly.
+- **Code Quality**: Cleaned up a lot of messy code to make the app more stable and reliable.
+- **Type Safety**: Fixed all TypeScript errors in the caption generator component.
+- **Content Safety**: Upgraded AI model from deprecated `gemini-pro-vision` to `gemini-1.5-flash` to fix 404 errors and ensure robust safety checks.
+- **Strict Safety Enforcement**: Removed "fail-open" logic in development mode; safety checks are now strictly enforced in all environments.
+- **Quota Consumption**: Fixed a bug where quota was consumed even for failed or rejected requests. Quota is now only deducted after successful caption generation.
+- **Caption Display**: Fixed a UI bug where generated captions were not being displayed despite successful generation.
+- **Rate Limit Admin**: Fixed a 500 error in the admin dashboard caused by an unregistered Mongoose model schema.
+- **Logging**: Reduced excessive console logging to improve performance and developer experience.
+
+### ⚡ Enhanced
+- **AI Model**: Switched primary caption generation to **Gemini 1.5 Flash** (multimodal) for true image analysis, replacing the text-only Groq fallback. Captions are now generated based on actual image content + mood + description.
+
+### 🧹 Cleanup
+- **API Consolidation**: Moved 5 unused duplicate API endpoints (`-fast`, `-lightning`, `-rocket`, `-ultra-fast`, `-multi`) to `_deprecated` folder. Only `/api/generate-captions` is actively used and maintained.
+- **Rate Limiter Consolidation**: Moved 2 unused rate limiters (`rate-limit.ts`, `rate-limit-simple.ts`) to `_deprecated_rate_limiters`. Active system uses `consolidated-rate-limiter` + `freemium-rate-limiter`.
+
+### 🔧 Fixed (Admin)
+- **Rate Limit Reset**: Fixed admin rate limit reset to work with the ACTIVE `freemium_usage` collection. Previously only reset the old `RateLimit` collection, causing frontend to not reflect changes.
+- **Unified Email Provider**: Added `email-providers` folder with Brevo, Octopus, SMTP implementations and a factory for provider selection.
+- **Email Queue**: Introduced `OutboundEmail` model and `email-dispatcher` to queue emails, enabling retry and status tracking.
+- **DB Optimisation**: Switched `freemium_usage` updates to atomic `$inc` pattern, added index audit script, and moved legacy rate limit files to `_deprecated_rate_limiters`.
+- **Background Worker**: Prepared `email-worker` (pseudo‑code) to process queued emails.
+- **Documentation**: Updated docs for email system and DB optimisation.
+- **Flash Logout Fix**: Implemented server-side session passing in `layout.tsx` and `Providers.tsx` to eliminate the "Sign Up" -> "Profile" flash on page load. The UI now renders the correct auth state instantly.
+
+
 
 ### 🚀 Added
 - **Lazy Loading**: Implemented lazy loading for all images to improve initial page load performance

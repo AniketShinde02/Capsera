@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signIn } from "next-auth/react";
-import { Loader2, LogIn, UserPlus, Eye, EyeOff, Crown } from "lucide-react";
+import { Loader2, LogIn, UserPlus, Eye, EyeOff, Crown, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { useAuthModal } from "@/context/AuthModalContext";
 
 // Admin Registration Modal Component
@@ -43,8 +42,6 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpToken, setOtpToken] = useState(''); // Store the OTP token for admin actions
 
-  // State management (removed debug logging for security)
-
   // Ensure otpVerified state is maintained when navigating between admin steps
   useEffect(() => {
     if ((step === 'admin-create' || step === 'admin-login') && !otpVerified) {
@@ -59,21 +56,21 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       setError('System password is required');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch('/api/admin/verify-setup-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           pin: systemPassword
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setPinVerified(true);
         setStep('otp');
@@ -95,23 +92,23 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       setError(`Please wait ${otpCooldown} seconds before requesting another OTP`);
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch('/api/admin/request-setup-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'sunnyshinde2601@gmail.com' })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setSuccess('OTP generated and sent! Please check your email: sunnyshinde2601@gmail.com');
         setTimeout(() => setSuccess(''), 3000);
-        
+
         // Set 60-second cooldown
         setOtpCooldown(60);
         const cooldownInterval = setInterval(() => {
@@ -140,10 +137,10 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       setError('Please enter 6-digit OTP');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch('/api/admin/setup', {
         method: 'POST',
@@ -154,9 +151,9 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           email: 'sunnyshinde2601@gmail.com'
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         console.log('✅ OTP verification successful, setting otpVerified to true');
         setOtpVerified(true);
@@ -182,85 +179,65 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       setError('Please complete OTP verification first');
       return;
     }
-    
-    // Debug: Log current form values
-    console.log('🔍 Form validation - Current values:', {
-      step: step,
-      email: email ? `"${email}"` : 'empty',
-      username: username ? `"${username}"` : 'empty', 
-      password: password ? `"${password}"` : 'empty',
-      emailLength: email?.length || 0,
-      usernameLength: username?.length || 0,
-      passwordLength: password?.length || 0
-    });
-    
+
     // More robust validation with better error messages
     if (!email || !email.trim()) {
-      console.log('❌ Email validation failed:', email);
       setError('Email is required');
       return;
     }
-    
+
     if (!username || !username.trim()) {
-      console.log('❌ Username validation failed:', username);
       setError('Username is required');
       return;
     }
-    
+
     if (!password || !password.trim()) {
-      console.log('❌ Password validation failed:', password);
       setError('Password is required');
       return;
     }
-    
-    console.log('✅ All form fields validated successfully');
-    
+
     // Check if OTP is verified
     if (!otpVerified) {
-      console.log('❌ OTP not verified, current state:', { otpVerified, step });
       setError('OTP verification required. Please verify OTP first.');
       return;
     }
-    
-    console.log('✅ OTP verified, proceeding with admin creation');
-    
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       setError('Please enter a valid email address');
       return;
     }
-    
+
     // Username validation
     if (username.trim().length < 3) {
       setError('Username must be at least 3 characters');
       return;
     }
-    
+
     if (username.trim().length > 20) {
       setError('Username must be less than 20 characters');
       return;
     }
-    
+
     // Password validation
     if (password.trim().length < 8) {
       setError('Password must be at least 8 characters');
       return;
     }
-    
+
     if (password.trim().length > 50) {
       setError('Password must be less than 50 characters');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       // Use stored OTP token or compute from OTP array
       const tokenToUse = otpToken || otp.join('');
-      // Using token for admin creation (removed debug logging for security)
-      
+
       const verifyResponse = await fetch('/api/admin/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -270,19 +247,16 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           email: 'sunnyshinde2601@gmail.com'
         })
       });
-      
+
       const verifyData = await verifyResponse.json();
-      
+
       if (!verifyResponse.ok || !verifyData.success) {
-        console.log('❌ OTP re-verification failed:', verifyData);
         setError('OTP verification expired. Please verify OTP again.');
         setOtpVerified(false);
         setStep('otp');
         return;
       }
-      
-      console.log('✅ OTP re-verification successful, creating admin...');
-      
+
       // Now create the admin
       const response = await fetch('/api/admin/setup', {
         method: 'POST',
@@ -295,9 +269,9 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           token: tokenToUse
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setSuccess('Admin created successfully! You can now access admin features from your profile.');
         setTimeout(() => {
@@ -321,21 +295,21 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       setError('Email and password are required');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       // Use NextAuth signIn function for proper authentication
       const { signIn } = await import('next-auth/react');
-      
+
       const signInFunc = signIn;
       const result = await signInFunc('admin-credentials', {
         email: email.trim(),
         password: password.trim(),
         redirect: false // Don't redirect automatically
       });
-      
+
       if (result?.ok) {
         setSuccess('Login successful! You can now access admin features from your profile.');
         setTimeout(() => {
@@ -360,19 +334,19 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
   const handleOtpChange = (index: number, value: string) => {
     // Only allow numbers
     if (!/^[0-9]*$/.test(value)) return;
-    
+
     if (value.length > 1) return;
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
-    
+
     // Auto-focus next input
     if (value && index < 5) {
       const nextInput = document.getElementById(`otp-input-${index + 1}`);
       if (nextInput) nextInput.focus();
     }
-    
+
     // Auto-focus previous input on backspace
     if (!value && index > 0) {
       const prevInput = document.getElementById(`otp-input-${index - 1}`);
@@ -380,70 +354,25 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
     }
   };
 
-  // Skip OTP and auto-verify
-  const handleSkipOTP = async () => {
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
-      setError('Please enter 6-digit OTP');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/admin/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'verify-token',
-          token: otpString,
-          email: 'sunnyshinde2601@gmail.com'
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        console.log('✅ OTP verification successful (skipped), setting otpVerified to true');
-        setOtpVerified(true);
-        setStep('admin-choice');
-        setSuccess('OTP verified! Admin system unlocked. Choose your action.');
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError(data.message || 'Invalid OTP');
-      }
-    } catch (error) {
-      setError('Failed to verify OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Skip OTP completely for development/testing
   const handleSkipOTPCompletely = async () => {
     setIsLoading(true);
     setError('');
-    
+
     try {
-      // Checking if admin already exists (removed debug logging for security)
-      
       // First check if admin exists (like setup page does)
       const response = await fetch('/api/admin/setup', {
         method: 'GET'
       });
       const data = await response.json();
-      
+
       if (data.existingAdmin) {
-        console.log('✅ Admin exists, skipping OTP verification');
         setOtpVerified(true);
         setOtpToken('EXISTING_ADMIN'); // Set the token like setup page
         setStep('admin-choice');
         setSuccess('Admin account found! Skipping OTP verification.');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        // No existing admin, using bypass for development (removed debug logging for security)
-        
         // If no admin exists, use the bypass method
         const bypassResponse = await fetch('/api/admin/setup', {
           method: 'POST',
@@ -453,18 +382,16 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
             email: 'sunnyshinde2601@gmail.com'
           })
         });
-        
+
         const bypassData = await bypassResponse.json();
-        
+
         if (bypassResponse.ok && bypassData.success) {
-          console.log('✅ OTP bypass successful:', bypassData);
           setOtpVerified(true);
           setOtpToken('SKIPPED_DEV'); // Set a token for bypassed OTP
           setStep('admin-choice');
           setSuccess('OTP verification bypassed for development. Proceeding to admin choice.');
           setTimeout(() => setSuccess(''), 3000);
         } else {
-          console.log('❌ OTP bypass failed:', bypassData);
           setError(bypassData.message || 'Failed to bypass OTP verification');
         }
       }
@@ -477,11 +404,11 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto ring-1 ring-border/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin System Access</h2>
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-xl font-bold text-foreground">Admin System Access</h2>
           <button
             onClick={() => {
               // Reset all state when closing
@@ -497,7 +424,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
               setOtpVerified(false);
               onClose();
             }}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl font-bold"
+            className="text-muted-foreground hover:text-foreground transition-colors text-2xl"
           >
             ×
           </button>
@@ -509,33 +436,28 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           {step === 'system-password' && (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">System Verification</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Enter system password to unlock admin access</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">System Verification</h3>
+                <p className="text-sm text-muted-foreground">Enter system password to unlock admin access</p>
               </div>
-              
+
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">System Password</label>
+                <label className="block text-sm font-medium text-muted-foreground">System Password</label>
                 <input
                   type="password"
                   value={systemPassword}
                   onChange={(e) => setSystemPassword(e.target.value)}
                   placeholder="Enter system password"
-                  aria-label="System password"
-                  aria-describedby="system-password-help"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  className="w-full px-4 py-3 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground transition-all"
                 />
-                <p id="system-password-help" className="text-xs text-gray-500 dark:text-gray-400">
-                  Enter the system PIN to verify admin access
-                </p>
               </div>
-              
-              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
-              
+
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              {success && <p className="text-sm text-green-500 text-center">{success}</p>}
+
               <Button
                 onClick={handleSystemPassword}
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl shadow-md"
               >
                 {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Verify System'}
               </Button>
@@ -546,21 +468,21 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           {step === 'otp' && (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">OTP Verification</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Enter the 6-digit OTP sent to sunnyshinde2601@gmail.com</p>
-                {pinVerified && <p className="text-xs text-green-600 mt-1">✅ System PIN Verified</p>}
+                <h3 className="text-lg font-semibold text-foreground mb-2">OTP Verification</h3>
+                <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to sunnyshinde2601@gmail.com</p>
+                {pinVerified && <p className="text-xs text-green-500 mt-1">✅ System PIN Verified</p>}
               </div>
-              
+
               {/* Simple Skip OTP Text */}
               <div className="text-center">
                 <button
                   onClick={handleSkipOTPCompletely}
-                  className="text-blue-600 hover:text-blue-700 underline text-lg font-medium cursor-pointer"
+                  className="text-primary hover:text-primary/80 underline text-lg font-medium cursor-pointer transition-colors"
                 >
                   Skip OTP
                 </button>
               </div>
-              
+
               {/* OTP Input Fields */}
               <div className="flex justify-center space-x-2">
                 {otp.map((digit, index) => (
@@ -571,35 +493,35 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(index, e.target.value)}
-                    className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    className="w-12 h-12 text-center text-lg font-semibold bg-background border-2 border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground transition-all"
                     placeholder="0"
                   />
                 ))}
               </div>
-              
+
               {/* OTP Actions */}
               <div className="space-y-3">
                 <Button
                   onClick={handleOTPVerification}
                   disabled={isLoading || otp.join('').length !== 6}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl shadow-md"
                 >
                   {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Verify OTP'}
                 </Button>
-                
+
                 <Button
                   onClick={generateOTP}
                   disabled={isLoading || otpCooldown > 0}
                   variant="outline"
-                  className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium py-2 rounded-xl"
+                  className="w-full border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground font-medium py-2 rounded-xl"
                 >
-                  {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 
-                   otpCooldown > 0 ? `Wait ${otpCooldown}s` : 'Generate New OTP'}
+                  {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> :
+                    otpCooldown > 0 ? `Wait ${otpCooldown}s` : 'Generate New OTP'}
                 </Button>
               </div>
-              
-              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              {success && <p className="text-sm text-green-500 text-center">{success}</p>}
             </div>
           )}
 
@@ -607,29 +529,29 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           {step === 'admin-choice' && (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Admin System Unlocked</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Choose your action</p>
-                {otpVerified && <p className="text-xs text-green-600 mt-1">✅ OTP Verified</p>}
+                <h3 className="text-lg font-semibold text-foreground mb-2">Admin System Unlocked</h3>
+                <p className="text-sm text-muted-foreground">Choose your action</p>
+                {otpVerified && <p className="text-xs text-green-500 mt-1">✅ OTP Verified</p>}
               </div>
-              
+
               <div className="space-y-3">
                 <Button
                   onClick={() => setStep('admin-create')}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl shadow-md"
                 >
                   <UserPlus className="mr-2 h-4 w-4" /> Create New Admin Account
                 </Button>
-                
+
                 <Button
                   onClick={() => setStep('admin-login')}
                   variant="outline"
-                  className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 font-semibold py-3 rounded-xl"
+                  className="w-full border-primary text-primary hover:bg-primary/10 font-semibold py-3 rounded-xl"
                 >
                   <LogIn className="mr-2 h-4 w-4" /> Login as Existing Admin
                 </Button>
               </div>
-              
-              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
+
+              {success && <p className="text-sm text-green-500 text-center">{success}</p>}
             </div>
           )}
 
@@ -637,62 +559,62 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           {step === 'admin-create' && (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Create Admin Account</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Create admin account with any email</p>
-                {otpVerified && <p className="text-xs text-green-600 mt-1">✅ OTP Verified</p>}
+                <h3 className="text-lg font-semibold text-foreground mb-2">Create Admin Account</h3>
+                <p className="text-sm text-muted-foreground">Create admin account with any email</p>
+                {otpVerified && <p className="text-xs text-green-500 mt-1">✅ OTP Verified</p>}
               </div>
-              
+
               {/* Back Button */}
               <Button
                 onClick={() => setStep('admin-choice')}
                 variant="outline"
-                className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium py-2 rounded-xl"
+                className="w-full border-input bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent font-medium py-2 rounded-xl"
               >
                 ← Back to Admin Choice
               </Button>
-              
+
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Email</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="any@email.com"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground transition-all"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Username</label>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="admin"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground transition-all"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300">Password</label>
+                  <label className="block text-muted-foreground">Password</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Minimum 8 characters"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground transition-all"
                   />
                 </div>
               </div>
-              
-              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
-              
+
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              {success && <p className="text-sm text-green-500 text-center">{success}</p>}
+
               <Button
                 onClick={handleAdminCreation}
                 disabled={isLoading}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl"
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl shadow-md"
               >
                 {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Create Admin Account'}
               </Button>
@@ -703,51 +625,51 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           {step === 'admin-login' && (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Admin Login</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Login with existing admin credentials</p>
-                {otpVerified && <p className="text-xs text-green-600 mt-1">✅ OTP Verified</p>}
+                <h3 className="text-lg font-semibold text-foreground mb-2">Admin Login</h3>
+                <p className="text-sm text-muted-foreground">Login with existing admin credentials</p>
+                {otpVerified && <p className="text-xs text-green-500 mt-1">✅ OTP Verified</p>}
               </div>
-              
+
               {/* Back Button */}
               <Button
                 onClick={() => setStep('admin-choice')}
                 variant="outline"
-                className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium py-2 rounded-xl"
+                className="w-full border-input bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent font-medium py-2 rounded-xl"
               >
                 ← Back to Admin Choice
               </Button>
-              
+
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <label className="block text-sm font-medium text-muted-foreground">Email</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@email.com"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground transition-all"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-gray-700 dark:text-gray-300">Password</label>
+                  <label className="block text-muted-foreground">Password</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                    className="w-full px-4 py-3 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground transition-all"
                   />
                 </div>
               </div>
-              
-              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-              {success && <p className="text-sm text-green-600 text-center">{success}</p>}
-              
+
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              {success && <p className="text-sm text-green-500 text-center">{success}</p>}
+
               <Button
                 onClick={handleAdminLogin}
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl shadow-md"
               >
                 {isLoading ? <Loader2 className="animate-spin h-4 w-4 mx-auto" /> : 'Login as Admin'}
               </Button>
@@ -785,6 +707,14 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
   const { setOpen } = useAuthModal();
   const [activeTab, setActiveTab] = useState("sign-in");
 
+  // OTP Verification State
+  const [verificationStep, setVerificationStep] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState('');
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
   // Clear messages when switching tabs
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -793,6 +723,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
     setSignUpSuccess('');
     setForgotPasswordError('');
     setForgotPasswordSuccess('');
+    setVerificationStep(false);
   };
 
   const signUpForm = useForm<z.infer<typeof signUpSchema>>({
@@ -811,6 +742,10 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
     },
   });
 
+  const forgotPasswordForm = useForm<{ email: string }>({
+    defaultValues: { email: "" }
+  });
+
   // Update form values when initialEmail changes
   useEffect(() => {
     if (initialEmail) {
@@ -819,478 +754,596 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
     }
   }, [initialEmail, signInForm, signUpForm]);
 
-  async function onSignUp(values: z.infer<typeof signUpSchema>) {
+  // Handle OTP input change
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^[0-9]*$/.test(value)) return;
+    if (value.length > 1) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`user-otp-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+
+    // Auto-focus previous input on backspace
+    if (!value && index > 0) {
+      const prevInput = document.getElementById(`user-otp-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  // Verify OTP
+  const handleVerifyOtp = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 6) {
+      setOtpError('Please enter 6-digit code');
+      return;
+    }
+
+    setIsLoading(true);
+    setOtpError('');
+    setOtpSuccess('');
+
+    try {
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: verificationEmail,
+          otp: otpString
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setOtpSuccess('Email verified successfully! Signing you in...');
+
+        setTimeout(async () => {
+          // Attempt to sign in with the credentials they just used
+          const values = signUpForm.getValues();
+          const result = await signIn("credentials", {
+            email: verificationEmail,
+            password: values.password,
+            redirect: false,
+          });
+
+          if (result?.ok) {
+            setOpen(false);
+            router.refresh();
+            router.push("/profile");
+          } else {
+            // Fallback if auto-login fails
+            setVerificationStep(false);
+            setActiveTab('sign-in');
+            setSignInError('Verification successful. Please sign in.');
+          }
+        }, 1500);
+      } else {
+        setOtpError(data.message || 'Verification failed');
+      }
+    } catch (error) {
+      setOtpError('An error occurred during verification');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (otpCooldown > 0) return;
+
+    setIsLoading(true);
+    setOtpError('');
+    setOtpSuccess('');
+
+    try {
+      const response = await fetch('/api/auth/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: verificationEmail })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setOtpSuccess('Verification code resent!');
+        setOtpCooldown(60);
+        const interval = setInterval(() => {
+          setOtpCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setOtpError(data.message || 'Failed to resend code');
+      }
+    } catch (error) {
+      setOtpError('Failed to resend code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  async function onSignUpSubmit(values: z.infer<typeof signUpSchema>) {
     setIsLoading(true);
     setSignUpError('');
     setSignUpSuccess('');
-    
+
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "Something went wrong during sign up");
-      }
-      
-      setSignUpSuccess("Account created successfully! Please sign in below.");
-      setTimeout(() => {
-        setActiveTab("sign-in");
-        signInForm.setValue("email", values.email);
-        setSignUpSuccess(''); // Clear success message when switching
-      }, 1500);
+      if (response.ok) {
+        if (data.requireVerification) {
+          setVerificationEmail(values.email);
+          setVerificationStep(true);
+          setOtpSuccess('Verification code sent to your email');
+        } else {
+          setSignUpSuccess("Account created! Redirecting...");
+          const result = await signIn("credentials", {
+            email: values.email,
+            password: values.password,
+            redirect: false,
+          });
 
-    } catch (error: any) {
-      setSignUpError(error.message);
+          if (result?.ok) {
+            setOpen(false);
+            router.refresh();
+            router.push("/profile");
+          }
+        }
+      } else {
+        setSignUpError(data.message || "Registration failed.");
+      }
+    } catch (error) {
+      setSignUpError("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function onSignIn(values: z.infer<typeof signInSchema>) {
+  async function onSignInSubmit(values: z.infer<typeof signInSchema>) {
     setIsLoading(true);
     setSignInError('');
-    
+
     try {
-      // First check if the user is blocked
-      const blockCheckResponse = await fetch('/api/auth/check-blocked', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: values.email }),
-      });
-
-      if (blockCheckResponse.ok) {
-        const blockData = await blockCheckResponse.json();
-        if (blockData.blocked) {
-          const reason = blockData.reason || 'suspicious_activity';
-          const hoursRemaining = blockData.hoursRemaining || 0;
-          
-          let reasonMessage = '';
-          switch (reason) {
-            case 'account_deletion_abuse':
-              reasonMessage = 'Account deletion abuse detected';
-              break;
-            case 'rate_limit_violation':
-              reasonMessage = 'Rate limit violations';
-              break;
-            case 'suspicious_activity':
-              reasonMessage = 'Suspicious activity detected';
-              break;
-            case 'manual_block':
-              reasonMessage = 'Account manually blocked by administrators';
-              break;
-            default:
-              reasonMessage = 'Account temporarily blocked';
-          }
-          
-          throw new Error(
-            `🚫 Account blocked: ${reasonMessage}. Please try again in ${hoursRemaining} hours.`
-          );
-        }
-      }
-
-      // If not blocked, proceed with sign-in
-      // Try admin credentials first, then regular credentials
-      let result = await signIn("admin-credentials", {
-        redirect: false,
+      const result = await signIn("credentials", {
         email: values.email,
         password: values.password,
+        redirect: false,
       });
 
-      // If admin login fails, try regular user login
       if (result?.error) {
-        // Admin login failed, trying regular user login (removed debug logging for security)
-        result = await signIn("credentials", {
-          redirect: false,
-          email: values.email,
-          password: values.password,
-        });
+        setSignInError("Invalid email or password.");
+      } else {
+        setOpen(false);
+        router.refresh();
+        router.push("/profile");
       }
-
-      if (result?.error) {
-        throw new Error("Invalid email or password. Please try again.");
-      }
-      
-      setOpen(false);
-      router.refresh();
-    } catch (error: any) {
-      setSignInError(error.message);
+    } catch (error) {
+      setSignInError("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  const handleForgotPassword = async () => {
-    const email = signInForm.getValues('email');
-    setForgotPasswordError('');
-    setForgotPasswordSuccess('');
-    
-    if (!email) {
-      setForgotPasswordError('Please enter your email above, then click Forgot Password.');
+  async function onForgotPasswordSubmit(values: { email: string }) {
+    if (!values.email) {
+      setForgotPasswordError("Please enter your email address.");
       return;
     }
-    
+
+    setIsLoading(true);
+    setForgotPasswordError('');
+    setForgotPasswordSuccess('');
+
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
       });
-      
-      if (res.ok) {
-        setForgotPasswordSuccess('Reset link sent! Check your email for the password reset link. Please check your spam folder if you don\'t see it.');
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setForgotPasswordSuccess("Password reset link sent to your email.");
       } else {
-        let errorMessage = 'Password reset request failed.';
-        try {
-          const d = await res.json();
-          errorMessage = d.message || errorMessage;
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError);
-          errorMessage = `Server error (${res.status}). Please try again.`;
-        }
-        
-        // Handle specific error cases
-        if (res.status === 429) {
-          if (errorMessage.includes('daily limit')) {
-            setForgotPasswordError('You have reached the maximum password reset requests for today. Please try again tomorrow.');
-          } else if (errorMessage.includes('location')) {
-            setForgotPasswordError('Too many reset attempts from this location. Please try again later.');
-          } else {
-            setForgotPasswordError('Too many reset attempts. Please wait before requesting another reset link.');
-          }
-        } else {
-          setForgotPasswordError(errorMessage);
-        }
+        setForgotPasswordError(data.message || "Failed to send reset link.");
       }
-    } catch (e: any) {
-      setForgotPasswordError(e.message);
+    } catch (error) {
+      setForgotPasswordError("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
+
+  // If in verification step, show OTP UI
+  if (verificationStep) {
+    return (
+      <div className="space-y-6 py-4 px-2">
+        <div className="text-center space-y-2">
+          <h3 className="text-xl font-bold text-foreground">Verify Your Email</h3>
+          <p className="text-sm text-muted-foreground">
+            Enter the 6-digit code sent to <span className="font-medium text-foreground">{verificationEmail}</span>
+          </p>
+        </div>
+
+        <div className="flex justify-center space-x-2">
+          {otp.map((digit, index) => (
+            <input
+              key={index}
+              id={`user-otp-${index}`}
+              type="text"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleOtpChange(index, e.target.value)}
+              className="w-12 h-12 text-center text-lg font-semibold border-2 border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground transition-all"
+              placeholder="-"
+            />
+          ))}
+        </div>
+
+        {otpError && (
+          <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center font-medium">
+            {otpError}
+          </div>
+        )}
+
+        {otpSuccess && (
+          <div className="p-3 rounded-lg bg-green-500/10 text-green-500 text-sm text-center font-medium">
+            {otpSuccess}
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <Button
+            onClick={handleVerifyOtp}
+            disabled={isLoading || otp.join('').length !== 6}
+            className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all duration-200 shadow-lg"
+          >
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify Email"}
+          </Button>
+
+          <div className="flex justify-between items-center px-1">
+            <button
+              onClick={() => setVerificationStep(false)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={handleResendOtp}
+              disabled={isLoading || otpCooldown > 0}
+              className={`text-sm font-medium transition-colors ${otpCooldown > 0
+                ? 'text-muted-foreground cursor-not-allowed'
+                : 'text-primary hover:text-primary/80'
+                }`}
+            >
+              {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Resend Code'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-      {/* Tabs List - Compact Design with Rich Whites */}
-      <TabsList className="grid w-full grid-cols-2 bg-[#E3E1D9]/80 dark:bg-muted/50 border border-[#C7C8CC]/60 dark:border-border h-12 rounded-2xl p-2 gap-2">
-        <TabsTrigger 
-          value="sign-in" 
-          className="text-sm font-medium rounded-xl data-[state=active]:bg-[#F2EFE5] dark:data-[state=active]:bg-slate-300 data-[state=active]:text-slate-800 dark:data-[state=active]:text-slate-800 data-[state=inactive]:text-slate-700 dark:data-[state=inactive]:text-slate-700 data-[state=inactive]:bg-transparent dark:data-[state=inactive]:bg-slate-100/60 data-[state=active]:shadow-sm transition-all duration-200"
-        >
-          Sign In
-        </TabsTrigger>
-        <TabsTrigger 
-          value="sign-up" 
-          className="text-sm font-medium rounded-xl data-[state=active]:bg-[#F2EFE5] dark:data-[state=active]:bg-slate-300 data-[state=inactive]:text-slate-700 dark:data-[state=inactive]:text-slate-700 data-[state=inactive]:bg-transparent dark:data-[state=inactive]:bg-slate-100/60 data-[state=active]:shadow-sm transition-all duration-200"
-        >
-          Sign Up
-        </TabsTrigger>
-      </TabsList>
-      
-      {/* Sign In Tab - Compact Design with Rich Whites */}
-      <TabsContent value="sign-in" className="mt-3 sm:mt-4">
-        <div className="space-y-3 sm:space-y-4">
-          {/* Admin Login Note
-          <div className="text-center p-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-            <p className="text-xs text-purple-700 dark:text-purple-300">
-              👑 <strong>Admin users:</strong> Use your admin credentials to access unlimited features
-            </p>
-          </div> */}
-          
-          <Form {...signInForm}>
-            <form
-              onSubmit={signInForm.handleSubmit(onSignIn)}
-              className="space-y-3 sm:space-y-4"
-            >
-              {/* Email Field - Compact Design with Rich Whites */}
-              <div className="space-y-1.5 sm:space-y-2">
-                <label className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-foreground">Email</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-slate-500 dark:text-muted-foreground text-sm sm:text-base">@</span>
-                  </div>
-                  <Input
-                    type="email"
-                    placeholder="Enter your Email"
-                    className="pl-10 h-9 sm:h-10 bg-[#F2EFE5]/90 dark:bg-background/80 border-[#C7C8CC]/80 dark:border-border rounded-xl text-sm focus:ring-2 focus:ring-[#B4B4B8] dark:focus:ring-primary/20 focus:border-[#B4B4B8] dark:focus:border-primary transition-all duration-200 text-slate-700 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground"
-                    {...signInForm.register('email')}
-                  />
-                </div>
-                {signInForm.formState.errors.email && (
-                  <p className="text-xs text-red-600 dark:text-destructive">{signInForm.formState.errors.email.message}</p>
-                )}
-              </div>
-              
-              {/* Password Field - Compact Design with Rich Whites */}
-              <div className="space-y-1.5 sm:space-y-2">
-                <label className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-foreground">Password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-slate-500 dark:text-muted-foreground text-sm sm:text-base">🔒</span>
-                  </div>
-                  <Input
-                    type={showSignInPassword ? "text" : "password"}
-                    placeholder="Enter your Password"
-                    className="pl-10 h-9 sm:h-10 bg-[#F2EFE5]/90 dark:bg-background/80 border-[#C7C8CC]/80 dark:border-border rounded-xl text-sm focus:ring-2 focus:ring-[#B4B4B8] dark:focus:ring-primary/20 focus:border-[#B4B4B8] dark:focus:border-primary transition-all duration-200 text-slate-700 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground"
-                    {...signInForm.register('password')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSignInPassword(!showSignInPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 dark:text-muted-foreground hover:text-slate-700 dark:hover:text-foreground transition-colors"
-                  >
-                    {showSignInPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {signInForm.formState.errors.password && (
-                  <p className="text-xs text-red-600 dark:text-destructive">{signInForm.formState.errors.password.message}</p>
-                )}
-              </div>
-              
-              {/* Remember Me & Forgot Password - Compact Layout with Rich Whites */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-primary bg-[#F2EFE5] dark:bg-background border-[#C7C8CC] dark:border-border rounded focus:ring-2 focus:ring-[#B4B4B8] dark:focus:ring-primary/20"
-                  />
-                  <span className="text-xs sm:text-sm text-slate-600 dark:text-muted-foreground">Remember me</span>
-                </label>
-                <button
-                  type="button"
-                  className="text-xs sm:text-sm text-blue-600 dark:text-primary hover:text-blue-700 dark:hover:text-primary/80 transition-colors font-medium"
-                  onClick={handleForgotPassword}
-                >
-                  Forgot password?
-                </button>
-              </div>
-
-              {/* Error Messages - Text Only */}
-              {signInError && (
-                <p className="text-sm text-red-700 dark:text-destructive text-center">{signInError}</p>
-              )}
-
-              {forgotPasswordError && (
-                <p className="text-sm text-red-700 dark:text-destructive text-center">{forgotPasswordError}</p>
-              )}
-
-              {forgotPasswordSuccess && (
-                <p className="text-sm text-green-700 dark:text-green-400 text-center">{forgotPasswordSuccess}</p>
-              )}
-
-              {/* Sign In Button - Compact Design with Rich Whites */}
-              <Button 
-                type="submit" 
-                disabled={isLoading} 
-                className="w-full h-9 sm:h-10 bg-slate-800 dark:bg-foreground hover:bg-slate-700 dark:hover:bg-foreground/90 text-white dark:text-background font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-              >
-                {isLoading ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
-                ) : (
-                  <>
-                    <LogIn className="mr-2 h-4 w-4" /> Sign In
-                  </>
-                )}
-              </Button>
-            </form>
-          </Form>
-
-          {/* Sign Up Link - Compact Design with Rich Whites */}
-          <div className="text-center">
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-muted-foreground">
-              Don't have an account?{' '}
-              <button
-                type="button"
-                onClick={() => setActiveTab("sign-up")}
-                className="text-blue-600 dark:text-primary hover:text-blue-700 dark:hover:text-primary/80 font-medium transition-colors"
-              >
-                Sign Up
-              </button>
-            </p>
-          </div>
-
-          {/* Social Login - Compact Design with Rich Whites */}
-          <div className="space-y-2 sm:space-y-3">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-[#C7C8CC]/60 dark:border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#F2EFE5] dark:bg-background px-2 text-slate-500 dark:text-muted-foreground">Or With</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 sm:h-10 bg-[#F2EFE5]/90 dark:bg-background border-[#C7C8CC]/80 dark:border-border hover:bg-[#E3E1D9]/90 dark:hover:bg-muted/50 rounded-xl transition-all duration-200 text-slate-700 dark:text-foreground"
-              >
-                <span className="text-base mr-2">G</span>
-                Google
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 sm:h-10 bg-[#F2EFE5]/90 dark:bg-background border-[#C7C8CC]/80 dark:border-border hover:bg-[#E3E1D9]/90 dark:hover:bg-muted/50 rounded-xl transition-all duration-200 text-slate-700 dark:text-foreground"
-              >
-                <span className="text-base mr-2">🍎</span>
-                Apple
-              </Button>
-            </div>
-          </div>
-        </div>
-      </TabsContent>
-      
-      {/* Sign Up Tab - Compact Design with Rich Whites */}
-      <TabsContent value="sign-up" className="mt-4">
-        <div className="space-y-4">
-          <Form {...signUpForm}>
-            <form
-              onSubmit={signUpForm.handleSubmit(onSignUp)}
-              className="space-y-4"
-            >
-              {/* Email Field - Compact Design with Rich Whites */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-foreground">Email</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-slate-500 dark:text-muted-foreground text-base">@</span>
-                  </div>
-                  <Input
-                    type="email"
-                    placeholder="Enter your Email"
-                    className="pl-10 h-10 bg-[#F2EFE5]/90 dark:bg-background/80 border-[#C7C8CC]/80 dark:border-border rounded-xl text-sm focus:ring-2 focus:ring-[#B4B4B8] dark:focus:ring-primary/20 focus:border-[#B4B4B8] dark:focus:border-primary transition-all duration-200 text-slate-700 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground"
-                    {...signUpForm.register('email')}
-                  />
-                </div>
-                {signUpForm.formState.errors.email && (
-                  <p className="text-xs text-red-600 dark:text-destructive">{signUpForm.formState.errors.email.message}</p>
-                )}
-              </div>
-              
-              {/* Password Field - Compact Design with Rich Whites */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-foreground">Password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-slate-500 dark:text-muted-foreground text-base">🔒</span>
-                  </div>
-                  <Input
-                    type={showSignUpPassword ? "text" : "password"}
-                    placeholder="Enter your Password"
-                    className="pl-10 h-10 bg-[#F2EFE5]/90 dark:bg-background/80 border-[#C7C8CC]/80 dark:border-border rounded-xl text-sm focus:ring-2 focus:ring-[#B4B4B8] dark:focus:ring-primary/20 focus:border-[#B4B4B8] dark:focus:border-primary transition-all duration-200 text-slate-700 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground"
-                    {...signUpForm.register('password')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSignUpPassword(!showSignUpPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 dark:text-muted-foreground hover:text-slate-700 dark:hover:text-foreground transition-colors"
-                  >
-                    {showSignUpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {signUpForm.formState.errors.password && (
-                  <p className="text-xs text-red-600 dark:text-destructive">{signUpForm.formState.errors.password.message}</p>
-                )}
-              </div>
-
-              {/* Error/Success Messages - Text Only */}
-              {signUpError && (
-                <p className="text-sm text-red-700 dark:text-destructive text-center">{signUpError}</p>
-              )}
-
-              {signUpSuccess && (
-                <p className="text-sm text-green-700 dark:text-green-400 text-center">{signUpSuccess}</p>
-              )}
-
-              {/* Sign Up Button - Compact Design with Rich Whites */}
-              <Button 
-                type="submit" 
-                disabled={isLoading} 
-                className="w-full h-10 bg-slate-800 dark:bg-foreground hover:bg-slate-700 dark:hover:bg-foreground/90 text-white dark:text-background font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-              >
-                {isLoading ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
-                ) : (
-                  <>
-                    <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-                  </>
-                )}
-              </Button>
-
-              {/* Admin Registration Button - Same Theme Style */}
-              <Button 
-                type="button" 
-                onClick={() => setShowAdminModal(true)}
-                className="w-full h-10 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg border-0"
-              >
-                <Crown className="mr-2 h-4 w-4" /> Register as Admin
-              </Button>
-            </form>
-          </Form>
-
-          {/* Sign In Link - Compact Design with Rich Whites */}
-          <div className="text-center">
-            <p className="text-sm text-slate-600 dark:text-muted-foreground">
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => setActiveTab("sign-in")}
-                className="text-blue-600 dark:text-primary hover:text-blue-700 dark:hover:text-primary/80 font-medium transition-colors"
-              >
-                Sign In
-              </button>
-            </p>
-          </div>
-
-          {/* Social Login - Compact Design with Rich Whites */}
-          <div className="space-y-3">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-[#C7C8CC]/60 dark:border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#F2EFE5] dark:bg-background px-2 text-slate-500 dark:text-muted-foreground">Or With</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 bg-[#F2EFE5]/90 dark:bg-background border-[#C7C8CC]/80 dark:border-border hover:bg-[#E3E1D9]/90 dark:hover:bg-muted/50 rounded-xl transition-all duration-200 text-slate-700 dark:text-foreground"
-              >
-                <span className="text-base mr-2">G</span>
-                Google
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 bg-[#F2EFE5]/90 dark:bg-background border-[#C7C8CC]/80 dark:border-border hover:bg-[#E3E1D9]/90 dark:hover:bg-muted/50 rounded-xl transition-all duration-200 text-slate-700 dark:text-foreground"
-              >
-                <span className="text-base mr-2">🍎</span>
-                Apple
-              </Button>
-            </div>
-          </div>
-        </div>
-      </TabsContent>
-
-      {/* Admin Registration Modal */}
+    <>
       {showAdminModal && (
-        <AdminRegistrationModal 
+        <AdminRegistrationModal
           onClose={() => setShowAdminModal(false)}
           onSuccess={() => {
             setShowAdminModal(false);
-            setOpen(false);
-            // Redirect to admin dashboard after successful admin creation/login
-            router.push('/admin/dashboard');
+            setSignUpSuccess("Admin account created successfully! Please login.");
+            setActiveTab("sign-in");
           }}
         />
       )}
-    </Tabs>
+
+      <Tabs defaultValue="sign-in" value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6 p-1 bg-black/10 dark:bg-white/10 rounded-xl">
+          <TabsTrigger
+            value="sign-in"
+            className="rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200"
+          >
+            Sign In
+          </TabsTrigger>
+          <TabsTrigger
+            value="sign-up"
+            className="rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200"
+          >
+            Sign Up
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sign-in">
+          <Form {...signInForm}>
+            <form onSubmit={signInForm.handleSubmit(onSignInSubmit)} className="space-y-4">
+              <FormField
+                control={signInForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="you@example.com"
+                        {...field}
+                        className="bg-background border-input focus:ring-2 focus:ring-primary rounded-xl text-foreground placeholder:text-muted-foreground transition-all"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={signInForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-muted-foreground">Password</FormLabel>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("forgot-password")}
+                        className="text-xs text-primary hover:text-primary/80 font-medium"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showSignInPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...field}
+                          className="bg-background border-input focus:ring-2 focus:ring-primary rounded-xl pr-10 text-foreground placeholder:text-muted-foreground transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignInPassword(!showSignInPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showSignInPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  className="w-4 h-4 rounded border-input bg-background text-primary focus:ring-primary"
+                />
+                <label htmlFor="remember" className="text-sm text-muted-foreground">Remember me</label>
+              </div>
+
+              {signInError && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
+                  {signInError}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-500/25 border-0"
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
+              </Button>
+
+
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or With</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="bg-background border-input hover:bg-accent hover:text-accent-foreground text-foreground h-10 rounded-xl transition-all">
+                  <span className="mr-2 font-bold">G</span> Google
+                </Button>
+                <Button variant="outline" className="bg-background border-input hover:bg-accent hover:text-accent-foreground text-foreground h-10 rounded-xl transition-all">
+                  <span className="mr-2">🍎</span> Apple
+                </Button>
+              </div>
+
+              <div className="text-center mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("sign-up")}
+                    className="text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </p>
+              </div>
+            </form>
+          </Form>
+        </TabsContent>
+
+        <TabsContent value="sign-up">
+          <Form {...signUpForm}>
+            <form onSubmit={signUpForm.handleSubmit(onSignUpSubmit)} className="space-y-4">
+              <FormField
+                control={signUpForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="you@example.com"
+                        {...field}
+                        className="bg-background border-input focus:ring-2 focus:ring-primary rounded-xl text-foreground placeholder:text-muted-foreground transition-all"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={signUpForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showSignUpPassword ? "text" : "password"}
+                          placeholder="Min. 6 characters"
+                          {...field}
+                          className="bg-background border-input focus:ring-2 focus:ring-primary rounded-xl pr-10 text-foreground placeholder:text-muted-foreground transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showSignUpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {signUpError && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
+                  {signUpError}
+                </div>
+              )}
+
+              {signUpSuccess && (
+                <div className="p-3 rounded-lg bg-green-500/10 text-green-500 text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
+                  {signUpSuccess}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-500/25 border-0"
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign Up"}
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() => setShowAdminModal(true)}
+                className="w-full h-10 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg border-0"
+              >
+                <Crown className="mr-2 h-4 w-4" /> Register as Admin
+              </Button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or With</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="bg-background border-input hover:bg-accent hover:text-accent-foreground text-foreground h-10 rounded-xl transition-all">
+                  <span className="mr-2 font-bold">G</span> Google
+                </Button>
+                <Button variant="outline" className="bg-background border-input hover:bg-accent hover:text-accent-foreground text-foreground h-10 rounded-xl transition-all">
+                  <span className="mr-2">🍎</span> Apple
+                </Button>
+              </div>
+
+              <div className="text-center mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("sign-in")}
+                    className="text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    Sign In
+                  </button>
+                </p>
+              </div>
+            </form>
+          </Form>
+        </TabsContent>
+
+        <TabsContent value="forgot-password">
+          <div className="space-y-4">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Reset Password</h3>
+              <p className="text-sm text-muted-foreground">Enter your email to receive a reset link</p>
+            </div>
+
+            <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPasswordSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                <Input
+                  {...forgotPasswordForm.register("email")}
+                  placeholder="you@example.com"
+                  className="bg-background border-input focus:ring-2 focus:ring-primary rounded-xl text-foreground placeholder:text-muted-foreground transition-all"
+                />
+              </div>
+
+              {forgotPasswordError && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center font-medium">
+                  {forgotPasswordError}
+                </div>
+              )}
+
+              {forgotPasswordSuccess && (
+                <div className="p-3 rounded-lg bg-green-500/10 text-green-500 text-sm text-center font-medium">
+                  {forgotPasswordSuccess}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Send Reset Link"}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("sign-in")}
+                className="w-full text-sm text-muted-foreground hover:text-foreground"
+              >
+                Back to Sign In
+              </button>
+            </form>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }

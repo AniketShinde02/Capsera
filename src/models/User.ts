@@ -44,6 +44,18 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // New verification fields
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: {
+    type: String,
+    select: false, // Hide by default
+  },
+  verificationTokenExpires: {
+    type: Date,
+  },
   image: {
     type: String,
     default: null,
@@ -132,7 +144,7 @@ const UserSchema = new mongoose.Schema({
   // Account status
   status: {
     type: String,
-    enum: ['active', 'suspended', 'banned'],
+    enum: ['pending', 'active', 'suspended', 'banned'],
     default: 'active'
   },
   // Email preferences and promotional email settings
@@ -183,29 +195,29 @@ UserSchema.index({ resetPasswordExpires: 1 });
 UserSchema.index({ 'resetPasswordRequests.requestedAt': 1 });
 
 // Method to check if user can request another password reset today
-UserSchema.methods.canRequestPasswordReset = function(): boolean {
+UserSchema.methods.canRequestPasswordReset = function (): boolean {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
+
   // If it's a new day, reset the counter
   if (!this.lastResetRequestDate || this.lastResetRequestDate < today) {
     this.dailyResetCount = 0;
     this.lastResetRequestDate = today;
     return true;
   }
-  
+
   // Maximum 3 reset requests per day
   return this.dailyResetCount < 3;
 };
 
 // Method to increment daily reset counter
-UserSchema.methods.incrementResetCounter = function(): void {
+UserSchema.methods.incrementResetCounter = function (): void {
   this.dailyResetCount += 1;
   this.lastResetRequestDate = new Date();
 };
 
 // Method to add a new reset request
-UserSchema.methods.addResetRequest = function(token: string, ipAddress: string, userAgent?: string): void {
+UserSchema.methods.addResetRequest = function (token: string, ipAddress: string, userAgent?: string): void {
   this.resetPasswordRequests.push({
     requestedAt: new Date(),
     ipAddress,
@@ -216,7 +228,7 @@ UserSchema.methods.addResetRequest = function(token: string, ipAddress: string, 
 };
 
 // Method to mark a reset token as used
-UserSchema.methods.markResetTokenUsed = function(token: string): void {
+UserSchema.methods.markResetTokenUsed = function (token: string): void {
   const request = this.resetPasswordRequests.find((req: any) => req.token === token);
   if (request) {
     request.used = true;
@@ -225,53 +237,58 @@ UserSchema.methods.markResetTokenUsed = function(token: string): void {
 };
 
 // Method to clean up old reset requests (older than 24 hours)
-UserSchema.methods.cleanupOldResetRequests = function(): void {
+UserSchema.methods.cleanupOldResetRequests = function (): void {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
   this.resetPasswordRequests = this.resetPasswordRequests.filter((req: any) => req.requestedAt > cutoff);
 };
 
 // Method to check if promotional email can be sent (every 3 days)
-UserSchema.methods.canSendPromotionalEmail = function(): boolean {
+UserSchema.methods.canSendPromotionalEmail = function (): boolean {
   if (!this.emailPreferences.promotional) {
     return false;
   }
-  
+
   if (!this.lastPromotionalEmailDate) {
     return true;
   }
-  
+
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
   return this.lastPromotionalEmailDate < threeDaysAgo;
 };
 
 // Method to mark promotional email as sent
-UserSchema.methods.markPromotionalEmailSent = function(): void {
+UserSchema.methods.markPromotionalEmailSent = function (): void {
   this.lastPromotionalEmailDate = new Date();
   this.promotionalEmailCount += 1;
   this.promotionalEmailSentAt = new Date();
 };
 
 // Method to generate unsubscribe token
-UserSchema.methods.generateUnsubscribeToken = function(): string {
+UserSchema.methods.generateUnsubscribeToken = function (): string {
   const token = crypto.randomBytes(32).toString('hex');
   this.unsubscribeToken = token;
   return token;
 };
 
 // Method to unsubscribe from promotional emails
-UserSchema.methods.unsubscribeFromPromotional = function(): void {
+UserSchema.methods.unsubscribeFromPromotional = function (): void {
   this.emailPreferences.promotional = false;
   this.unsubscribeToken = null;
 };
 
 // Method to check if welcome email should be sent
-UserSchema.methods.shouldSendWelcomeEmail = function(): boolean {
+UserSchema.methods.shouldSendWelcomeEmail = function (): boolean {
   return this.emailPreferences.welcome && !this.welcomeEmailSent;
 };
 
 // Method to mark welcome email as sent
-UserSchema.methods.markWelcomeEmailSent = function(): void {
+UserSchema.methods.markWelcomeEmailSent = function (): void {
   this.welcomeEmailSent = true;
 };
+
+// Force model recompilation in dev to pick up schema changes
+if (process.env.NODE_ENV === 'development') {
+  delete mongoose.models.User;
+}
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

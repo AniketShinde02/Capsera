@@ -495,3 +495,65 @@ export async function sendRequestConfirmationEmail(data: RequestConfirmationData
     return { queued: false, error: String(err) };
   }
 }
+// New interface for verification email
+interface VerificationEmailData {
+  email: string;
+  otp: string;
+}
+
+// New function: Send verification email with OTP
+export async function sendVerificationEmail(data: VerificationEmailData) {
+  // Always log in dev for testing
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[DEV] Verification OTP for', data.email, 'is:', data.otp);
+  }
+
+  if (!transporter) {
+    console.log('📧 SMTP not configured - verification email would be sent to:', data.email);
+    return { queued: false, logged: true };
+  }
+
+  // Get base URL - require proper configuration
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+  if (!baseUrl) {
+    console.error('❌ Missing NEXTAUTH_URL or NEXT_PUBLIC_APP_URL environment variable');
+    return { queued: false, error: 'Missing app URL configuration' };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `Capsera Security <${from}>`,
+      to: data.email,
+      subject: '🔐 Verify Your Email - Capsera',
+      text: `Your verification code is: ${data.otp}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nThe Capsera Team`,
+      html: getHtmlTemplate({
+        title: 'Verify Your Email',
+        previewText: `Your verification code is ${data.otp}. Use this to complete your registration.`,
+        heading: 'Verify Your Email',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">Hello!</p>
+          <p style="margin-bottom: 24px;">Thank you for signing up with Capsera. Please use the verification code below to complete your registration.</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-radius: 12px; padding: 32px; margin: 32px 0; text-align: center;">
+            <span style="font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #06b6d4; background: #000000; padding: 16px 32px; border-radius: 8px; border: 1px solid #333333; display: inline-block;">${data.otp}</span>
+          </div>
+          
+          <div style="background-color: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; margin: 24px 0;">
+            <p style="margin: 0; color: #9ca3af; font-size: 14px; text-align: center;">
+              This code will expire in <strong>15 minutes</strong>.
+            </p>
+          </div>
+        `,
+        footerText: `If you didn't request this code, you can safely ignore this email.`
+      })
+    });
+
+    console.log('📧 Verification email sent to:', data.email, 'Message ID:', info.messageId);
+    return { queued: true, messageId: info.messageId };
+
+  } catch (err) {
+    console.error('📧 Failed to send verification email:', err);
+    return { queued: false, error: String(err) };
+  }
+}

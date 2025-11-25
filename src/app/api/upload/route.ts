@@ -21,7 +21,7 @@ export const config = {
 // Helper function to retry Cloudinary upload
 async function uploadWithRetry(uploadParams: any, maxRetries = 3): Promise<any> {
   let lastError: any;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔄 Cloudinary upload attempt ${attempt}/${maxRetries}`);
@@ -36,7 +36,7 @@ async function uploadWithRetry(uploadParams: any, maxRetries = 3): Promise<any> 
     } catch (error: any) {
       lastError = error;
       console.error(`❌ Cloudinary upload attempt ${attempt} failed:`, error);
-      
+
       // If it's the last attempt, don't wait
       if (attempt < maxRetries) {
         // Wait before retry (exponential backoff)
@@ -46,31 +46,31 @@ async function uploadWithRetry(uploadParams: any, maxRetries = 3): Promise<any> 
       }
     }
   }
-  
+
   throw lastError;
 }
 
 export async function POST(req: Request) {
   try {
     // Check if Cloudinary is properly configured
-    if (!process.env.CLOUDINARY_CLOUD_NAME || 
-        !process.env.CLOUDINARY_API_KEY || 
-        !process.env.CLOUDINARY_API_SECRET) {
+    if (!process.env.CLOUDINARY_CLOUD_NAME ||
+      !process.env.CLOUDINARY_API_KEY ||
+      !process.env.CLOUDINARY_API_SECRET) {
       console.error('❌ Cloudinary configuration missing');
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Image upload service is not configured. Please contact support.' 
+      return NextResponse.json({
+        success: false,
+        message: 'Image upload service is not configured. Please contact support.'
       }, { status: 503 });
     }
 
-  // Check content length first (be conservative for Vercel limits)
+    // Check content length first (be conservative for Vercel limits)
     const contentLength = req.headers.get('content-length');
     // Vercel Hobby: 4.5MB, Pro: 50MB - Use conservative 4MB limit
     const MAX_BYTES = Math.floor(4 * 1024 * 1024); // 4MB
     if (contentLength && parseInt(contentLength) > MAX_BYTES) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'File too large. Please upload an image smaller than 4MB.' 
+      return NextResponse.json({
+        success: false,
+        message: 'File too large. Please upload an image smaller than 4MB.'
       }, { status: 413 });
     }
 
@@ -106,16 +106,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'No file uploaded' }, { status: 400 });
     }
 
-  // Validate file type
-  if (!file.type || !file.type.startsWith('image/')) {
+    // Validate file type
+    if (!file.type || !file.type.startsWith('image/')) {
       return NextResponse.json({ success: false, message: 'Invalid file type. Please upload an image.' }, { status: 400 });
     }
 
     // Validate file size (max 4MB for Vercel compatibility)
     const MAX_FILE_BYTES = Math.floor(4 * 1024 * 1024); // 4MB
     if (file.size > MAX_FILE_BYTES) {
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         message: `File too large. Please upload an image smaller than 4MB. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`,
         error: 'file_too_large',
         maxSize: '4MB',
@@ -126,14 +126,14 @@ export async function POST(req: Request) {
     // Content safety validation
     const validation = validateImageForProcessing(file, file.name);
     if (!validation.isValid) {
-      return NextResponse.json({ 
-        success: false, 
-        message: validation.error || 'Image validation failed.' 
+      return NextResponse.json({
+        success: false,
+        message: validation.error || 'Image validation failed.'
       }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    
+
     const fileExtension = path.extname(file.name);
     const uniqueFileName = `${uuidv4()}${fileExtension}`;
 
@@ -152,50 +152,45 @@ export async function POST(req: Request) {
     try {
       console.log(`🔍 Performing content safety check for: ${uniqueFileName}`);
       const safetyResult = await checkImageContentSafety(response.secure_url);
-      
+
       if (!safetyResult.isAppropriate) {
         console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);
-        
+
         // Report inappropriate content for admin review
         await reportInappropriateContent({
           imageUrl: response.secure_url,
           ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-          reason: safetyResult.flagged.includes('adult') ? 'sexual' : 
-                  safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
+          reason: safetyResult.flagged.includes('adult') ? 'sexual' :
+            safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
           description: `Content flagged as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
           timestamp: new Date()
         });
 
         // Return error to user
-        return NextResponse.json({ 
-          success: false, 
+        return NextResponse.json({
+          success: false,
           message: 'This image contains inappropriate content and cannot be processed. Please upload a family-friendly image.',
           error: 'content_violation',
           flagged: safetyResult.flagged
         }, { status: 400 });
       }
-      
+
       console.log(`✅ Content safety check passed for: ${uniqueFileName}`);
     } catch (safetyError) {
       console.error('❌ Content safety check failed:', safetyError);
-      
-      // In production, we should be more strict about content safety
-      if (process.env.NODE_ENV === 'production') {
-        console.error('🚨 Content safety check failed in production - rejecting upload');
-        return NextResponse.json({ 
-          success: false, 
-          message: 'Content safety verification failed. Please try again or contact support if the issue persists.',
-          error: 'safety_check_failed'
-        }, { status: 400 });
-      }
-      
-      // In development, continue with upload if safety check fails (fail-safe approach)
-      console.warn('⚠️ Continuing with upload in development mode despite safety check failure');
+
+      // Strict safety check for ALL environments (Dev & Prod)
+      console.error('🚨 Content safety check failed - rejecting upload');
+      return NextResponse.json({
+        success: false,
+        message: 'Content safety verification failed. Please try again or contact support if the issue persists.',
+        error: 'safety_check_failed'
+      }, { status: 400 });
     }
 
     // Sanitized success logging
     console.log(`✅ Cloudinary upload completed successfully for: ${uniqueFileName}`);
-    
+
     // Enhanced response validation
     if (!response.secure_url || !response.public_id) {
       console.error('❌ Cloudinary response missing required fields:', {
@@ -203,15 +198,15 @@ export async function POST(req: Request) {
         hasPublicId: !!response.public_id,
         response: response
       });
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         message: 'Upload completed but response format is invalid. Please try again.',
         error: 'invalid_response_format'
       }, { status: 500 });
     }
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       url: response.secure_url,
       public_id: response.public_id, // Ensure consistent naming
       publicId: response.public_id,  // Keep both for compatibility
@@ -220,11 +215,11 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('💥 Upload Error:', error.message);
-    
+
     // Provide more helpful error messages
     let errorMessage = 'Upload failed. Please try again.';
     let statusCode = 500;
-    
+
     if (error.message?.includes('cloudinary') || error.message?.includes('CLOUDINARY')) {
       errorMessage = 'Cloudinary service temporarily unavailable. Please try again in a moment.';
     } else if (error.message?.includes('network') || error.code === 'ENOTFOUND') {
@@ -235,9 +230,9 @@ export async function POST(req: Request) {
       errorMessage = 'File too large. Please upload an image smaller than 10MB.';
       statusCode = 413;
     }
-    
-    return NextResponse.json({ 
-      success: false, 
+
+    return NextResponse.json({
+      success: false,
       message: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: statusCode });

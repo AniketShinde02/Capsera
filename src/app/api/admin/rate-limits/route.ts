@@ -14,15 +14,15 @@ export async function GET(request: NextRequest) {
 
     // Get rate limit configurations from database
     await dbConnect();
-    const configs = await mongoose.model('RateLimitConfig').find({});
-    
-    // Convert to frontend-friendly format
-    const rateLimits = {
+    const configs = await RateLimitConfig.find({});
+
+    // Convert to frontend-friendly format with explicit typing to allow updates
+    const rateLimits: Record<string, { MAX_GENERATIONS: number; WINDOW_HOURS: number; USER_TYPE: string }> = {
       ANONYMOUS: { ...DEFAULT_RATE_LIMITS.ANONYMOUS },
       REGISTERED: { ...DEFAULT_RATE_LIMITS.REGISTERED },
       PRO: { ...DEFAULT_RATE_LIMITS.PRO }
     };
-    
+
     // Update with database values if available
     for (const config of configs) {
       if (config.tier === 'anonymous') {
@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (typeof anonymous.MAX_GENERATIONS !== 'number' || 
-        typeof registered.MAX_GENERATIONS !== 'number') {
+    if (typeof anonymous.MAX_GENERATIONS !== 'number' ||
+      typeof registered.MAX_GENERATIONS !== 'number') {
       return NextResponse.json({
         success: false,
         error: 'Invalid rate limit values',
@@ -83,34 +83,34 @@ export async function POST(request: NextRequest) {
 
     // Connect to database
     await dbConnect();
-    
+
     // Update anonymous tier
-    await mongoose.model('RateLimitConfig').findOneAndUpdate(
+    await RateLimitConfig.findOneAndUpdate(
       { tier: 'anonymous' },
-      { 
+      {
         tier: 'anonymous',
         maxGenerations: anonymous.MAX_GENERATIONS,
         windowHours: anonymous.WINDOW_HOURS || 24
       },
       { upsert: true, new: true }
     );
-    
+
     // Update registered tier
-    await mongoose.model('RateLimitConfig').findOneAndUpdate(
+    await RateLimitConfig.findOneAndUpdate(
       { tier: 'registered' },
-      { 
+      {
         tier: 'registered',
         maxGenerations: registered.MAX_GENERATIONS,
         windowHours: registered.WINDOW_HOURS || 24
       },
       { upsert: true, new: true }
     );
-    
+
     // Update pro tier if provided
     if (pro && typeof pro.MAX_GENERATIONS === 'number') {
-      await mongoose.model('RateLimitConfig').findOneAndUpdate(
+      await RateLimitConfig.findOneAndUpdate(
         { tier: 'pro' },
-        { 
+        {
           tier: 'pro',
           maxGenerations: pro.MAX_GENERATIONS,
           windowHours: pro.WINDOW_HOURS || 24
@@ -118,17 +118,17 @@ export async function POST(request: NextRequest) {
         { upsert: true, new: true }
       );
     }
-    
+
     // Get updated configurations
-    const configs = await mongoose.model('RateLimitConfig').find().exec();
-    
-    // Convert to frontend-friendly format
-    const rateLimits = {
+    const configs = await RateLimitConfig.find().exec();
+
+    // Convert to frontend-friendly format with explicit typing
+    const rateLimits: Record<string, { MAX_GENERATIONS: number; WINDOW_HOURS: number; USER_TYPE: string }> = {
       ANONYMOUS: { ...DEFAULT_RATE_LIMITS.ANONYMOUS },
       REGISTERED: { ...DEFAULT_RATE_LIMITS.REGISTERED },
       PRO: { ...DEFAULT_RATE_LIMITS.PRO }
     };
-    
+
     // Update with database values
     for (const config of configs) {
       if (config.tier === 'anonymous') {

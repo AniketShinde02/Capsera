@@ -8,7 +8,7 @@
  * - Upgrade prompts
  */
 
-import { checkFreemiumLimits, getFreemiumUsageInfo, FreemiumResult } from './freemium-rate-limiter';
+import { checkFreemiumLimits, getFreemiumUsageInfo, incrementFreemiumUsage, FreemiumResult } from './freemium-rate-limiter';
 import { SmartRateLimiter } from './smart-rate-limiter';
 import { NextRequest } from 'next/server';
 
@@ -128,6 +128,17 @@ export class ConsolidatedRateLimiter {
       ...primaryResult,
       securityLimited: false
     };
+  }
+
+  /**
+   * Increment usage count - Call ONLY after successful operation
+   */
+  async incrementUsage(userId?: string, ip?: string): Promise<void> {
+    try {
+      await incrementFreemiumUsage(userId, ip);
+    } catch (error) {
+      console.error('Failed to increment usage:', error);
+    }
   }
 
   /**

@@ -2,6 +2,41 @@
 
 All notable changes to the Capsera AI Caption Generator project are documented in this file.
 
+## [2025-11-25] - UI Overhaul & Page Deprecation
+
+### 🎨 UI/UX Enhancements
+- **Homepage Transformation**: Completely revamped the homepage with modern, interactive components.
+  - **Magic Showcase**: Added "See the Magic in Action" section with animated scanning beam, dynamic tag detection, and live confidence meter.
+  - **Features Grid**: Implemented "Why Choose Our AI" section using a Bento Grid layout with interactive elements (loading bars, scrolling tickers).
+  - **Testimonials**: Replaced static FAQ with a "Wall of Love" masonry grid for user testimonials.
+- **Animations**: Added global CSS animations for scanning effects, gradients, and loading bars.
+- **Dark Mode Fix**: Fixed visibility issue with the "Refresh" button in the admin dashboard where text was unreadable in dark mode.
+- **Admin Dashboard Overhaul**: Transformed the admin dashboard with "Magic" UI components.
+  - **Real Data**: Replaced mock/static data with real-time analytics from MongoDB (User growth, Post history, System load).
+  - **Sparklines**: Added 7-day trend sparklines to overview cards for better visual insights.
+  - **Magic Cards**: Implemented glassmorphic cards with gradient effects and hover animations.
+  - **System Load**: improved accuracy of system load metric based on active database connections.
+- **Advanced Analytics**: Upgraded the Analytics page with real-time data and "Magic" UI.
+  - **Real Metrics**: Implemented MongoDB aggregations for User Growth, Retention, Engagement, and Conversion rates.
+  - **Visuals**: Replaced standard cards with `MagicCard` components featuring gradients and glassmorphism.
+  - **Charts**: Connected charts to real API data for visualizing user and post activity over time.
+- **Admin UI Overhaul**: Applied "Magic" UI and real data integration to all core admin pages.
+  - **Users**: Enhanced user management with real-time stats and glassmorphic tables.
+  - **Roles**: Upgraded role management with quick tier actions and visual stats.
+  - **Database**: Improved database monitoring with real-time collection stats and connection metrics.
+- **Documentation**: Added comprehensive [Admin Panel Features Guide](docs/ADMIN_PANEL_FEATURES.md) and updated help docs.
+
+### 🧹 Deprecation & Cleanup
+- **Page Relocation**: Moved redundant pages to `src/app/deprecated/` to declutter the active codebase while preserving history.
+  - `src/app/setup` → `src/app/deprecated/setup`
+  - `src/app/settings` → `src/app/deprecated/settings`
+- **Link Updates**: Fixed all broken links resulting from the deprecation.
+  - **Profile Page**: Updated "Preferences" button to scroll to the settings section on the profile page instead of navigating to `/settings`.
+  - **Admin Header**: Removed the deprecated "Settings" link from the user dropdown.
+  - **Unauthorized Page**: Redirects now point to the active `/admin/setup` page.
+  - **Admin Layout**: Unauthenticated admin access now redirects to Home (`/`) instead of the deprecated setup page.
+  - **Unsubscribe Page**: Updated link to point to `/profile` instead of `/settings`.
+
 ## [2025-11-25] - Auth UI Restoration & Admin Access Integration
 
 ### 🚀 Added

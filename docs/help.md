@@ -12,7 +12,8 @@ Welcome to CaptionCraft! This guide covers authentication, email configuration, 
 4. [Deployment Guide](#deployment-guide)
 5. [Environment Variables](#environment-variables)
 6. [Troubleshooting](#troubleshooting)
-7. [Development Tips](#development-tips)
+7. [Admin Panel Features](#admin-panel-features)
+8. [Development Tips](#development-tips)
 
 ---
 
@@ -253,6 +254,21 @@ MongoServerSelectionError
 - Run `npm run lint` to check for issues
 - Verify all imports are correct
 - Check TypeScript errors with `npm run type-check`
+
+---
+
+## 📊 Admin Panel Features
+
+The Admin Panel has been upgraded with advanced analytics and real-time monitoring.
+
+### Key Capabilities
+
+- **Advanced Analytics**: Real-time user growth, content generation trends, and conversion funnels.
+- **User Management**: Enhanced UI for managing users with live activity stats.
+- **Role Management**: Flexible RBAC with visual permission management.
+- **Database Monitoring**: Live health checks and storage usage metrics.
+
+For a detailed guide on all new features, please refer to the [Admin Panel Features Guide](ADMIN_PANEL_FEATURES.md).
 
 ---
 

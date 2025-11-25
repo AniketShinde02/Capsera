@@ -628,3 +628,35 @@ img[loading="lazy"].loaded {
   height: 100%;
   object-fit: cover;
 }
+/* Custom Animations for Magic Showcase & Features */
+@keyframes scan {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes scan-gradient {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes loading-bar {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 90%; }
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
+
+.animate-scan-gradient {
+  animation: scan-gradient 3s linear infinite;
+}
+
+.animate-loading-bar {
+  animation: loading-bar 2s ease-out infinite;
+}

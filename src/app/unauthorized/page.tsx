@@ -39,7 +39,7 @@ export default function UnauthorizedPage() {
   };
 
   const handleLogin = () => {
-    router.push('/setup');
+    router.push('/admin/setup');
   };
 
   if (isLocked) {
@@ -90,7 +90,7 @@ export default function UnauthorizedPage() {
             Security breach attempt logged and reported
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
             <div className="flex items-center space-x-2 mb-2">
@@ -98,7 +98,7 @@ export default function UnauthorizedPage() {
               <span className="font-semibold text-red-800">Security Alert</span>
             </div>
             <p className="text-red-700 text-sm">
-              Multiple unauthorized access attempts detected from your location. 
+              Multiple unauthorized access attempts detected from your location.
               This incident has been logged and reported to system administrators.
             </p>
           </div>
@@ -123,8 +123,8 @@ export default function UnauthorizedPage() {
                 <span className="font-semibold text-blue-800">Legitimate Access?</span>
               </div>
               <p className="text-blue-700 text-sm">
-                If you're a legitimate administrator, please use the proper setup process 
-                at <code className="bg-blue-100 px-1 rounded">/setup</code> with a valid JWT token.
+                If you're a legitimate administrator, please use the proper setup process
+                at <code className="bg-blue-100 px-1 rounded">/admin/setup</code> with a valid JWT token.
               </p>
             </div>
           )}
@@ -153,7 +153,7 @@ export default function UnauthorizedPage() {
               <Home className="w-4 h-4 mr-2" />
               Go to Homepage
             </Button>
-            
+
             <Button
               onClick={handleGoBack}
               variant="outline"
@@ -162,7 +162,7 @@ export default function UnauthorizedPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
             </Button>
-            
+
             <Button
               onClick={handleLogin}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"

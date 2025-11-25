@@ -40,20 +40,20 @@ function UnsubscribeConfirmationContent() {
             Successfully Unsubscribed
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <div className="text-center space-y-4">
             <p className="text-gray-600">
               You have been successfully unsubscribed from promotional emails.
             </p>
-            
+
             {email && (
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-sm text-gray-500">Email address:</p>
                 <p className="font-medium text-gray-900">{email}</p>
               </div>
             )}
-            
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -69,7 +69,7 @@ function UnsubscribeConfirmationContent() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <Mail className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -84,7 +84,7 @@ function UnsubscribeConfirmationContent() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex flex-col space-y-3">
             <Link href="/" className="w-full">
               <Button className="w-full" size="lg">
@@ -92,7 +92,7 @@ function UnsubscribeConfirmationContent() {
                 Return to CaptionCraft
               </Button>
             </Link>
-            
+
             <Link href="/contact" className="w-full">
               <Button variant="outline" className="w-full">
                 <Mail className="h-4 w-4 mr-2" />
@@ -100,11 +100,11 @@ function UnsubscribeConfirmationContent() {
               </Button>
             </Link>
           </div>
-          
+
           <div className="text-center">
             <p className="text-xs text-gray-500">
               Changed your mind? You can re-enable promotional emails in your{' '}
-              <Link href="/settings" className="text-blue-600 hover:underline">
+              <Link href="/profile" className="text-blue-600 hover:underline">
                 account settings
               </Link>
               .

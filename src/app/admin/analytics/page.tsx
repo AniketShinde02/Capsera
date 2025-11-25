@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, TrendingUp, TrendingDown, Activity, Clock, BarChart3, 
+import {
+  Users, TrendingUp, TrendingDown, Activity, Clock, BarChart3,
   Download, RefreshCw, Smartphone, Monitor,
   Globe, Target, MapPin, AlertTriangle, Lightbulb, ArrowUpRight,
   Minus, Play, Pause, Eye, MousePointer, Zap, CheckCircle, Info
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
 
 interface AnalyticsData {
   overview: {
@@ -110,13 +111,13 @@ export default function AdminAnalytics() {
 
   const fetchAnalyticsData = async () => {
     if (isFetching) return;
-    
+
     try {
       setIsFetching(true);
       console.log('📊 Fetching analytics data...');
-      
+
       const response = await fetch(`/api/admin/analytics?timeRange=${selectedTimeRange}`);
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result && result.success && result.data) {
@@ -142,7 +143,7 @@ export default function AdminAnalytics() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (status === 'unauthenticated') {
       router.push('/setup');
       return;
@@ -150,7 +151,7 @@ export default function AdminAnalytics() {
 
     if (session?.user?.id) {
       fetchAnalyticsData();
-      
+
       if (realTimeMode) {
         const interval = setInterval(fetchAnalyticsData, 30000);
         return () => clearInterval(interval);
@@ -237,9 +238,9 @@ export default function AdminAnalytics() {
             </span>
           </p>
         </div>
-        
+
         <div className="flex flex-wrap gap-2 sm:gap-3">
-          <Button 
+          <Button
             onClick={() => setRealTimeMode(!realTimeMode)}
             variant={realTimeMode ? "default" : "outline"}
             className="flex items-center gap-2 h-10 sm:h-9 text-sm"
@@ -249,7 +250,7 @@ export default function AdminAnalytics() {
               {realTimeMode ? 'Live Mode' : 'Paused'}
             </span>
           </Button>
-          
+
           <Select value={selectedTimeRange} onValueChange={(value: any) => setSelectedTimeRange(value)}>
             <SelectTrigger className="w-32 h-10 sm:h-9">
               <SelectValue />
@@ -262,12 +263,12 @@ export default function AdminAnalytics() {
               <SelectItem value="1y">1 Year</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Button onClick={fetchAnalyticsData} variant="outline" className="flex items-center gap-2 h-10 sm:h-9 text-sm">
             <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
-          
+
           <Select onValueChange={(value: any) => handleExport(value)}>
             <SelectTrigger className="w-32 h-10 sm:h-9">
               <SelectValue placeholder="Export" />
@@ -284,13 +285,12 @@ export default function AdminAnalytics() {
 
       {/* Plain Text Notification Display */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
-          notification.type === 'success' 
-            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
-            : notification.type === 'error'
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${notification.type === 'success'
+          ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+          : notification.type === 'error'
             ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
             : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
-        }`}>
+          }`}>
           <div className="flex items-center space-x-2">
             {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
             {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
@@ -300,89 +300,51 @@ export default function AdminAnalytics() {
         </div>
       )}
 
+
+
       {/* Key Metrics Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Total Users</p>
-                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {analyticsData?.overview.totalUsers.toLocaleString() || 0}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  {getGrowthIcon(analyticsData?.overview.userGrowth || 0)}
-                  <span className={`text-sm font-medium ${getGrowthColor(analyticsData?.overview.userGrowth || 0)}`}>
-                    {analyticsData?.overview.userGrowth || 0}%
-                  </span>
-                  <span className="text-xs text-blue-600 dark:text-blue-400">vs last period</span>
-                </div>
-              </div>
-              <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
+        <MagicCard
+          title="Total Users"
+          value={analyticsData?.overview.totalUsers.toLocaleString() || '0'}
+          icon={Users}
+          trend={analyticsData?.overview.userGrowth && analyticsData.overview.userGrowth >= 0 ? 'up' : 'down'}
+          trendValue={`${analyticsData?.overview.userGrowth || 0}%`}
+          description="vs last period"
+          className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10"
+        />
 
-        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 dark:from-green-900/20 dark:to-emerald-900/20 dark:border-green-800">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-800 dark:text-green-300">Active Users</p>
-                <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                  {analyticsData?.overview.activeUsers.toLocaleString() || 0}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                    {analyticsData?.overview.activeUsers && analyticsData?.overview.totalUsers 
-                      ? Math.round((analyticsData.overview.activeUsers / analyticsData.overview.totalUsers) * 100)
-                      : 0}% of total
-                  </span>
-                </div>
-              </div>
-              <Activity className="w-8 h-8 text-green-600 dark:text-green-400" />
-            </div>
-          </CardContent>
-        </Card>
+        <MagicCard
+          title="Active Users"
+          value={analyticsData?.overview.activeUsers.toLocaleString() || '0'}
+          icon={Activity}
+          trend="neutral"
+          trendValue={`${analyticsData?.overview.activeUsers && analyticsData?.overview.totalUsers
+            ? Math.round((analyticsData.overview.activeUsers / analyticsData.overview.totalUsers) * 100)
+            : 0}% of total`}
+          description="Active in last 30 days"
+          className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10"
+        />
 
-        <Card className="bg-gradient-to-r from-purple-50 to-violet-50 border-purple-200 dark:from-purple-900/20 dark:to-violet-900/20 dark:border-purple-800">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-800 dark:text-purple-300">Conversion Rate</p>
-                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                  {analyticsData?.overview.conversionRate || 0}%
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Target className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                    Caption generation
-                  </span>
-                </div>
-              </div>
-              <Target className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-            </div>
-          </CardContent>
-        </Card>
+        <MagicCard
+          title="Conversion Rate"
+          value={`${analyticsData?.overview.conversionRate || 0}%`}
+          icon={Target}
+          trend="up"
+          trendValue="Caption Gen"
+          description="Users who generated captions"
+          className="bg-gradient-to-br from-purple-50/50 to-violet-50/50 dark:from-purple-900/10 dark:to-violet-900/10"
+        />
 
-        <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 dark:from-orange-900/20 dark:to-amber-900/20 dark:border-orange-800">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Avg Session</p>
-                <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                  {analyticsData?.overview.avgSessionDuration || 0}m
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                  <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                    Time spent
-                  </span>
-                </div>
-              </div>
-              <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-            </div>
-          </CardContent>
-        </Card>
+        <MagicCard
+          title="Avg Session"
+          value={`${analyticsData?.overview.avgSessionDuration || 0}m`}
+          icon={Clock}
+          trend="neutral"
+          trendValue="Est."
+          description="Average time spent"
+          className="bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-900/10 dark:to-amber-900/10"
+        />
       </div>
 
       {/* Main Analytics Content */}
@@ -399,72 +361,72 @@ export default function AdminAnalytics() {
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         {/* User Growth Chart */}
-             <Card>
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <TrendingUp className="w-5 h-5" />
-                   User Growth Trends
-                 </CardTitle>
-                 <p className="text-sm text-muted-foreground">
-                   Real-time user growth over {selectedTimeRange}
-                 </p>
-               </CardHeader>
-               <CardContent>
-                 {analyticsData?.realTimeActivity?.chartData && analyticsData.realTimeActivity.chartData.length > 0 ? (
-                   <div className="h-64">
-                     <ResponsiveContainer width="100%" height="100%">
-                       <LineChart data={analyticsData.realTimeActivity.chartData}>
-                         <CartesianGrid strokeDasharray="3 3" />
-                         <XAxis 
-                           dataKey="date" 
-                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                         />
-                         <YAxis />
-                         <Tooltip 
-                           labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                           formatter={(value, name) => [value, name === 'users' ? 'Users' : name === 'posts' ? 'Posts' : 'Images']}
-                         />
-                         <Legend />
-                         <Line 
-                           type="monotone" 
-                           dataKey="users" 
-                           stroke="#3b82f6" 
-                           strokeWidth={2}
-                           dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                           activeDot={{ r: 6 }}
-                         />
-                         <Line 
-                           type="monotone" 
-                           dataKey="posts" 
-                           stroke="#10b981" 
-                           strokeWidth={2}
-                           dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                           activeDot={{ r: 6 }}
-                         />
-                         <Line 
-                           type="monotone" 
-                           dataKey="images" 
-                           stroke="#f59e0b" 
-                           strokeWidth={2}
-                           dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
-                           activeDot={{ r: 6 }}
-                         />
-                       </LineChart>
-                     </ResponsiveContainer>
-                   </div>
-                 ) : (
-                   <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
-                     <div className="text-center text-muted-foreground">
-                       <BarChart3 className="w-12 h-12 mx-auto mb-2" />
-                       <p>Loading chart data...</p>
-                       <p className="text-sm">User growth over {selectedTimeRange}</p>
-                       <p className="text-xs">Growth: {analyticsData?.overview.userGrowth || 0}%</p>
-                     </div>
-                   </div>
-                 )}
-               </CardContent>
-             </Card>
+            {/* User Growth Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  User Growth Trends
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Real-time user growth over {selectedTimeRange}
+                </p>
+              </CardHeader>
+              <CardContent>
+                {analyticsData?.realTimeActivity?.chartData && analyticsData.realTimeActivity.chartData.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={analyticsData.realTimeActivity.chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis />
+                        <Tooltip
+                          labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                          formatter={(value, name) => [value, name === 'users' ? 'Users' : name === 'posts' ? 'Posts' : 'Images']}
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="users"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="posts"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="images"
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 bg-muted/20 rounded-lg flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                      <p>Loading chart data...</p>
+                      <p className="text-sm">User growth over {selectedTimeRange}</p>
+                      <p className="text-xs">Growth: {analyticsData?.overview.userGrowth || 0}%</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Popular Moods */}
             <Card>
@@ -523,70 +485,70 @@ export default function AdminAnalytics() {
         {/* User Behavior Tab */}
         <TabsContent value="behavior" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         {/* Device Usage */}
-             <Card>
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <Smartphone className="w-5 h-5" />
-                   Device Usage
-                 </CardTitle>
-                 <p className="text-sm text-muted-foreground">
-                   Real-time device distribution from user data
-                 </p>
-               </CardHeader>
-               <CardContent>
-                 {analyticsData?.realTimeActivity?.realDeviceUsage && analyticsData.realTimeActivity.realDeviceUsage.length > 0 ? (
-                   <div className="space-y-4">
-                     <div className="h-48">
-                       <ResponsiveContainer width="100%" height="100%">
-                         <PieChart>
-                           <Pie
-                             data={analyticsData.realTimeActivity.realDeviceUsage}
-                             cx="50%"
-                             cy="50%"
-                             labelLine={false}
-                             label={({ device, percentage }) => `${device}: ${percentage}%`}
-                             outerRadius={80}
-                             fill="#8884d8"
-                             dataKey="count"
-                           >
-                             {analyticsData.realTimeActivity.realDeviceUsage.map((entry, index) => (
-                               <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][index % 5]} />
-                             ))}
-                           </Pie>
-                           <Tooltip formatter={(value, name) => [value, 'Users']} />
-                         </PieChart>
-                       </ResponsiveContainer>
-                     </div>
-                     <div className="space-y-2">
-                       {analyticsData.realTimeActivity.realDeviceUsage.map((device) => (
-                         <div key={device.device} className="flex items-center justify-between">
-                           <div className="flex items-center gap-3">
-                             {device.device.toLowerCase().includes('mobile') && <Smartphone className="w-4 h-4" />}
-                             {device.device.toLowerCase().includes('desktop') && <Monitor className="w-4 h-4" />}
-                             {device.device.toLowerCase().includes('tablet') && <Smartphone className="w-4 h-4" />}
-                             <span className="font-medium">{device.device}</span>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             <span className="text-sm font-medium">{device.count}</span>
-                             <span className="text-xs text-muted-foreground">({device.percentage}%)</span>
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 ) : (
-                   <div className="space-y-4">
-                     <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
-                       <div className="text-center text-muted-foreground">
-                         <Smartphone className="w-8 h-8 mx-auto mb-2" />
-                         <p>No device data available</p>
-                       </div>
-                     </div>
-                   </div>
-                 )}
-               </CardContent>
-             </Card>
+            {/* Device Usage */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="w-5 h-5" />
+                  Device Usage
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Real-time device distribution from user data
+                </p>
+              </CardHeader>
+              <CardContent>
+                {analyticsData?.realTimeActivity?.realDeviceUsage && analyticsData.realTimeActivity.realDeviceUsage.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analyticsData.realTimeActivity.realDeviceUsage}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ device, percentage }) => `${device}: ${percentage}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="count"
+                          >
+                            {analyticsData.realTimeActivity.realDeviceUsage.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][index % 5]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value, name) => [value, 'Users']} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-2">
+                      {analyticsData.realTimeActivity.realDeviceUsage.map((device) => (
+                        <div key={device.device} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {device.device.toLowerCase().includes('mobile') && <Smartphone className="w-4 h-4" />}
+                            {device.device.toLowerCase().includes('desktop') && <Monitor className="w-4 h-4" />}
+                            {device.device.toLowerCase().includes('tablet') && <Smartphone className="w-4 h-4" />}
+                            <span className="font-medium">{device.device}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{device.count}</span>
+                            <span className="text-xs text-muted-foreground">({device.percentage}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <Smartphone className="w-8 h-8 mx-auto mb-2" />
+                        <p>No device data available</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Time Spent by Mood */}
             <Card>
@@ -648,105 +610,105 @@ export default function AdminAnalytics() {
         {/* Traffic Tab */}
         <TabsContent value="traffic" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         {/* Traffic Sources */}
-             <Card>
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <Globe className="w-5 h-5" />
-                   Traffic Sources
-                 </CardTitle>
-                 <p className="text-sm text-muted-foreground">
-                   Real-time traffic source distribution
-                 </p>
-               </CardHeader>
-               <CardContent>
-                 {analyticsData?.realTimeActivity?.realTrafficSources && analyticsData.realTimeActivity.realTrafficSources.length > 0 ? (
-                   <div className="space-y-4">
-                     <div className="h-48">
-                       <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={analyticsData.realTimeActivity.realTrafficSources}>
-                           <CartesianGrid strokeDasharray="3 3" />
-                           <XAxis dataKey="source" />
-                           <YAxis />
-                           <Tooltip formatter={(value, name) => [value, 'Users']} />
-                           <Bar dataKey="users" fill="#3b82f6" />
-                         </BarChart>
-                       </ResponsiveContainer>
-                     </div>
-                     <div className="space-y-3">
-                       {analyticsData.realTimeActivity.realTrafficSources.map((source) => (
-                         <div key={source.source} className="flex items-center justify-between">
-                           <span className="font-medium">{source.source}</span>
-                           <div className="flex items-center gap-2">
-                             <span className="text-sm font-medium">{source.users}</span>
-                             <span className="text-xs text-muted-foreground">({source.percentage}%)</span>
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 ) : (
-                   <div className="space-y-3">
-                     <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
-                       <div className="text-center text-muted-foreground">
-                         <Globe className="w-8 h-8 mx-auto mb-2" />
-                         <p>No traffic data available</p>
-                       </div>
-                     </div>
-                   </div>
-                 )}
-               </CardContent>
-             </Card>
+            {/* Traffic Sources */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="w-5 h-5" />
+                  Traffic Sources
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Real-time traffic source distribution
+                </p>
+              </CardHeader>
+              <CardContent>
+                {analyticsData?.realTimeActivity?.realTrafficSources && analyticsData.realTimeActivity.realTrafficSources.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.realTimeActivity.realTrafficSources}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="source" />
+                          <YAxis />
+                          <Tooltip formatter={(value, name) => [value, 'Users']} />
+                          <Bar dataKey="users" fill="#3b82f6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-3">
+                      {analyticsData.realTimeActivity.realTrafficSources.map((source) => (
+                        <div key={source.source} className="flex items-center justify-between">
+                          <span className="font-medium">{source.source}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{source.users}</span>
+                            <span className="text-xs text-muted-foreground">({source.percentage}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <Globe className="w-8 h-8 mx-auto mb-2" />
+                        <p>No traffic data available</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-                         {/* Regional Distribution */}
-             <Card>
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <MapPin className="w-5 h-5" />
-                   Regional Distribution
-                 </CardTitle>
-                 <p className="text-sm text-muted-foreground">
-                   Real-time user distribution by region
-                 </p>
-               </CardHeader>
-               <CardContent>
-                 {analyticsData?.realTimeActivity?.realRegions && analyticsData.realTimeActivity.realRegions.length > 0 ? (
-                   <div className="space-y-4">
-                     <div className="h-48">
-                       <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={analyticsData.realTimeActivity.realRegions}>
-                           <CartesianGrid strokeDasharray="3 3" />
-                           <XAxis dataKey="region" />
-                           <YAxis />
-                           <Tooltip formatter={(value, name) => [value, 'Users']} />
-                           <Bar dataKey="users" fill="#10b981" />
-                         </BarChart>
-                       </ResponsiveContainer>
-                     </div>
-                     <div className="space-y-3">
-                       {analyticsData.realTimeActivity.realRegions.map((region) => (
-                         <div key={region.region} className="flex items-center justify-between">
-                           <span className="font-medium">{region.region}</span>
-                           <div className="flex items-center gap-2">
-                             <span className="text-sm font-medium">{region.users}</span>
-                             <span className="text-xs text-muted-foreground">({region.percentage}%)</span>
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 ) : (
-                   <div className="space-y-3">
-                     <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
-                       <div className="text-center text-muted-foreground">
-                         <MapPin className="w-8 h-8 mx-auto mb-2" />
-                         <p>No regional data available</p>
-                       </div>
-                     </div>
-                   </div>
-                 )}
-               </CardContent>
-             </Card>
+            {/* Regional Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Regional Distribution
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Real-time user distribution by region
+                </p>
+              </CardHeader>
+              <CardContent>
+                {analyticsData?.realTimeActivity?.realRegions && analyticsData.realTimeActivity.realRegions.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.realTimeActivity.realRegions}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="region" />
+                          <YAxis />
+                          <Tooltip formatter={(value, name) => [value, 'Users']} />
+                          <Bar dataKey="users" fill="#10b981" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-3">
+                      {analyticsData.realTimeActivity.realRegions.map((region) => (
+                        <div key={region.region} className="flex items-center justify-between">
+                          <span className="font-medium">{region.region}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{region.users}</span>
+                            <span className="text-xs text-muted-foreground">({region.percentage}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <MapPin className="w-8 h-8 mx-auto mb-2" />
+                        <p>No regional data available</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -867,11 +829,10 @@ export default function AdminAnalytics() {
               <CardContent>
                 <div className="space-y-3">
                   {analyticsData.insights.alerts.map((alert, index) => (
-                    <div key={index} className={`p-3 rounded-lg border-l-4 ${
-                      alert.severity === 'high' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' :
+                    <div key={index} className={`p-3 rounded-lg border-l-4 ${alert.severity === 'high' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' :
                       alert.severity === 'medium' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' :
-                      'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    }`}>
+                        'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      }`}>
                       <div className="flex items-start justify-between">
                         <div>
                           <h4 className="font-medium">{alert.type}</h4>
@@ -879,7 +840,7 @@ export default function AdminAnalytics() {
                         </div>
                         <Badge variant={
                           alert.severity === 'high' ? 'destructive' :
-                          alert.severity === 'medium' ? 'default' : 'secondary'
+                            alert.severity === 'medium' ? 'default' : 'secondary'
                         }>
                           {alert.severity}
                         </Badge>

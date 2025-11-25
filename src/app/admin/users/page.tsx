@@ -8,16 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  Shield, 
-  UserCheck, 
+import {
+  Users,
+  Search,
+  Filter,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  Shield,
+  UserCheck,
   UserX,
   Mail,
   Phone,
@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
 
 interface User {
   _id: string;
@@ -83,7 +84,7 @@ export default function UsersPage() {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 2000); // 2 second timeout
   };
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(20);
@@ -144,7 +145,7 @@ export default function UsersPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showNotification("Export Successful", "success");
       } else {
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -156,7 +157,7 @@ export default function UsersPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showNotification("Export Successful", "success");
       }
     } catch (error) {
@@ -170,10 +171,10 @@ export default function UsersPage() {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        
+
         // Real API call to get users from database
         const response = await fetch('/api/admin/users');
-        
+
         if (response.ok) {
           const data = await response.json();
           setUsers(data.users || []);
@@ -215,7 +216,7 @@ export default function UsersPage() {
 
     try {
       console.log('🔄 Creating user with data:', createFormData);
-      
+
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
@@ -225,7 +226,7 @@ export default function UsersPage() {
       });
 
       console.log('📊 Create user response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ User created successfully:', data);
@@ -233,7 +234,7 @@ export default function UsersPage() {
         setShowCreateModal(false);
         setCreateFormData({ email: '', username: '', password: '', role: 'user', isAdmin: false });
         showNotification("User created successfully", "success");
-        
+
         // Refresh users list to get updated data
         const refreshResponse = await fetch('/api/admin/users');
         if (refreshResponse.ok) {
@@ -266,7 +267,7 @@ export default function UsersPage() {
 
     try {
       console.log('🔄 Updating user:', editingUser._id, 'with data:', editFormData);
-      
+
       const response = await fetch(`/api/admin/users/${editingUser._id}`, {
         method: 'PATCH',
         headers: {
@@ -280,15 +281,15 @@ export default function UsersPage() {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ User updated successfully:', data);
-        
+
         // Update user in local state - handle schema differences
-        setUsers(users.map(u => 
-          u._id === editingUser._id ? { 
-            ...u, 
+        setUsers(users.map(u =>
+          u._id === editingUser._id ? {
+            ...u,
             username: editFormData.username,
-            role: { 
-              name: editFormData.role, 
-              displayName: editFormData.role 
+            role: {
+              name: editFormData.role,
+              displayName: editFormData.role
             },
             isActive: editFormData.isActive,
             status: editFormData.isActive ? 'active' : 'suspended' // Update status field too
@@ -297,7 +298,7 @@ export default function UsersPage() {
         setShowEditModal(false);
         setEditingUser(null);
         showNotification("User updated successfully", "success");
-        
+
         // Refresh users list to get updated data
         const refreshResponse = await fetch('/api/admin/users');
         if (refreshResponse.ok) {
@@ -319,21 +320,21 @@ export default function UsersPage() {
     if (confirm(`Are you sure you want to delete user: ${user.email}?`)) {
       try {
         console.log('🔄 Deleting user:', user._id);
-        
+
         const response = await fetch(`/api/admin/users/${user._id}`, {
           method: 'DELETE'
         });
-        
+
         console.log('📊 Delete user response status:', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('✅ User deleted successfully:', data);
-          
+
           // Remove user from local state
           setUsers(users.filter(u => u._id !== user._id));
           showNotification("User deleted successfully", "success");
-          
+
           // Refresh users list to get updated data
           const refreshResponse = await fetch('/api/admin/users');
           if (refreshResponse.ok) {
@@ -360,7 +361,7 @@ export default function UsersPage() {
   const handleToggleUserStatus = async (user: User) => {
     try {
       console.log('🔄 Toggling user status:', user._id, 'from', user.isActive, 'to', !user.isActive);
-      
+
       const response = await fetch(`/api/admin/users/${user._id}`, {
         method: 'PATCH',
         headers: {
@@ -370,23 +371,23 @@ export default function UsersPage() {
           isActive: !user.isActive
         })
       });
-      
+
       console.log('📊 Toggle status response:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ User status updated successfully:', data);
-        
+
         // Update user status in local state - handle schema differences
-        setUsers(users.map(u => 
-          u._id === user._id ? { 
-            ...u, 
+        setUsers(users.map(u =>
+          u._id === user._id ? {
+            ...u,
             isActive: !u.isActive,
             status: !u.isActive ? 'active' : 'suspended' // Update status field too
           } : u
         ));
         showNotification(`User ${user.isActive ? 'deactivated' : 'activated'} successfully`, "success");
-        
+
         // Refresh users list to get updated data
         const refreshResponse = await fetch('/api/admin/users');
         if (refreshResponse.ok) {
@@ -406,7 +407,7 @@ export default function UsersPage() {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (user.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+      (user.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesRole = roleFilter === 'all' || user.role?.name === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -483,16 +484,16 @@ export default function UsersPage() {
           <p className="text-muted-foreground text-sm sm:text-base">Manage user accounts and permissions</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => exportUserData('csv')} 
+          <Button
+            variant="outline"
+            onClick={() => exportUserData('csv')}
             className="h-10 sm:h-9 text-sm"
           >
             📊 Export CSV
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => exportUserData('json')} 
+          <Button
+            variant="outline"
+            onClick={() => exportUserData('json')}
             className="h-10 sm:h-9 text-sm"
           >
             📈 Export JSON
@@ -507,13 +508,12 @@ export default function UsersPage() {
 
       {/* Plain Text Notification Display */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
-          notification.type === 'success' 
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${notification.type === 'success'
             ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
             : notification.type === 'error'
-            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
-            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
-        }`}>
+              ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
+              : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+          }`}>
           <div className="flex items-center space-x-2">
             {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
             {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
@@ -524,54 +524,46 @@ export default function UsersPage() {
       )}
 
       {/* Stats Cards - Mobile First */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Users</p>
-                <p className="text-lg sm:text-2xl font-bold">{users.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Admins</p>
-                <p className="text-lg sm:text-2xl font-bold">{users.filter(u => u.role?.name === 'admin').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Active Today</p>
-                <p className="text-lg sm:text-2xl font-bold">{users.filter(u => u.lastLogin && new Date(u.lastLogin).toDateString() === new Date().toDateString()).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center space-x-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">New This Week</p>
-                <p className="text-lg sm:text-2xl font-bold">{users.filter(u => new Date(u.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MagicCard
+          title="Total Users"
+          value={users.length.toString()}
+          icon={Users}
+          trend="neutral"
+          trendValue="Total"
+          description="All registered users"
+          className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10"
+        />
+
+        <MagicCard
+          title="Admins"
+          value={users.filter(u => u.role?.name === 'admin').length.toString()}
+          icon={Shield}
+          trend="neutral"
+          trendValue="System"
+          description="Administrative accounts"
+          className="bg-gradient-to-br from-purple-50/50 to-violet-50/50 dark:from-purple-900/10 dark:to-violet-900/10"
+        />
+
+        <MagicCard
+          title="Active Today"
+          value={users.filter(u => u.lastLogin && new Date(u.lastLogin).toDateString() === new Date().toDateString()).length.toString()}
+          icon={Activity}
+          trend="up"
+          trendValue="Live"
+          description="Users active today"
+          className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10"
+        />
+
+        <MagicCard
+          title="New This Week"
+          value={users.filter(u => new Date(u.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length.toString()}
+          icon={UserCheck}
+          trend="up"
+          trendValue="Growth"
+          description="Joined in last 7 days"
+          className="bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-900/10 dark:to-amber-900/10"
+        />
       </div>
 
       {/* Filters and Search - Mobile First */}
@@ -589,7 +581,7 @@ export default function UsersPage() {
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <select
                 value={roleFilter}
@@ -601,7 +593,7 @@ export default function UsersPage() {
                 <option value="moderator">Moderator</option>
                 <option value="user">User</option>
               </select>
-              
+
               <Button variant="outline" size="sm" className="h-10 sm:h-9 text-sm">
                 <Filter className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">More Filters</span>
@@ -613,7 +605,7 @@ export default function UsersPage() {
       </Card>
 
       {/* Users Table - Mobile First */}
-      <Card>
+      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-base sm:text-lg">Users ({filteredUsers.length})</CardTitle>
         </CardHeader>
@@ -657,36 +649,36 @@ export default function UsersPage() {
                     </td>
                     <td className="py-3 px-2 sm:px-4 text-right">
                       <div className="flex items-center justify-end gap-1 sm:gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleViewUser(user)}
                           title="View user details"
                           className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         >
                           <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleEditUser(user)}
                           title="Edit user"
                           className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         >
                           <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleToggleUserStatus(user)}
                           title={user.isActive ? 'Deactivate user' : 'Activate user'}
                           className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         >
                           <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDeleteUser(user)}
                           title="Delete user"
                           className="h-8 w-8 sm:h-9 sm:w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -700,7 +692,7 @@ export default function UsersPage() {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
@@ -835,7 +827,7 @@ export default function UsersPage() {
                 type="email"
                 value={createFormData.email}
                 onChange={(e) => setCreateFormData(prev => ({ ...prev, email: e.target.value }))}
-                                    placeholder="User Email"
+                placeholder="User Email"
                 className="mt-1"
               />
             </div>

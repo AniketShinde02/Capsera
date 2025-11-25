@@ -59,13 +59,13 @@ export default function ProfilePage() {
     const [inlineMessage, setInlineMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
     const [userData, setUserData] = useState<any>(null);
     const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-    
+
     // Pagination state for captions
     const [currentPage, setCurrentPage] = useState(1);
     const [isMobile, setIsMobile] = useState(false);
     const captionsPerPage = 3; // 3 captions per row for desktop (3x1)
     const mobileCaptionsPerPage = 2; // 2 captions for mobile
-    
+
     const profileImageInputRef = useRef<HTMLInputElement>(null);
 
     // Check if user is admin
@@ -76,12 +76,12 @@ export default function ProfilePage() {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 1024);
         };
-        
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
-    
+
     // Restore profile image from localStorage on mount
     useEffect(() => {
         if (!profileImage && !imageUrl) {
@@ -102,16 +102,16 @@ export default function ProfilePage() {
                         fetch('/api/posts', { credentials: 'include' }),
                         fetch('/api/user', { credentials: 'include' }),
                     ]);
-                    
+
                     if (postsRes.ok) {
                         const p = await postsRes.json();
                         setPosts(p.data || []);
-                        
+
                         if (p.data && Array.isArray(p.data)) {
                             const moodCounts: { [key: string]: number } = {};
                             let totalLength = 0;
                             let imageCount = 0;
-                            
+
                             p.data.forEach((post: IPost) => {
                                 const mood = post.mood || 'None';
                                 moodCounts[mood] = (moodCounts[mood] || 0) + 1;
@@ -122,11 +122,11 @@ export default function ProfilePage() {
                                     imageCount++;
                                 }
                             });
-                            
-                            const mostUsedMood = Object.keys(moodCounts).length > 0 
-                                ? Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b) 
+
+                            const mostUsedMood = Object.keys(moodCounts).length > 0
+                                ? Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b)
                                 : 'None';
-                            
+
                             setStats({
                                 captionsGenerated: p.data.length,
                                 totalImages: imageCount,
@@ -135,7 +135,7 @@ export default function ProfilePage() {
                             });
                         }
                     }
-                    
+
                     if (userRes.ok) {
                         const userData = await userRes.json();
                         console.log('📊 User data received:', {
@@ -152,10 +152,10 @@ export default function ProfilePage() {
                         const sessionImage = sessionData?.user?.image;
                         const dbImage = userData.data.image;
                         const finalImage = sessionImage || dbImage;
-                        
+
                         setImageUrl(finalImage || '');
                         setProfileImage(finalImage || '');
-                        
+
                         // If no image from session/database, try localStorage
                         if (!finalImage) {
                             const localImage = localStorage.getItem('profileImage');
@@ -172,7 +172,7 @@ export default function ProfilePage() {
                 }
             }
         };
-        
+
         fetchData();
     }, [sessionData?.user?.id]);
 
@@ -205,7 +205,7 @@ export default function ProfilePage() {
     const userEmail = sessionData?.user?.email || 'user@example.com';
     const fallbackName = userEmail ? userEmail.split('@')[0] : 'User';
     const displayName = username || fallbackName;
-    
+
     // Get real user creation date with proper formatting
     const getJoinedDate = () => {
         // Try userData.createdAt first (from database)
@@ -216,20 +216,20 @@ export default function ProfilePage() {
                 console.error('Error formatting userData.createdAt:', error);
             }
         }
-        
+
         // Try sessionData.user.createdAt as fallback      
         if ((sessionData?.user as any)?.createdAt) {
             try {
-                return format(new Date((sessionData.user as any).createdAt), 'MMM yyyy');                                              
+                return format(new Date((sessionData.user as any).createdAt), 'MMM yyyy');
             } catch (error) {
                 console.error('Error formatting sessionData.createdAt:', error);
             }
         }
-        
+
         // Final fallback: show current month/year
         return format(new Date(), 'MMM yyyy');
     };
-    
+
     const userJoined = getJoinedDate();
 
     // Profile functions
@@ -237,14 +237,14 @@ export default function ProfilePage() {
         setSavingProfile(true);
         setProfileError('');
         setProfileSuccess('');
-        
+
         try {
             const response = await fetch('/api/user', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, title, bio, image: imageUrl })
             });
-            
+
             if (!response.ok) {
                 let errorMessage = 'Failed to update profile.';
                 try {
@@ -278,55 +278,55 @@ export default function ProfilePage() {
                 setImageUrl(u.data.image || '');
                 setProfileImage(u.data.image || '');
             }
-                    } catch (err) {
-                // Error handled silently for production
-            }
+        } catch (err) {
+            // Error handled silently for production
+        }
     };
 
     const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        
+
         if (!file.type.startsWith('image/')) {
             setInlineMessage({ type: 'error', message: 'Please select an image file.' });
             return;
         }
-        
+
         if (file.size > 5 * 1024 * 1024) {
             setInlineMessage({ type: 'error', message: 'Please select an image smaller than 5MB.' });
             return;
         }
-        
+
         setUploadingImage(true);
         try {
             const formData = new FormData();
             formData.append('file', file);
-            
+
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
             const uploadData = await uploadRes.json();
-            
+
             if (!uploadRes.ok) {
                 throw new Error(uploadData.message || 'Upload failed');
             }
-            
+
             const imageUrl = uploadData.url;
             const updateRes = await fetch('/api/user/profile-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ imageUrl }),
             });
-            
+
             const updateData = await updateRes.json();
             if (!updateRes.ok) {
                 throw new Error(updateData.message || 'Failed to update profile image');
             }
-            
+
             setProfileImage(imageUrl);
             setImageUrl(imageUrl);
-            
+
             // Store in localStorage as backup for session persistence
             localStorage.setItem('profileImage', imageUrl);
-            
+
             setInlineMessage({ type: 'success', message: 'Your profile image has been successfully updated.' });
         } catch (error) {
             setInlineMessage({ type: 'error', message: 'Failed to update profile image. Please try again.' });
@@ -346,10 +346,10 @@ export default function ProfilePage() {
             }
             setProfileImage('');
             setImageUrl('');
-            
+
             // Remove from localStorage
             localStorage.removeItem('profileImage');
-            
+
             setInlineMessage({ type: 'success', message: 'Your profile image has been removed.' });
         } catch (error) {
             setInlineMessage({ type: 'error', message: 'Failed to remove profile image. Please try again.' });
@@ -361,15 +361,15 @@ export default function ProfilePage() {
         if (!confirm('Are you sure you want to delete this caption? This action cannot be undone.')) {
             return;
         }
-        
+
         setIsDeleting(postId);
-        
+
         try {
             const response = await fetch(`/api/posts/${postId}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' }
             });
-            
+
             if (response.ok) {
                 // Remove from local state
                 setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
@@ -407,7 +407,7 @@ export default function ProfilePage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
             <div className="container mx-auto px-1 sm:px-3 py-4 sm:py-6 lg:py-8">
                 <div className="max-w-6xl mx-auto">
-                    
+
                     {/* Enhanced Header Section - Mobile Optimized */}
                     <div className="mb-6 sm:mb-8 lg:mb-12">
                         {/* Welcome Header - Stack on Mobile */}
@@ -417,8 +417,8 @@ export default function ProfilePage() {
                                 <div className="relative">
                                     <Avatar className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 xl:w-28 xl:h-28 border-4 border-white dark:border-slate-800 shadow-2xl ring-4 ring-indigo-100 dark:ring-indigo-900/30">
                                         {profileImage ? (
-                                            <AvatarImage 
-                                                src={profileImage} 
+                                            <AvatarImage
+                                                src={profileImage}
                                                 alt={`${displayName}'s avatar`}
                                                 className="object-cover"
                                             />
@@ -428,21 +428,21 @@ export default function ProfilePage() {
                                             </AvatarFallback>
                                         )}
                                     </Avatar>
-                                    
+
                                     {/* Admin Crown Badge */}
                                     {isAdmin && (
                                         <div className="absolute -top-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center shadow-lg">
                                             <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                                         </div>
                                     )}
-                                    
+
                                     {/* Online Status Indicator */}
                                     <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 bg-green-500 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center">
                                         <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 lg:w-2.5 lg:h-2.5 bg-white rounded-full"></div>
                                     </div>
-                                    
+
                                     {/* Upload Overlay */}
-                                    <div 
+                                    <div
                                         className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-300 bg-black/60 rounded-full cursor-pointer group"
                                         onClick={() => profileImageInputRef.current?.click()}
                                     >
@@ -452,7 +452,7 @@ export default function ProfilePage() {
                                             <Edit className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white group-hover:scale-110 transition-transform duration-200" />
                                         )}
                                     </div>
-                                    
+
                                     {/* Hidden file input */}
                                     <input
                                         ref={profileImageInputRef}
@@ -462,7 +462,7 @@ export default function ProfilePage() {
                                         className="hidden"
                                     />
                                 </div>
-                                
+
                                 {/* User Info - Centered on Mobile */}
                                 <div className="text-center sm:text-left space-y-2">
                                     <div className="space-y-1">
@@ -473,13 +473,13 @@ export default function ProfilePage() {
                                             {isAdmin ? 'Admin Dashboard' : 'Welcome back!'}
                                         </h2>
                                     </div>
-                                    
+
                                     {title && (
                                         <p className="text-base sm:text-lg text-indigo-600 dark:text-indigo-400 font-medium">
                                             {title}
                                         </p>
                                     )}
-                                    
+
                                     {/* Badges - Stack on Mobile */}
                                     <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                                         <span className="flex items-center gap-1.5 sm:gap-2 bg-gray-100 dark:bg-slate-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full">
@@ -496,10 +496,10 @@ export default function ProfilePage() {
                                                 Admin
                                             </span>
                                         )}
-                                        
+
                                         {/* Admin Dashboard Button */}
                                         {isAdmin && (
-                                            <Link 
+                                            <Link
                                                 href="/admin/dashboard"
                                                 className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/40 dark:to-blue-900/40 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-purple-700 dark:text-purple-300 hover:from-purple-200 hover:to-blue-200 dark:hover:from-purple-800/60 dark:hover:to-blue-800/60 transition-all duration-200 cursor-pointer"
                                             >
@@ -510,7 +510,7 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                             </div>
-                            
+
                         </div>
 
                         {/* Quick Actions Bar - 2x2 Grid Layout - Mobile Only */}
@@ -527,13 +527,13 @@ export default function ProfilePage() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.location.href = '/settings'}
+                                onClick={() => document.getElementById('profile-settings')?.scrollIntoView({ behavior: 'smooth' })}
                                 className="border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
                             >
                                 <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
                                 Preferences
                             </Button>
-                            
+
                             {/* Admin Dashboard Button - Mobile */}
                             {isAdmin && (
                                 <Button
@@ -546,20 +546,20 @@ export default function ProfilePage() {
                                     Admin Panel
                                 </Button>
                             )}
-                            
+
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={async () => {
-                                  try {
-                                    // Double-tap logout: NextAuth + hard-clear + redirect
-                                    await signOut({ redirect: false });
-                                    await fetch("/logout", { method: "POST" }).catch(() => {});
-                                    window.location.replace("/");
-                                  } catch (error) {
-                                    console.error('Logout error:', error);
-                                    window.location.replace("/");
-                                  }
+                                    try {
+                                        // Double-tap logout: NextAuth + hard-clear + redirect
+                                        await signOut({ redirect: false });
+                                        await fetch("/logout", { method: "POST" }).catch(() => { });
+                                        window.location.replace("/");
+                                    } catch (error) {
+                                        console.error('Logout error:', error);
+                                        window.location.replace("/");
+                                    }
                                 }}
                                 className="border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
                             >
@@ -580,10 +580,10 @@ export default function ProfilePage() {
                                             <User className="w-4 h-4" />
                                             Account
                                         </button>
-                                        
+
                                         {/* Admin Dashboard Navigation */}
                                         {isAdmin && (
-                                            <Link 
+                                            <Link
                                                 href="/admin/dashboard"
                                                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
                                             >
@@ -591,15 +591,15 @@ export default function ProfilePage() {
                                                 Admin Dashboard
                                             </Link>
                                         )}
-                                        <button 
+                                        <button
                                             onClick={() => document.getElementById('recent-captions')?.scrollIntoView({ behavior: 'smooth' })}
                                             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
                                         >
                                             <Clock className="w-4 h-4" />
                                             Caption History
                                         </button>
-                                        <button 
-                                            onClick={() => window.location.href = '/settings'}
+                                        <button
+                                            onClick={() => document.getElementById('profile-settings')?.scrollIntoView({ behavior: 'smooth' })}
                                             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
                                         >
                                             <Settings className="w-4 h-4" />
@@ -609,20 +609,20 @@ export default function ProfilePage() {
                                             <Bell className="w-4 h-4" />
                                             Notifications
                                         </Link>
-                                        
+
                                         {/* Desktop Action Buttons */}
                                         <div className="pt-2 space-y-2">
-                                            <button 
+                                            <button
                                                 onClick={async () => {
-                                                  try {
-                                                    // Double-tap logout: NextAuth + hard-clear + redirect
-                                                    await signOut({ redirect: false });
-                                                    await fetch("/logout", { method: "POST" }).catch(() => {});
-                                                    window.location.replace("/");
-                                                  } catch (error) {
-                                                    console.error('Logout error:', error);
-                                                    window.location.replace("/");
-                                                  }
+                                                    try {
+                                                        // Double-tap logout: NextAuth + hard-clear + redirect
+                                                        await signOut({ redirect: false });
+                                                        await fetch("/logout", { method: "POST" }).catch(() => { });
+                                                        window.location.replace("/");
+                                                    } catch (error) {
+                                                        console.error('Logout error:', error);
+                                                        window.location.replace("/");
+                                                    }
                                                 }}
                                                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                                             >
@@ -631,13 +631,13 @@ export default function ProfilePage() {
                                             </button>
                                         </div>
                                     </nav>
-                                    
+
                                     {/* Profile Image Actions */}
                                     <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
                                         <div className="flex gap-2 justify-center">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
                                                 onClick={() => profileImageInputRef.current?.click()}
                                                 disabled={uploadingImage}
                                                 className="text-xs border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300"
@@ -655,9 +655,9 @@ export default function ProfilePage() {
                                                 )}
                                             </Button>
                                             {profileImage && (
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
                                                     onClick={removeProfileImage}
                                                     className="text-xs border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 text-red-700 dark:text-red-300"
                                                 >
@@ -673,9 +673,9 @@ export default function ProfilePage() {
 
                         {/* Main Content - Full Width on Mobile */}
                         <div className="lg:col-span-3 order-1 lg:order-2 space-y-4 sm:space-y-6 w-full">
-                            
+
                             {/* Profile Settings */}
-                            <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm w-[90%] mx-auto lg:w-full">
+                            <Card id="profile-settings" className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm w-[90%] mx-auto lg:w-full">
                                 <CardContent className="p-4 sm:p-6">
                                     <div className="flex items-center gap-3 mb-4 sm:mb-6">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -683,7 +683,7 @@ export default function ProfilePage() {
                                         </div>
                                         <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Profile Settings</h3>
                                     </div>
-                                    
+
                                     <div className="grid gap-3 sm:gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
@@ -713,16 +713,16 @@ export default function ProfilePage() {
                                                 className="border-gray-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
                                             />
                                         </div>
-                                        
+
                                         {profileError && (
                                             <p className="text-red-600 dark:text-red-400 text-sm">{profileError}</p>
                                         )}
                                         {profileSuccess && (
                                             <p className="text-green-600 dark:text-green-400 text-sm">{profileSuccess}</p>
                                         )}
-                                        
+
                                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                                            <Button 
+                                            <Button
                                                 onClick={handleSaveProfile}
                                                 disabled={savingProfile}
                                                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-6 py-2 rounded-xl text-sm sm:text-base"
@@ -736,8 +736,8 @@ export default function ProfilePage() {
                                                     'Save Changes'
                                                 )}
                                             </Button>
-                                            <Button 
-                                                variant="outline" 
+                                            <Button
+                                                variant="outline"
                                                 onClick={handleCancel}
                                                 className="border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-2 rounded-xl text-sm sm:text-base"
                                             >
@@ -759,7 +759,7 @@ export default function ProfilePage() {
                                         <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Captions</p>
                                     </CardContent>
                                 </Card>
-                                
+
                                 <Card className="bg-gradient-to-br from-indigo-400 to-indigo-500 dark:from-indigo-500 dark:to-indigo-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
@@ -769,7 +769,7 @@ export default function ProfilePage() {
                                         <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Images</p>
                                     </CardContent>
                                 </Card>
-                                
+
                                 <Card className="bg-gradient-to-br from-indigo-300 to-indigo-400 dark:from-indigo-400 dark:to-indigo-500 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
@@ -779,7 +779,7 @@ export default function ProfilePage() {
                                         <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Mood</p>
                                     </CardContent>
                                 </Card>
-                                
+
                                 <Card className="bg-gradient-to-br from-indigo-200 to-indigo-300 dark:from-indigo-300 dark:to-indigo-400 text-indigo-900 dark:text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
                                     <CardContent className="p-3 sm:p-4 text-center">
                                         <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-indigo-600/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
@@ -833,7 +833,7 @@ export default function ProfilePage() {
                                 ) : posts.length === 0 ? (
                                     <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm">
                                         <CardContent className="p-12 text-center">
-                                                                                         <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                                                 <MessageSquare className="w-8 h-8 text-gray-400" />
                                             </div>
                                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Captions Yet</h3>
@@ -847,8 +847,8 @@ export default function ProfilePage() {
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
                                         {displayedCaptions.map((post, index) => (
-                                            <Card 
-                                                key={post._id} 
+                                            <Card
+                                                key={post._id}
                                                 className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden"
                                             >
                                                 <CardContent className="p-0">
@@ -860,9 +860,9 @@ export default function ProfilePage() {
                                                                     src={post.image}
                                                                     alt="Generated caption image"
                                                                     className="w-full h-full object-contain bg-gray-50 dark:bg-gray-800 group-hover:scale-105 transition-transform duration-300"
-                                                                    style={{ 
-                                                                        opacity: 1, 
-                                                                        display: 'block', 
+                                                                    style={{
+                                                                        opacity: 1,
+                                                                        display: 'block',
                                                                         visibility: 'visible',
                                                                         maxWidth: '100%',
                                                                         maxHeight: '100%'
@@ -896,31 +896,31 @@ export default function ProfilePage() {
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                                    
-                                                                    {/* Floating Mood Badge - Smaller on Mobile */}
-                                                                        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3 z-60">
-                                                                            <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                                {post.mood || 'Unknown'}
-                                                                            </Badge>
-                                                                        </div>
-                                                                        {/* Floating Date Badge - Smaller on Mobile */}
-                                                                        <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3 z-60">
-                                                                            <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                                {format(new Date(post.createdAt), 'MMM dd')}
-                                                                            </Badge>
-                                                                        </div>
+
+                                                            {/* Floating Mood Badge - Smaller on Mobile */}
+                                                            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3 z-60">
+                                                                <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
+                                                                    {post.mood || 'Unknown'}
+                                                                </Badge>
+                                                            </div>
+                                                            {/* Floating Date Badge - Smaller on Mobile */}
+                                                            <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3 z-60">
+                                                                <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
+                                                                    {format(new Date(post.createdAt), 'MMM dd')}
+                                                                </Badge>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     {/* Caption Content - Compact Padding */}
                                                     <div className="p-2 sm:p-3 lg:p-4">
                                                         <div className="space-y-1.5 sm:space-y-2 lg:space-y-3">
                                                             {post.captions && post.captions.length > 0 && (
                                                                 <div>
                                                                     <p className="text-gray-900 dark:text-white text-xs sm:text-sm leading-relaxed">
-                                                                        {expandedCaptionId === post._id 
+                                                                        {expandedCaptionId === post._id
                                                                             ? post.captions[0]
-                                                                            : post.captions[0].length > 60 
+                                                                            : post.captions[0].length > 60
                                                                                 ? `${post.captions[0].substring(0, 60)}...`
                                                                                 : post.captions[0]
                                                                         }
@@ -935,16 +935,16 @@ export default function ProfilePage() {
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            
+
                                                             {post.description && (
                                                                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm italic">
                                                                     "{post.description}"
                                                                 </p>
                                                             )}
                                                         </div>
-                                                        
+
                                                         {/* Action Buttons - Compact Design */}
-                                                                                                                 <div className="flex items-center justify-between mt-2 sm:mt-3 lg:mt-4 pt-2 sm:pt-3 lg:pt-4 border-t border-gray-100 dark:border-gray-800">
+                                                        <div className="flex items-center justify-between mt-2 sm:mt-3 lg:mt-4 pt-2 sm:pt-3 lg:pt-4 border-t border-gray-100 dark:border-gray-800">
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
@@ -973,7 +973,7 @@ export default function ProfilePage() {
                                                                             textArea.select();
                                                                             document.execCommand('copy');
                                                                             document.body.removeChild(textArea);
-                                                                            
+
                                                                             // Show success feedback
                                                                             const button = e.currentTarget;
                                                                             if (button && button.textContent !== null) {
@@ -995,7 +995,7 @@ export default function ProfilePage() {
                                                                 <Copy className="w-3 h-3 transition-transform duration-300 group-hover:rotate-12" />
                                                                 Copy
                                                             </Button>
-                                                            
+
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"

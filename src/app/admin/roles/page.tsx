@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Shield, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Shield,
+  Plus,
+  Edit,
+  Trash2,
   Users,
   CheckCircle,
   XCircle,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
 
 interface Role {
   _id: string;
@@ -172,10 +173,10 @@ export default function RolesPage() {
   // Bulk import users from CSV/text
   const importBulkUsers = () => {
     if (!bulkImportText.trim()) return;
-    
+
     const lines = bulkImportText.trim().split('\n');
     const users: any[] = [];
-    
+
     for (const line of lines) {
       const [email, username, firstName, lastName, phone, department] = line.split(',').map(s => s.trim());
       if (email && username) {
@@ -189,7 +190,7 @@ export default function RolesPage() {
         });
       }
     }
-    
+
     if (users.length > 0) {
       setCreateForm(prev => ({
         ...prev,
@@ -315,10 +316,10 @@ export default function RolesPage() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      
+
       // Real API call to get roles from database
       const response = await fetch('/api/admin/roles');
-      
+
       if (response.ok) {
         const data = await response.json();
         setRoles(data.roles || []);
@@ -445,10 +446,10 @@ export default function RolesPage() {
 
     try {
       console.log('🔄 Creating role with data:', createForm);
-      
+
       // Filter out permissions with no actions before sending
       const filteredPermissions = createForm.permissions.filter(p => p.actions.length > 0);
-      
+
       const response = await fetch('/api/admin/roles', {
         method: 'POST',
         headers: {
@@ -536,7 +537,7 @@ export default function RolesPage() {
     if (window.confirm(`Are you sure you want to delete the role "${role.displayName}"? This action cannot be undone.`)) {
       try {
         console.log('🔄 Deleting role:', role._id);
-        
+
         const response = await fetch(`/api/admin/roles/${role._id}`, {
           method: 'DELETE'
         });
@@ -589,8 +590,8 @@ export default function RolesPage() {
           <p className="text-muted-foreground">Create and manage user roles and permissions</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => {
               setLoading(true);
               fetchRoles();
@@ -607,15 +608,67 @@ export default function RolesPage() {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <MagicCard
+          title="Total Roles"
+          value={totalRoles.toString()}
+          icon={Shield}
+          trend="neutral"
+          trendValue="Count"
+          description="Defined roles"
+          className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10"
+        />
+
+        <MagicCard
+          title="Total Users"
+          value={totalUsers.toString()}
+          icon={Users}
+          trend="neutral"
+          trendValue="Assigned"
+          description="Users with roles"
+          className="bg-gradient-to-br from-purple-50/50 to-violet-50/50 dark:from-purple-900/10 dark:to-violet-900/10"
+        />
+
+        <MagicCard
+          title="Active Roles"
+          value={activeRoles.toString()}
+          icon={CheckCircle}
+          trend="up"
+          trendValue={`${Math.round((activeRoles / (totalRoles || 1)) * 100)}%`}
+          description="Currently active"
+          className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10"
+        />
+
+        <MagicCard
+          title="System Roles"
+          value={systemRoles.toString()}
+          icon={AlertTriangle}
+          trend="neutral"
+          trendValue="Fixed"
+          description="Built-in roles"
+          className="bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-900/10 dark:to-amber-900/10"
+        />
+
+        <MagicCard
+          title="Permissions"
+          value={totalPermissions.toString()}
+          icon={Info}
+          trend="neutral"
+          trendValue="Total"
+          description="Active grants"
+          className="bg-gradient-to-br from-cyan-50/50 to-sky-50/50 dark:from-cyan-900/10 dark:to-sky-900/10"
+        />
+      </div>
+
       {/* Plain Text Notification Display */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
-          notification.type === 'success' 
-            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
-            : notification.type === 'error'
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${notification.type === 'success'
+          ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
+          : notification.type === 'error'
             ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
             : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
-        }`}>
+          }`}>
           <div className="flex items-center space-x-2">
             {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
             {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
@@ -626,7 +679,7 @@ export default function RolesPage() {
       )}
 
       {/* Quick Tier Management */}
-      <Card className="border-border bg-card">
+      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Users className="h-5 w-5" />
@@ -637,7 +690,7 @@ export default function RolesPage() {
           <p className="text-sm text-muted-foreground">
             Quickly create and manage tier accounts without going through the full role creation process.
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Quick Create Tier Account */}
             <div className="space-y-3">
@@ -655,7 +708,7 @@ export default function RolesPage() {
                   onChange={(e) => setQuickCreateForm(prev => ({ ...prev, username: e.target.value }))}
                   className="h-9"
                 />
-                                 <Select value={quickCreateForm.tier} onValueChange={(value) => setQuickCreateForm(prev => ({ ...prev, tier: value as 'moderator' | 'content_editor' | 'support_agent' | 'analyst' }))}>
+                <Select value={quickCreateForm.tier} onValueChange={(value) => setQuickCreateForm(prev => ({ ...prev, tier: value as 'moderator' | 'content_editor' | 'support_agent' | 'analyst' }))}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Select Tier" />
                   </SelectTrigger>
@@ -666,7 +719,7 @@ export default function RolesPage() {
                     <SelectItem value="analyst">Analyst</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button 
+                <Button
                   onClick={handleQuickCreate}
                   disabled={!quickCreateForm.email || !quickCreateForm.username || !quickCreateForm.tier}
                   size="sm"
@@ -687,7 +740,7 @@ export default function RolesPage() {
                   onChange={(e) => setQuickDeleteForm(prev => ({ ...prev, identifier: e.target.value }))}
                   className="h-9"
                 />
-                                 <Select value={quickDeleteForm.confirm} onValueChange={(value) => setQuickDeleteForm(prev => ({ ...prev, confirm: value as 'yes' | 'no' }))}>
+                <Select value={quickDeleteForm.confirm} onValueChange={(value) => setQuickDeleteForm(prev => ({ ...prev, confirm: value as 'yes' | 'no' }))}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Confirm deletion" />
                   </SelectTrigger>
@@ -696,7 +749,7 @@ export default function RolesPage() {
                     <SelectItem value="no">No, cancel</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button 
+                <Button
                   onClick={handleQuickDelete}
                   disabled={!quickDeleteForm.identifier || quickDeleteForm.confirm !== 'yes'}
                   size="sm"
@@ -719,7 +772,7 @@ export default function RolesPage() {
                   rows={3}
                   className="text-xs"
                 />
-                                 <Select value={bulkTierForm.operation} onValueChange={(value) => setBulkTierForm(prev => ({ ...prev, operation: value as 'create' | 'delete' | 'upgrade' }))}>
+                <Select value={bulkTierForm.operation} onValueChange={(value) => setBulkTierForm(prev => ({ ...prev, operation: value as 'create' | 'delete' | 'upgrade' }))}>
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Select operation" />
                   </SelectTrigger>
@@ -729,7 +782,7 @@ export default function RolesPage() {
                     <SelectItem value="upgrade">Upgrade to Admin</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button 
+                <Button
                   onClick={handleBulkOperation}
                   disabled={!bulkTierForm.emails.trim() || !bulkTierForm.operation}
                   size="sm"
@@ -743,17 +796,15 @@ export default function RolesPage() {
 
           {/* Quick Actions Status */}
           {quickActionStatus && (
-            <div className={`p-3 rounded-lg ${
-              quickActionStatus.type === 'success' 
-                ? 'bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800' 
-                : 'bg-red-100 dark:bg-red-900 border border-red-200 dark:border-red-800'
-            }`}>
+            <div className={`p-3 rounded-lg ${quickActionStatus.type === 'success'
+              ? 'bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800'
+              : 'bg-red-100 dark:bg-red-900 border border-red-200 dark:border-red-800'
+              }`}>
               <div className="flex items-center justify-between">
-                <p className={`text-sm ${
-                  quickActionStatus.type === 'success' 
-                    ? 'text-green-800 dark:text-green-200' 
-                    : 'text-red-800 dark:text-red-200'
-                }`}>
+                <p className={`text-sm ${quickActionStatus.type === 'success'
+                  ? 'text-green-800 dark:text-green-200'
+                  : 'text-red-800 dark:text-red-200'
+                  }`}>
                   {quickActionStatus.message}
                 </p>
                 <Button
@@ -772,71 +823,12 @@ export default function RolesPage() {
 
 
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Roles</p>
-                <p className="text-2xl font-bold">{totalRoles}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{totalUsers}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Roles</p>
-                <p className="text-2xl font-bold">{activeRoles}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">System Roles</p>
-                <p className="text-2xl font-bold">{systemRoles}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Permissions</p>
-                <p className="text-2xl font-bold">{totalPermissions}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
+
 
       {/* Roles Table */}
-      <Card>
+      {/* Roles Table */}
+      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle>Roles ({roles.length})</CardTitle>
         </CardHeader>
@@ -867,13 +859,13 @@ export default function RolesPage() {
                         <p className="text-sm text-muted-foreground">{role.name}</p>
                       </div>
                     </td>
-                    
+
                     <td className="py-3 px-4">
                       <p className="text-sm text-muted-foreground max-w-xs">
                         {role.description}
                       </p>
                     </td>
-                    
+
                     <td className="py-3 px-4">
                       <div className="space-y-1">
                         {role.permissions.length === 0 ? (
@@ -889,10 +881,10 @@ export default function RolesPage() {
                                   </Badge>
                                 );
                               }
-                              
+
                               const resource = permission.resource || 'unknown';
                               const actions = permission.actions || [];
-                              
+
                               if (!Array.isArray(actions) || actions.length === 0) {
                                 return (
                                   <Badge key={index} variant="outline" className="text-xs">
@@ -900,7 +892,7 @@ export default function RolesPage() {
                                   </Badge>
                                 );
                               }
-                              
+
                               const resourceInfo = AVAILABLE_RESOURCES.find(r => r.key === resource);
                               return (
                                 <div key={index} className="space-y-1">
@@ -921,33 +913,33 @@ export default function RolesPage() {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">{role.userCount}</span>
                       </div>
                     </td>
-                    
+
                     <td className="py-3 px-4">
                       <Badge variant={role.isActive ? 'default' : 'secondary'}>
                         {role.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
-                    
+
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleEditRole(role)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         {!role.isSystem && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-destructive"
                             onClick={() => handleDeleteRole(role)}
                           >
@@ -982,9 +974,9 @@ export default function RolesPage() {
                   placeholder="e.g., moderator"
                   className="mt-1 h-9"
                 />
-                                 <p className="text-xs text-muted-foreground mt-1">
-                   Letters, numbers, hyphens, underscores. No spaces (e.g., Content-Moderator, content_moderator)
-                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Letters, numbers, hyphens, underscores. No spaces (e.g., Content-Moderator, content_moderator)
+                </p>
               </div>
               <div>
                 <Label htmlFor="role-display-name" className="text-sm font-medium">Display Name</Label>
@@ -1105,7 +1097,7 @@ export default function RolesPage() {
                 </div>
               ))}
             </div>
-            
+
             {/* Auto User Creation Section */}
             <div className="border-t pt-4">
               <div className="flex items-center space-x-2 mb-4">
@@ -1118,13 +1110,13 @@ export default function RolesPage() {
                   🚀 Auto-Create Users with This Role
                 </Label>
               </div>
-              
+
               {createForm.autoCreateUsers && (
                 <div className="space-y-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Users will be automatically created with this role and receive email notifications
                   </div>
-                  
+
                   {/* Individual User Addition */}
                   <div className="grid grid-cols-2 gap-2">
                     <Input
@@ -1164,16 +1156,16 @@ export default function RolesPage() {
                       className="h-9"
                     />
                   </div>
-                  
-                  <Button 
-                    onClick={addUserToCreation} 
-                    size="sm" 
+
+                  <Button
+                    onClick={addUserToCreation}
+                    size="sm"
                     className="w-full"
                     disabled={!userForm.email || !userForm.username}
                   >
                     ➕ Add User to Creation List
                   </Button>
-                  
+
                   {/* Bulk Import */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">📥 Bulk Import (CSV format)</Label>
@@ -1184,9 +1176,9 @@ export default function RolesPage() {
                       rows={4}
                       className="text-xs"
                     />
-                    <Button 
-                      onClick={importBulkUsers} 
-                      size="sm" 
+                    <Button
+                      onClick={importBulkUsers}
+                      size="sm"
                       variant="outline"
                       className="w-full"
                       disabled={!bulkImportText.trim()}
@@ -1194,7 +1186,7 @@ export default function RolesPage() {
                       📥 Import Users
                     </Button>
                   </div>
-                  
+
                   {/* Users to Create List */}
                   {createForm.usersToCreate.length > 0 && (
                     <div className="space-y-2">
@@ -1220,7 +1212,7 @@ export default function RolesPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Email Notifications */}
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -1235,7 +1227,7 @@ export default function RolesPage() {
                 </div>
               )}
             </div>
-            
+
             {/* Permissions Summary */}
             <div className="border-t pt-3">
               <h4 className="text-sm font-medium mb-2">Selected Permissions Summary</h4>
@@ -1245,7 +1237,7 @@ export default function RolesPage() {
                   if (selectedPermissions.length === 0) {
                     return <span className="text-sm text-muted-foreground">No permissions selected</span>;
                   }
-                  
+
                   return (
                     <div className="space-y-2">
                       {selectedPermissions.map((permission: any) => {
@@ -1280,7 +1272,7 @@ export default function RolesPage() {
         </DialogContent>
       </Dialog>
 
-             {/* Edit Role Modal */}
+      {/* Edit Role Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -1306,7 +1298,7 @@ export default function RolesPage() {
                   className="mt-1 h-9"
                 />
               </div>
-              
+
               {/* Permissions Display (Read-only for system roles) */}
               <div className="space-y-3">
                 <h3 className="text-base font-semibold">Permissions</h3>
@@ -1319,7 +1311,7 @@ export default function RolesPage() {
                     {AVAILABLE_RESOURCES.map(resource => {
                       const rolePermission = editingRole.permissions.find((p: any) => p.resource === resource.key);
                       const hasActions = rolePermission && rolePermission.actions.length > 0;
-                      
+
                       return (
                         <div key={resource.key} className="border rounded-lg p-2">
                           <div className="flex items-center justify-between mb-2">
@@ -1362,6 +1354,6 @@ export default function RolesPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-   );
- }
+    </div >
+  );
+}

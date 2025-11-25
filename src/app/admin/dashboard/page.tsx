@@ -4,46 +4,23 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button, type ButtonProps } from '@/components/ui/button';
-import { Badge, type BadgeProps } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Users, 
-  Shield, 
-  Archive, 
-  FileText, 
-  Settings, 
-  LogOut, 
-  MessageSquare, 
-  AlertTriangle, 
-  Database, 
-  Image as ImageIcon,
-  Plus,
-  Trash2,
-  Eye,
-  Edit,
-  Lock,
-  Unlock,
-  Bell,
-  TrendingUp,
-  TrendingDown,
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
+import {
+  Users,
+  Shield,
+  FileText,
+  Settings,
   Activity,
   Zap,
   UserCheck,
-  UserX,
   Clock,
-  Calendar,
-  BarChart3,
-  PieChart,
-  LineChart,
-  Download,
   RefreshCw,
-  Filter,
-  Search,
-  Mail,
-  RotateCcw,
-  CheckCircle,
-  Info
+  AlertTriangle,
+  Database,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -64,6 +41,10 @@ interface DashboardStats {
     totalCaptions: string;
     recoveryRequests: string;
     systemAlerts: string;
+  };
+  history?: {
+    users: { date: string; value: number }[];
+    posts: { date: string; value: number }[];
   };
   realTimeData: {
     onlineUsers: number;
@@ -102,7 +83,6 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // Real API data fetching
   const fetchRealStats = async (): Promise<DashboardStats> => {
@@ -113,7 +93,7 @@ export default function AdminDashboard() {
       }
       const data = await response.json();
       console.log('📊 Dashboard API response:', data);
-      
+
       if (data.success && data.stats) {
         // Transform API data to match our DashboardStats interface
         const transformedStats: DashboardStats = {
@@ -122,18 +102,22 @@ export default function AdminDashboard() {
           archivedProfiles: { total: data.stats.archivedProfiles?.total || 0 },
           totalCaptions: data.stats.posts?.total || 0,
           recoveryRequests: data.stats.dataRecovery?.total || 0,
-          systemAlerts: 0, // This would come from a separate alerts API
-          lastBackup: new Date().toISOString(), // This would come from backup system
+          systemAlerts: 0,
+          lastBackup: new Date().toISOString(),
           databaseStatus: 'Healthy',
           imageStorageStatus: 'Online',
           aiServicesStatus: 'Operational',
           trends: {
-            totalUsers: data.stats.users?.growthWeek || 'N/A',
+            totalUsers: data.stats.users?.growthWeek || '0%',
             activeUsers: '+' + Math.round((data.stats.realTimeData?.onlineUsers || 0) / (data.stats.users?.total || 1) * 100) + '%',
             archivedProfiles: 'N/A',
-            totalCaptions: data.stats.posts?.growthWeek || 'N/A',
+            totalCaptions: data.stats.posts?.growthWeek || '0%',
             recoveryRequests: 'N/A',
             systemAlerts: 'N/A'
+          },
+          history: {
+            users: data.stats.users?.history || [],
+            posts: data.stats.posts?.history || []
           },
           realTimeData: {
             onlineUsers: data.stats.realTimeData?.onlineUsers || 0,
@@ -145,7 +129,7 @@ export default function AdminDashboard() {
             users: data.stats.recentActivity?.users || [],
             posts: data.stats.recentActivity?.posts || []
           },
-          userRoles: [] // This would come from a separate roles API
+          userRoles: []
         };
         return transformedStats;
       } else {
@@ -153,45 +137,13 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      // Return fallback data if API fails
-      return {
-            totalUsers: 0,
-            activeUsers: 0,
-            archivedProfiles: { total: 0 },
-            totalCaptions: 0,
-            recoveryRequests: 0,
-            systemAlerts: 0,
-            lastBackup: new Date().toISOString(),
-        databaseStatus: 'Unknown',
-        imageStorageStatus: 'Unknown',
-        aiServicesStatus: 'Unknown',
-            trends: {
-          totalUsers: 'N/A',
-          activeUsers: 'N/A',
-          archivedProfiles: 'N/A',
-          totalCaptions: 'N/A',
-          recoveryRequests: 'N/A',
-          systemAlerts: 'N/A'
-            },
-            realTimeData: {
-              onlineUsers: 0,
-              activeSessions: 0,
-              pendingActions: 0,
-              systemLoad: 0
-            },
-        recentActivity: {
-          users: [],
-          posts: []
-        },
-        userRoles: []
-      };
+      throw error;
     }
   };
 
   // Manual refresh function
   const handleRefresh = async () => {
     setIsLoading(true);
-    setLastRefresh(new Date());
     try {
       const newStats = await fetchRealStats();
       setStats(newStats);
@@ -204,12 +156,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
-      router.push('/setup');
+      router.push('/');
       return;
     }
-    
+
     // Load real API data
     const loadStats = async () => {
       setIsLoading(true);
@@ -243,7 +195,7 @@ export default function AdminDashboard() {
     return null;
   }
 
-  if (isLoading) {
+  if (isLoading && !stats) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -255,14 +207,7 @@ export default function AdminDashboard() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="pb-2">
-                <div className="h-4 bg-muted rounded w-1/2"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded w-3/4"></div>
-              </CardContent>
-            </Card>
+            <MagicCard key={i} title="Loading..." value="0" icon={Activity} loading={true} />
           ))}
         </div>
       </div>
@@ -300,241 +245,233 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Dashboard</h1>
           <p className="text-muted-foreground">Real-time system overview and statistics</p>
-              </div>
+        </div>
         <div className="flex items-center gap-3">
-          <Button className="border border-input bg-transparent hover:bg-accent hover:text-accent-foreground" onClick={handleRefresh} disabled={isLoading}>
+          <Button className="border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground" onClick={handleRefresh} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-            </div>
+        </div>
       </div>
 
-      {/* Key Metrics */}
+      {/* Key Metrics - Magic Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-green-500" />
-              {stats.trends.totalUsers}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-green-500" />
-              {stats.trends.activeUsers}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Captions</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCaptions.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-green-500" />
-              {stats.trends.totalCaptions}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">System Load</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.realTimeData.systemLoad}%</div>
-            <Progress value={stats.realTimeData.systemLoad} className="mt-2" />
-          </CardContent>
-        </Card>
+        <MagicCard
+          title="Total Users"
+          value={stats.totalUsers.toLocaleString()}
+          icon={Users}
+          trend={parseFloat(stats.trends.totalUsers) >= 0 ? 'up' : 'down'}
+          trendValue={stats.trends.totalUsers}
+          data={stats.history?.users}
+          description="Total registered users"
+        />
+        <MagicCard
+          title="Active Users"
+          value={stats.activeUsers.toLocaleString()}
+          icon={UserCheck}
+          trend="up"
+          trendValue={stats.trends.activeUsers}
+          description="Online in last 5 mins"
+        />
+        <MagicCard
+          title="Total Captions"
+          value={stats.totalCaptions.toLocaleString()}
+          icon={FileText}
+          trend={parseFloat(stats.trends.totalCaptions) >= 0 ? 'up' : 'down'}
+          trendValue={stats.trends.totalCaptions}
+          data={stats.history?.posts}
+          description="Total captions generated"
+        />
+        <MagicCard
+          title="System Load"
+          value={`${stats.realTimeData.systemLoad}%`}
+          icon={Activity}
+          trend={stats.realTimeData.systemLoad > 80 ? 'down' : 'neutral'}
+          trendValue={stats.realTimeData.systemLoad > 80 ? 'High Load' : 'Normal'}
+          description="Database connection load"
+        />
       </div>
 
       {/* Real-time Data */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
+              <Clock className="w-5 h-5 text-primary" />
               Real-time Activity
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Online Users</span>
-              <Badge className="border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">{stats.realTimeData.onlineUsers}</Badge>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
+              <span className="text-sm font-medium">Online Users</span>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <Badge variant="secondary" className="font-mono">{stats.realTimeData.onlineUsers}</Badge>
               </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Active Sessions</span>
-              <Badge className="border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">{stats.realTimeData.activeSessions}</Badge>
-              </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Pending Actions</span>
-              <Badge className="border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">{stats.realTimeData.pendingActions}</Badge>
-              </div>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
+              <span className="text-sm font-medium">Active Sessions</span>
+              <Badge variant="secondary" className="font-mono">{stats.realTimeData.activeSessions}</Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
+              <span className="text-sm font-medium">Pending Actions</span>
+              <Badge variant="secondary" className="font-mono">{stats.realTimeData.pendingActions}</Badge>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-        <CardHeader>
+        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
+              <Shield className="w-5 h-5 text-primary" />
               System Status
             </CardTitle>
-        </CardHeader>
+          </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Database</span>
-              <Badge className="text-foreground text-green-600 border-green-600">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
+              <span className="text-sm font-medium">Database</span>
+              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
                 {stats.databaseStatus}
               </Badge>
-                </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Image Storage</span>
-              <Badge className="text-foreground text-green-600 border-green-600">
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
+              <span className="text-sm font-medium">Image Storage</span>
+              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
                 {stats.imageStorageStatus}
               </Badge>
-                        </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">AI Services</span>
-              <Badge className="text-foreground text-green-600 border-green-600">
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
+              <span className="text-sm font-medium">AI Services</span>
+              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
                 {stats.aiServicesStatus}
               </Badge>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-        {/* Recent Activity */}
-          <Card>
-            <CardHeader>
+      {/* Recent Activity */}
+      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5" />
+            <Activity className="w-5 h-5 text-primary" />
             Recent Activity
           </CardTitle>
-            </CardHeader>
-            <CardContent>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Users */}
             <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wider">
                 <Users className="w-4 h-4" />
-                Recent Users
+                New Users
               </h4>
-                <div className="space-y-3">
+              <div className="space-y-3">
                 {stats.recentActivity.users.slice(0, 5).map((user) => (
-                  <div key={user.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
+                  <div key={user.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50 hover:bg-accent/5 transition-colors">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm">
                       {user.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{user.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                      </div>
-                    <Badge className="text-foreground text-xs">
-                      {user.joined}
-                    </Badge>
                     </div>
-                  ))}
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(user.joined).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
                 {stats.recentActivity.users.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No recent user activity
                   </p>
                 )}
-                      </div>
-                    </div>
+              </div>
+            </div>
 
             {/* Recent Posts */}
             <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wider">
                 <FileText className="w-4 h-4" />
-                Recent Posts
+                Latest Captions
               </h4>
-                <div className="space-y-3">
+              <div className="space-y-3">
                 {stats.recentActivity.posts.slice(0, 5).map((post) => (
-                  <div key={post.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                  <div key={post.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50 hover:bg-accent/5 transition-colors">
                     <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
                       {post.hasImage ? (
                         <ImageIcon className="w-4 h-4 text-secondary-foreground" />
                       ) : (
                         <FileText className="w-4 h-4 text-secondary-foreground" />
                       )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{post.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{post.created}</p>
-                      </div>
-                    <Badge className={`text-xs ${post.hasImage ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/80" : "text-foreground"}`}>
-                      {post.hasImage ? "With Image" : "Text Only"}
-                    </Badge>
                     </div>
-                  ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{post.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{new Date(post.created).toLocaleString()}</p>
+                    </div>
+                    <Badge variant={post.hasImage ? "default" : "secondary"} className="text-[10px]">
+                      {post.hasImage ? "Image" : "Text"}
+                    </Badge>
+                  </div>
+                ))}
                 {stats.recentActivity.posts.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No recent posts
                   </p>
                 )}
-        </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
-      <Card className="border border-border bg-card">
+      <Card className="border border-border/50 bg-background/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-card-foreground">
-            <Zap className="w-5 h-5" />
+            <Zap className="w-5 h-5 text-yellow-500" />
             Quick Actions
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
+              onClick={() => router.push('/admin/users')}
             >
-              <Users className="w-5 h-5" />
-              <span className="text-sm">Manage Users</span>
+              <Users className="w-6 h-6" />
+              <span className="text-sm font-medium">Manage Users</span>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
+              onClick={() => router.push('/admin/roles')}
             >
-              <Shield className="w-5 h-5" />
-              <span className="text-sm">Roles & Permissions</span>
+              <Shield className="w-6 h-6" />
+              <span className="text-sm font-medium">Roles & Permissions</span>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
+              onClick={() => router.push('/admin/database')}
             >
-              <Database className="w-5 h-5" />
-              <span className="text-sm">Database</span>
+              <Database className="w-6 h-6" />
+              <span className="text-sm font-medium">Database</span>
             </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border bg-transparent hover:bg-accent hover:text-accent-foreground transition-colors"
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
+              onClick={() => router.push('/admin/settings')}
             >
-              <Settings className="w-5 h-5" />
-              <span className="text-sm">Settings</span>
+              <Settings className="w-6 h-6" />
+              <span className="text-sm font-medium">Settings</span>
             </Button>
           </div>
         </CardContent>
@@ -542,4 +479,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

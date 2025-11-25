@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Database, 
-  Download, 
-  Upload, 
-  Trash2, 
+  Database,
+  Download,
+  Upload,
+  Trash2,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
@@ -18,6 +18,7 @@ import {
   Activity,
   Zap
 } from 'lucide-react';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
 
 interface DatabaseStats {
   totalCollections: number;
@@ -60,10 +61,10 @@ export default function DatabasePage() {
   const fetchDatabaseStats = async () => {
     try {
       setLoading(true);
-      
+
       // Real API call to get database stats
       const response = await fetch('/api/admin/database/stats');
-      
+
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
@@ -83,23 +84,23 @@ export default function DatabasePage() {
 
   useEffect(() => {
     fetchDatabaseStats();
-    
+
     // Set up auto-refresh every 30 seconds
     const interval = setInterval(fetchDatabaseStats, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
-  
+
 
   const handleCreateBackup = async () => {
     try {
       setBackupInProgress(true);
-      
+
       const response = await fetch('/api/admin/database/backup', {
         method: 'POST'
       });
-      
+
       if (response.ok) {
         // Refresh stats after backup
         setTimeout(() => fetchDatabaseStats(), 1000);
@@ -116,11 +117,11 @@ export default function DatabasePage() {
   const handleOptimizeDatabase = async () => {
     try {
       setOptimizeInProgress(true);
-      
+
       const response = await fetch('/api/admin/database/optimize', {
         method: 'POST'
       });
-      
+
       if (response.ok) {
         // Refresh stats after optimization
         setTimeout(() => fetchDatabaseStats(), 1000);
@@ -184,7 +185,7 @@ export default function DatabasePage() {
           <p className="text-muted-foreground">Monitor and manage your MongoDB database</p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             onClick={() => {
               setLoading(true);
               fetchDatabaseStats();
@@ -195,8 +196,8 @@ export default function DatabasePage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button 
-            onClick={handleCreateBackup} 
+          <Button
+            onClick={handleCreateBackup}
             disabled={backupInProgress}
             variant="outline"
           >
@@ -207,7 +208,7 @@ export default function DatabasePage() {
             )}
             {backupInProgress ? 'Creating Backup...' : 'Create Backup'}
           </Button>
-          <Button 
+          <Button
             onClick={handleOptimizeDatabase}
             disabled={optimizeInProgress}
           >
@@ -222,85 +223,72 @@ export default function DatabasePage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Database className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Collections</p>
-                <p className="text-2xl font-bold">{stats.totalCollections}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Documents</p>
-                <p className="text-2xl font-bold">{stats.totalDocuments.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Connections</p>
-                <p className="text-2xl font-bold">{stats.activeConnections}</p>
-                <p className="text-xs text-muted-foreground">{stats.connectionUtilization}% of {stats.maxConnections}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Zap className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Response</p>
-                <p className="text-2xl font-bold">{stats.avgResponseTime}ms</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Uptime</p>
-                <p className="text-2xl font-bold">{stats.uptime}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Last Backup</p>
-                <p className="text-2xl font-bold">{new Date(stats.lastBackup).toLocaleDateString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <MagicCard
+          title="Collections"
+          value={stats.totalCollections.toString()}
+          icon={Database}
+          trend="neutral"
+          trendValue="Total"
+          description="Active collections"
+          className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10"
+        />
+
+        <MagicCard
+          title="Documents"
+          value={stats.totalDocuments.toLocaleString()}
+          icon={HardDrive}
+          trend="up"
+          trendValue="Count"
+          description="Total records"
+          className="bg-gradient-to-br from-purple-50/50 to-violet-50/50 dark:from-purple-900/10 dark:to-violet-900/10"
+        />
+
+        <MagicCard
+          title="Active Conn."
+          value={stats.activeConnections.toString()}
+          icon={Activity}
+          trend="neutral"
+          trendValue={`${stats.connectionUtilization}%`}
+          description="Utilization"
+          className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10"
+        />
+
+        <MagicCard
+          title="Avg Response"
+          value={`${stats.avgResponseTime}ms`}
+          icon={Zap}
+          trend="neutral"
+          trendValue="Latency"
+          description="Query speed"
+          className="bg-gradient-to-br from-yellow-50/50 to-amber-50/50 dark:from-yellow-900/10 dark:to-amber-900/10"
+        />
+
+        <MagicCard
+          title="Uptime"
+          value={`${stats.uptime}%`}
+          icon={CheckCircle}
+          trend="up"
+          trendValue="Stable"
+          description="System availability"
+          className="bg-gradient-to-br from-cyan-50/50 to-sky-50/50 dark:from-cyan-900/10 dark:to-sky-900/10"
+        />
+
+        <MagicCard
+          title="Last Backup"
+          value={new Date(stats.lastBackup).toLocaleDateString()}
+          icon={Clock}
+          trend="neutral"
+          trendValue={stats.backupStatus}
+          description="Backup status"
+          className="bg-gradient-to-br from-pink-50/50 to-rose-50/50 dark:from-pink-900/10 dark:to-rose-900/10"
+        />
       </div>
 
       {/* Database Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Storage Usage */}
-        <Card>
+        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <HardDrive className="h-5 w-5" />
@@ -319,7 +307,7 @@ export default function DatabasePage() {
                 <span>Available: 0.7 GB</span>
               </div>
             </div>
-            
+
             <div className="pt-4 border-t">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Backup Status</span>
@@ -333,7 +321,7 @@ export default function DatabasePage() {
         </Card>
 
         {/* Performance Metrics */}
-        <Card>
+        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
@@ -351,7 +339,7 @@ export default function DatabasePage() {
                 <p className="text-xs text-muted-foreground">Avg Response</p>
               </div>
             </div>
-            
+
             <div className="pt-4 border-t">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Database Health</span>
@@ -366,7 +354,7 @@ export default function DatabasePage() {
       </div>
 
       {/* Collections Table */}
-      <Card>
+      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle>Database Collections</CardTitle>
         </CardHeader>

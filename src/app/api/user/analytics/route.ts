@@ -17,11 +17,13 @@ export async function GET(req: NextRequest) {
 
         await dbConnect();
 
-        // Fetch all user posts - type assertion needed for Mongoose lean() queries
-        const posts = await Post.find({ userId: session.user.id })
+        // Fetch all user posts and convert to plain objects
+        // Type cast to any to avoid Mongoose type inference issues
+        const postsRaw = await (Post as any).find({ userId: session.user.id })
             .sort({ createdAt: -1 })
-            .lean()
-            .exec() as any[];
+            .exec();
+
+        const posts = postsRaw.map((p: any) => p.toObject());
 
         // Calculate analytics
         const analytics = {

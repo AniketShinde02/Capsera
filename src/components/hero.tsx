@@ -113,14 +113,14 @@ export function Hero() {
                         <Button
                             size="lg"
                             onClick={scrollToCaptionGenerator}
-                            className="relative h-16 px-12 text-lg font-bold rounded-2xl bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 hover:from-blue-600 hover:via-cyan-600 hover:to-blue-700 text-white shadow-2xl shadow-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-blue-500/70 group overflow-hidden"
+                            className="relative h-12 px-6 text-base sm:h-16 sm:px-12 sm:text-lg font-bold rounded-2xl bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 hover:from-blue-600 hover:via-cyan-600 hover:to-blue-700 text-white shadow-2xl shadow-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-blue-500/70 group overflow-hidden"
                         >
                             {/* Animated shine effect */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 
-                            <Sparkles className="mr-3 h-6 w-6 animate-pulse" />
-                            <span className="relative z-10">Start Generating Free</span>
-                            <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
+                            <Sparkles className="mr-2 h-5 w-5 sm:mr-3 sm:h-6 sm:w-6 animate-pulse" />
+                            <span className="relative z-10">Generate Free</span>
+                            <ArrowRight className="ml-2 h-5 w-5 sm:ml-3 sm:h-6 sm:w-6 group-hover:translate-x-2 transition-transform duration-300" />
                         </Button>
                     </motion.div>
 

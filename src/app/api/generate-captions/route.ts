@@ -98,9 +98,11 @@ Generate exactly 3 captions:`;
       const errorData = await response.json().catch(() => ({}));
       console.error('❌ Groq Vision API error:', response.status, errorData);
 
+      const errorMessage = errorData.error?.message || `Groq Vision API error: ${response.status}`;
+
       return {
         success: false,
-        error: `Groq Vision API error: ${response.status}`,
+        error: errorMessage,
         processingTime
       };
     }

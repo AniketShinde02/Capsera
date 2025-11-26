@@ -138,7 +138,7 @@ const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }:
   return (
     <>
       {/* Always show the image if we have a source, even during loading */}
-      {optimizedSrc && <img {...commonProps} style={{ opacity: imageLoading ? 0.5 : 1 }} />}
+      {optimizedSrc && <img {...commonProps} />}
 
       {/* Removed spinner overlay so image preview is not visually blocked while loading */}
     </>
@@ -908,6 +908,20 @@ export function CaptionGenerator() {
       return;
     }
 
+    // 🛡️ CLIENT-SIDE SAFETY CHECK
+    // Proactively warn about words that often trigger AI safety filters
+    const unsafeWords = ['seduction', 'seductive', 'nude', 'naked', 'sex', 'porn', 'xxx', 'nsfw', 'undressed', 'erotic'];
+    const descriptionLower = (values.description || '').toLowerCase();
+    const foundUnsafeWord = unsafeWords.find(word => descriptionLower.includes(word));
+
+    if (foundUnsafeWord) {
+      setError(`The word "${foundUnsafeWord}" often triggers AI safety filters. Please try a different word (e.g., "alluring", "captivating") to ensure generation succeeds.`);
+      // Shake effect to draw attention
+      setShowLimitShake(true);
+      setTimeout(() => setShowLimitShake(false), 600);
+      return;
+    }
+
     // Validation passed, checking rate limit first
     setIsLoading(true);
     setCaptions([]);
@@ -1317,14 +1331,19 @@ export function CaptionGenerator() {
           errorMessage = 'Our AI servers are currently busy. Please try again in a moment.';
         } else if (errorMessage.includes('503') || errorMessage.includes('unavailable')) {
           errorMessage = 'AI service is temporarily unavailable. We are working on it!';
-        } else if (errorMessage.includes('safety') || errorMessage.includes('violation')) {
-          errorMessage = 'This image could not be processed due to content safety guidelines.';
+        } else if (errorMessage.includes('safety') || errorMessage.includes('violation') || errorMessage.includes('flagged')) {
+          // Use the specific message if available, otherwise fallback
+          if (!errorMessage.includes('flagged by safety filters')) {
+            errorMessage = 'This content could not be processed due to safety guidelines. Please check your image and description.';
+          }
         } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('AbortError')) {
           errorMessage = 'Network error. Please check your internet connection.';
         }
       }
 
-      setErrorWithTimer(errorMessage, 8000);
+      // Show safety errors for longer (15s) so user can read them
+      const errorDuration = errorMessage.includes('safety') || errorMessage.includes('flagged') || errorMessage.includes('guidelines') ? 15000 : 8000;
+      setErrorWithTimer(errorMessage, errorDuration);
 
     } finally {
       setIsLoading(false);

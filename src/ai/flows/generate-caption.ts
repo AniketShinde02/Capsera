@@ -9,8 +9,8 @@
  * - GenerateCaptionsOutput - The return type for the generateCaptionsOutput function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 import dbConnect from '@/lib/db';
 import { Types } from 'mongoose';
 import { clientPromise } from '@/lib/db';
@@ -53,7 +53,7 @@ export async function generateCaptions(input: GenerateCaptionsInput): Promise<Ge
   // ⚡ SPEED OPTIMIZATION: Check cache first
   const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
   const cached = captionCache.get(cacheKey);
-  
+
   if (cached) {
     console.log('🚀 Cache hit - returning cached captions');
     return cached;
@@ -61,27 +61,27 @@ export async function generateCaptions(input: GenerateCaptionsInput): Promise<Ge
 
   // ⚡ SPEED OPTIMIZATION: Direct call to optimized flow
   const result = await generateCaptionsFlow(input);
-  
+
   // Cache the result
   captionCache.set(cacheKey, result);
-  
+
   // Clean up old cache entries periodically
   if (captionCache.size > 100) {
     const oldestKey = captionCache.keys().next().value;
     captionCache.delete(oldestKey);
   }
-  
+
   return result;
 }
 
 // ⚡ PERFORMANCE OPTIMIZATION: Streaming response generator for faster perceived performance
 export async function* generateCaptionsStream(input: GenerateCaptionsInput): AsyncGenerator<Partial<GenerateCaptionsOutput>, GenerateCaptionsOutput, unknown> {
   const startTime = Date.now();
-  
+
   // Check cache first
   const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
   const cached = captionCache.get(cacheKey);
-  
+
   if (cached) {
     console.log('🚀 Cache hit - streaming cached captions');
     yield cached;
@@ -90,16 +90,16 @@ export async function* generateCaptionsStream(input: GenerateCaptionsInput): Asy
 
   // Stream progress updates
   yield { captions: ['Analyzing image...', 'Processing mood...', 'Generating captions...'] };
-  
+
   try {
     const result = await generateCaptionsFlow(input);
-    
+
     // Cache the result
     captionCache.set(cacheKey, result);
-    
+
     const endTime = Date.now();
     console.log(`⚡ Caption generation completed in ${endTime - startTime}ms`);
-    
+
     return result;
   } catch (error) {
     console.error('❌ Caption generation failed:', error);
@@ -109,8 +109,8 @@ export async function* generateCaptionsStream(input: GenerateCaptionsInput): Asy
 
 const generateCaptionsPrompt = ai.definePrompt({
   name: 'generateCaptionsPrompt',
-  input: {schema: GenerateCaptionsInputSchema},
-  output: {schema: GenerateCaptionsOutputSchema},
+  input: { schema: GenerateCaptionsInputSchema },
+  output: { schema: GenerateCaptionsOutputSchema },
   prompt: `You are an expert social media content creator and image analyst specializing in viral captions for Gen Z audiences.
 
   STEP 1: ANALYZE THE IMAGE
@@ -176,7 +176,7 @@ const generateCaptionsFlow = ai.defineFlow(
   },
   async input => {
     const startTime = Date.now();
-    
+
     // ⚡ PERFORMANCE MONITORING: Track timing for each phase
     const timings = {
       start: startTime,
@@ -186,7 +186,7 @@ const generateCaptionsFlow = ai.defineFlow(
       parsing: 0,
       total: 0
     };
-    
+
     // Sanitized logging - don't expose full URLs or sensitive data
     console.log('🔍 Caption Generation Input:', {
       mood: input.mood,
@@ -205,22 +205,22 @@ const generateCaptionsFlow = ai.defineFlow(
     let safetyCheckPromise: Promise<any> | null = null;
     try {
       console.log('🔍 Starting fast content safety check...');
-      
+
       // Start safety check in parallel but don't wait for it
       safetyCheckPromise = checkImageContentSafety(input.imageUrl)
         .then(safetyResult => {
-      if (!safetyResult.isAppropriate) {
+          if (!safetyResult.isAppropriate) {
             console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);
-        
+
             // Report inappropriate content asynchronously
             reportInappropriateContent({
-          imageUrl: input.imageUrl,
-          userId: input.userId,
-          ipAddress: input.ipAddress || 'unknown',
-          reason: safetyResult.flagged.includes('adult') ? 'sexual' : 
-                  safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
-          description: `Content flagged during caption generation as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
-          timestamp: new Date()
+              imageUrl: input.imageUrl,
+              userId: input.userId,
+              ipAddress: input.ipAddress || 'unknown',
+              reason: safetyResult.flagged.includes('adult') ? 'sexual' :
+                safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
+              description: `Content flagged during caption generation as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
+              timestamp: new Date()
             }).catch(err => console.error('Failed to report inappropriate content:', err));
 
             return { blocked: true, reason: 'inappropriate content' };
@@ -242,10 +242,10 @@ const generateCaptionsFlow = ai.defineFlow(
       if (safetyResult.blocked) {
         throw new Error('This image contains inappropriate content and cannot be processed. Please upload a family-friendly image.');
       }
-      
+
       timings.safetyCheck = Date.now() - startTime;
       console.log(`⚡ Content safety check completed in ${timings.safetyCheck}ms`);
-      
+
     } catch (safetyError) {
       if (safetyError.message.includes('inappropriate content')) {
         throw safetyError; // Re-throw content violation errors
@@ -302,22 +302,22 @@ const generateCaptionsFlow = ai.defineFlow(
     } else {
       console.log('🚦 Skipping internal rate limit check (skipRateLimit=true)');
     }
-    
+
     timings.rateLimit = Date.now() - startTime - timings.safetyCheck;
     console.log(`⚡ Rate limit check completed in ${timings.rateLimit}ms`);
 
-         // 🤖 CRITICAL FIX: Use Genkit's proper image analysis method
-     console.log('🤖 Sending image to AI for analysis using Genkit...');
-     // API Key check is now handled by the Gemini key rotation system in genkit.ts
-     console.log('🔑 Using Gemini key rotation system (configured in genkit.ts)');
-    
+    // 🤖 CRITICAL FIX: Use Genkit's proper image analysis method
+    console.log('🤖 Sending image to AI for analysis using Genkit...');
+    // API Key check is now handled by the Gemini key rotation system in genkit.ts
+    console.log('🔑 Using Gemini key rotation system (configured in genkit.ts)');
+
     let output: any; // Declare output in outer scope
-    
-              try {
-       // ⚡ SPEED OPTIMIZATION: Streamlined AI prompt for faster processing
-       const result = await ai.generate([
-      {
-        text: `Create 3 viral social media captions for this image.
+
+    try {
+      // ⚡ SPEED OPTIMIZATION: Streamlined AI prompt for faster processing
+      const result = await ai.generate([
+        {
+          text: `Create 3 viral social media captions for this image.
 
 MOOD: ${input.mood}
 ${input.description ? `CONTEXT: ${input.description}` : ''}
@@ -335,14 +335,14 @@ CAPTION STYLES:
 3. Trendy & creative (current slang/viral phrases)
 
 Return as JSON array: ["caption1", "caption2", "caption3"]`
-      },
-      {
-        media: { url: input.imageUrl }
-      }
+        },
+        {
+          media: { url: input.imageUrl }
+        }
       ]);
-      
+
       output = result.output; // Assign to outer scope variable
-      
+
       timings.aiGeneration = Date.now() - startTime - timings.safetyCheck - timings.rateLimit;
       console.log(`⚡ AI generation completed in ${timings.aiGeneration}ms`);
       console.log('🔍 Full AI Result:', result);
@@ -355,41 +355,52 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
         stack: error.stack,
         name: error.name
       });
+
+      // Check for safety/content policy violations
+      if (error.message && (
+        error.message.includes('safety') ||
+        error.message.includes('blocked') ||
+        error.message.includes('content policy') ||
+        error.message.includes('SAFETY')
+      )) {
+        throw new Error(`Content flagged by safety filters. Please adjust your description or try a different image.`);
+      }
+
       throw new Error(`AI generation failed: ${error.message}`);
     }
 
     // ⚡ SPEED OPTIMIZATION: Fast response parsing
     let captions: string[] = [];
-    
-     if (output?.text) {
+
+    if (output?.text) {
       // Try JSON first (most common case)
-       try {
-         const parsed = JSON.parse(output.text);
-         if (Array.isArray(parsed)) {
+      try {
+        const parsed = JSON.parse(output.text);
+        if (Array.isArray(parsed)) {
           captions = parsed.slice(0, 3);
-         } else {
+        } else {
           // Fallback: split by lines
           captions = output.text.split('\n').filter((line: string) => line.trim()).slice(0, 3);
         }
       } catch {
         // Fallback: split by lines
         captions = output.text.split('\n').filter((line: string) => line.trim()).slice(0, 3);
-       }
-     } else if (Array.isArray(output)) {
+      }
+    } else if (Array.isArray(output)) {
       // Direct array output
-      captions = output.slice(0, 3).map((item: any) => 
+      captions = output.slice(0, 3).map((item: any) =>
         typeof item === 'string' ? item : (item.caption || item.text || String(item))
       );
-     } else {
-       throw new Error('AI generated unexpected output format');
-     }
+    } else {
+      throw new Error('AI generated unexpected output format');
+    }
 
     // ⚡ SPEED OPTIMIZATION: Fast sanitization and validation
     captions = captions.map(caption => {
       const sanitized = caption.replace(/<[^>]*>/g, '').trim();
       return sanitized || `Amazing photo! ✨ #vibes #aesthetic #mood`;
     }).slice(0, 3);
-    
+
     // Ensure we have exactly 3 captions
     while (captions.length < 3) {
       captions.push(`Caption ${captions.length + 1} - Please try again with a different image.`);
@@ -404,42 +415,42 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
       throw new Error('Failed to generate valid captions. Please try again.');
     }
 
-         console.log(`✅ Generated ${captions.length} captions successfully`);
-     console.log('📝 Final captions:', captions);
-     console.log('📝 Caption types:', captions.map(c => typeof c));
-     console.log('📝 Caption lengths:', captions.map(c => String(c).length));
+    console.log(`✅ Generated ${captions.length} captions successfully`);
+    console.log('📝 Final captions:', captions);
+    console.log('📝 Caption types:', captions.map(c => typeof c));
+    console.log('📝 Caption lengths:', captions.map(c => String(c).length));
 
     // ⚡ SPEED OPTIMIZATION: Non-blocking database save for authenticated users
     if (captions.length > 0 && input.userId) {
-        // Start database save asynchronously - don't wait for it
-        dbConnect()
-          .then(async () => {
-                const client = await clientPromise;
-                const db = client.db();
-                const postsCollection = db.collection('posts');
-                
-                const postToInsert = {
-              captions: captions,
-                  image: input.imageUrl,
-                  mood: input.mood,
-                  description: input.description || null,
-                  createdAt: new Date(),
-                  user: new Types.ObjectId(input.userId),
-                };
-                
-            return postsCollection.insertOne(postToInsert);
-          })
-          .then(result => {
-                console.log(`✅ Caption set saved successfully with ID: ${result.insertedId}`);
-          })
-          .catch(error => {
-            console.error('⚠️ Failed to save caption set to database (non-blocking):', error);
-            // Don't throw - this is non-blocking
-          });
+      // Start database save asynchronously - don't wait for it
+      dbConnect()
+        .then(async () => {
+          const client = await clientPromise;
+          const db = client.db();
+          const postsCollection = db.collection('posts');
+
+          const postToInsert = {
+            captions: captions,
+            image: input.imageUrl,
+            mood: input.mood,
+            description: input.description || null,
+            createdAt: new Date(),
+            user: new Types.ObjectId(input.userId),
+          };
+
+          return postsCollection.insertOne(postToInsert);
+        })
+        .then(result => {
+          console.log(`✅ Caption set saved successfully with ID: ${result.insertedId}`);
+        })
+        .catch(error => {
+          console.error('⚠️ Failed to save caption set to database (non-blocking):', error);
+          // Don't throw - this is non-blocking
+        });
     } else if (!input.userId) {
-            console.log('👤 Anonymous user - captions generated but not saved to database (privacy protection)');
+      console.log('👤 Anonymous user - captions generated but not saved to database (privacy protection)');
     }
-    
+
     // ⚡ PERFORMANCE SUMMARY: Log total timing breakdown
     timings.total = Date.now() - startTime;
     console.log(`⚡ PERFORMANCE SUMMARY:`);
@@ -448,7 +459,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
     console.log(`   AI Generation: ${timings.aiGeneration}ms`);
     console.log(`   Response Parsing: ${timings.parsing}ms`);
     console.log(`   TOTAL TIME: ${timings.total}ms`);
-    
+
     return { captions };
   }
 );

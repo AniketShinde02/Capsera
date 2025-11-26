@@ -28,12 +28,12 @@ export async function DELETE(
     // Check if user exists in either collection
     let user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     let isAdminUser = false;
-    
+
     if (!user) {
       user = await db.collection('adminusers').findOne({ _id: new ObjectId(userId) });
       isAdminUser = true;
     }
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -65,6 +65,20 @@ export async function DELETE(
     const result = await db.collection(collection).deleteOne({ _id: new ObjectId(userId) });
 
     if (result.deletedCount === 1) {
+      // Log admin action
+      const { logAdminAction } = await import('@/lib/audit-logger');
+      await logAdminAction(
+        request,
+        'DELETE_USER',
+        userId,
+        isAdminUser ? 'AdminUser' : 'User',
+        {
+          deletedBy: session.user.email,
+          userEmail: user.email,
+          userRole: user.role
+        }
+      );
+
       return NextResponse.json({ success: true, message: 'User deleted successfully' });
     } else {
       return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
@@ -86,7 +100,7 @@ export async function PATCH(
   try {
     const { id: userId } = await params;
     console.log('🔄 PATCH /api/admin/users/[id] - Updating user:', userId);
-    
+
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -101,18 +115,18 @@ export async function PATCH(
 
     const { db } = await connectToDatabase();
     const updates = await request.json();
-    
+
     console.log('📊 Update data received:', updates);
 
     // Check if user exists in either collection
     let user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     let isAdminUser = false;
-    
+
     if (!user) {
       user = await db.collection('adminusers').findOne({ _id: new ObjectId(userId) });
       isAdminUser = true;
     }
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -124,7 +138,7 @@ export async function PATCH(
 
     // Validate updates - only allow certain fields to be updated
     const allowedUpdates: any = {};
-    
+
     if (updates.isActive !== undefined) {
       // Both collections use status field, but with different enum values
       if (isAdminUser) {
@@ -133,14 +147,14 @@ export async function PATCH(
         allowedUpdates.status = updates.isActive ? 'active' : 'suspended';
       }
     }
-    
+
     if (updates.role) {
       // Handle role updates - can be string or object
       let roleName = updates.role;
       if (typeof updates.role === 'object' && updates.role.name) {
         roleName = updates.role.name;
       }
-      
+
       // Check if role exists in roles collection
       const role = await db.collection('roles').findOne({ name: roleName.toLowerCase() });
       if (role) {
@@ -175,8 +189,22 @@ export async function PATCH(
 
     if (result.modifiedCount === 1) {
       console.log('✅ User updated successfully:', { userId, allowedUpdates });
-      return NextResponse.json({ 
-        success: true, 
+
+      // Log admin action
+      const { logAdminAction } = await import('@/lib/audit-logger');
+      await logAdminAction(
+        request,
+        'UPDATE_USER',
+        userId,
+        isAdminUser ? 'AdminUser' : 'User',
+        {
+          updates: allowedUpdates,
+          updatedBy: session.user.email
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
         message: 'User updated successfully',
         updates: allowedUpdates
       });

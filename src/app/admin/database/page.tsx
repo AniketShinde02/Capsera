@@ -8,17 +8,22 @@ import { Progress } from '@/components/ui/progress';
 import {
   Database,
   Download,
-  Upload,
-  Trash2,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
   Clock,
   HardDrive,
   Activity,
-  Zap
+  Zap,
+  Server,
+  Cpu,
+  Terminal,
+  Code,
+  Layers
 } from 'lucide-react';
 import { MagicCard } from '@/components/admin/dashboard/magic-card';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface DatabaseStats {
   totalCollections: number;
@@ -56,26 +61,28 @@ export default function DatabasePage() {
   const [loading, setLoading] = useState(true);
   const [backupInProgress, setBackupInProgress] = useState(false);
   const [optimizeInProgress, setOptimizeInProgress] = useState(false);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>(['> System initialized...', '> Connecting to cluster...']);
 
-  // Fetch REAL database data
+  const addLog = (msg: string) => {
+    setTerminalLogs(prev => [...prev.slice(-4), `> ${msg}`]);
+  };
+
   const fetchDatabaseStats = async () => {
     try {
       setLoading(true);
-
-      // Real API call to get database stats
+      addLog('Fetching system metrics...');
       const response = await fetch('/api/admin/database/stats');
 
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
+        addLog('Metrics updated successfully.');
       } else {
-        console.error('Failed to fetch database stats:', response.status);
-        // Show error state instead of mock data
+        addLog('Error: Failed to fetch metrics.');
         setStats(null);
       }
     } catch (error) {
-      console.error('Error fetching database stats:', error);
-      // Show error state instead of mock data
+      addLog('Critical Error: Connection failed.');
       setStats(null);
     } finally {
       setLoading(false);
@@ -84,31 +91,23 @@ export default function DatabasePage() {
 
   useEffect(() => {
     fetchDatabaseStats();
-
-    // Set up auto-refresh every 30 seconds
     const interval = setInterval(fetchDatabaseStats, 30000);
-
     return () => clearInterval(interval);
   }, []);
-
-
 
   const handleCreateBackup = async () => {
     try {
       setBackupInProgress(true);
-
-      const response = await fetch('/api/admin/database/backup', {
-        method: 'POST'
-      });
-
+      addLog('Initiating backup sequence...');
+      const response = await fetch('/api/admin/database/backup', { method: 'POST' });
       if (response.ok) {
-        // Refresh stats after backup
+        addLog('Backup completed successfully.');
         setTimeout(() => fetchDatabaseStats(), 1000);
       } else {
-        console.error('Failed to create backup');
+        addLog('Error: Backup failed.');
       }
     } catch (error) {
-      console.error('Error creating backup:', error);
+      addLog('Error: Backup sequence interrupted.');
     } finally {
       setBackupInProgress(false);
     }
@@ -117,300 +116,198 @@ export default function DatabasePage() {
   const handleOptimizeDatabase = async () => {
     try {
       setOptimizeInProgress(true);
-
-      const response = await fetch('/api/admin/database/optimize', {
-        method: 'POST'
-      });
-
+      addLog('Starting optimization protocols...');
+      const response = await fetch('/api/admin/database/optimize', { method: 'POST' });
       if (response.ok) {
-        // Refresh stats after optimization
+        addLog('Optimization complete. Indexes rebuilt.');
         setTimeout(() => fetchDatabaseStats(), 1000);
       } else {
-        console.error('Failed to optimize database');
+        addLog('Error: Optimization failed.');
       }
     } catch (error) {
-      console.error('Error optimizing database:', error);
+      addLog('Error: Optimization interrupted.');
     } finally {
       setOptimizeInProgress(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'healthy': return <Badge variant="default" className="bg-green-100 text-green-800">Healthy</Badge>;
-      case 'warning': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Warning</Badge>;
-      case 'error': return <Badge variant="destructive">Error</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getBackupStatusBadge = (status: string) => {
-    switch (status) {
-      case 'success': return <Badge variant="default" className="bg-green-100 text-green-800">Success</Badge>;
-      case 'failed': return <Badge variant="destructive">Failed</Badge>;
-      case 'pending': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  if (loading) {
+  if (loading && !stats) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading database statistics...</p>
+      <div className="flex h-[80vh] items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-4 font-mono text-green-500">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
+          <p className="animate-pulse">INITIALIZING DATA MATRIX...</p>
         </div>
       </div>
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Database Unavailable</h2>
-          <p className="text-muted-foreground">Unable to connect to database. Please check your connection.</p>
-        </div>
-      </div>
-    );
-  }
+  if (!stats) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 p-2 sm:p-8 min-h-screen bg-black/95 text-green-500 font-mono animate-in fade-in duration-500 selection:bg-green-500/30 selection:text-green-200">
+
+      {/* Header HUD */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-green-500/20 pb-6">
         <div>
-          <h1 className="text-3xl font-bold">Database Management</h1>
-          <p className="text-muted-foreground">Monitor and manage your MongoDB database</p>
+          <h1 className="text-4xl font-bold tracking-tighter flex items-center gap-3">
+            <Database className="w-8 h-8 animate-pulse" />
+            DATA_MATRIX_V2.0
+          </h1>
+          <p className="text-green-500/60 mt-1 text-sm">System Status: ONLINE | Latency: {stats.avgResponseTime}ms</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              setLoading(true);
-              fetchDatabaseStats();
-            }}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
           <Button
             onClick={handleCreateBackup}
             disabled={backupInProgress}
             variant="outline"
+            className="border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
           >
-            {backupInProgress ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {backupInProgress ? 'Creating Backup...' : 'Create Backup'}
+            {backupInProgress ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            BACKUP_DATA
           </Button>
           <Button
             onClick={handleOptimizeDatabase}
             disabled={optimizeInProgress}
+            className="bg-green-600 hover:bg-green-700 text-black font-bold"
           >
-            {optimizeInProgress ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4 mr-2" />
-            )}
-            {optimizeInProgress ? 'Optimizing...' : 'Optimize Database'}
+            {optimizeInProgress ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+            OPTIMIZE_SYSTEM
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <MagicCard
-          title="Collections"
-          value={stats.totalCollections.toString()}
-          icon={Database}
-          trend="neutral"
-          trendValue="Total"
-          description="Active collections"
-          className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10"
-        />
-
-        <MagicCard
-          title="Documents"
-          value={stats.totalDocuments.toLocaleString()}
-          icon={HardDrive}
-          trend="up"
-          trendValue="Count"
-          description="Total records"
-          className="bg-gradient-to-br from-purple-50/50 to-violet-50/50 dark:from-purple-900/10 dark:to-violet-900/10"
-        />
-
-        <MagicCard
-          title="Active Conn."
-          value={stats.activeConnections.toString()}
-          icon={Activity}
-          trend="neutral"
-          trendValue={`${stats.connectionUtilization}%`}
-          description="Utilization"
-          className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10"
-        />
-
-        <MagicCard
-          title="Avg Response"
-          value={`${stats.avgResponseTime}ms`}
-          icon={Zap}
-          trend="neutral"
-          trendValue="Latency"
-          description="Query speed"
-          className="bg-gradient-to-br from-yellow-50/50 to-amber-50/50 dark:from-yellow-900/10 dark:to-amber-900/10"
-        />
-
-        <MagicCard
-          title="Uptime"
-          value={`${stats.uptime}%`}
-          icon={CheckCircle}
-          trend="up"
-          trendValue="Stable"
-          description="System availability"
-          className="bg-gradient-to-br from-cyan-50/50 to-sky-50/50 dark:from-cyan-900/10 dark:to-sky-900/10"
-        />
-
-        <MagicCard
-          title="Last Backup"
-          value={new Date(stats.lastBackup).toLocaleDateString()}
-          icon={Clock}
-          trend="neutral"
-          trendValue={stats.backupStatus}
-          description="Backup status"
-          className="bg-gradient-to-br from-pink-50/50 to-rose-50/50 dark:from-pink-900/10 dark:to-rose-900/10"
-        />
-      </div>
-
-      {/* Database Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Storage Usage */}
-        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5" />
-              Storage Usage
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Total Size</span>
-                <span className="font-medium">{stats.totalSize}</span>
+      {/* System Vitals */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-black border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs text-green-500/60 uppercase">Active Connections</p>
+                <h3 className="text-3xl font-bold mt-1 text-green-400">{stats.activeConnections}</h3>
               </div>
-              <Progress value={75} className="w-full" />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Used: 2.1 GB</span>
-                <span>Available: 0.7 GB</span>
-              </div>
+              <Activity className="w-5 h-5 text-green-500 animate-pulse" />
             </div>
-
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Backup Status</span>
-                {getBackupStatusBadge(stats.backupStatus)}
+            <Progress value={stats.connectionUtilization} className="h-1 mt-4 bg-green-900/30" />
+          </CardContent>
+        </Card>
+        <Card className="bg-black border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs text-green-500/60 uppercase">Storage Used</p>
+                <h3 className="text-3xl font-bold mt-1 text-green-400">{stats.totalSize}</h3>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Last backup: {new Date(stats.lastBackup).toLocaleString()}
-              </p>
+              <HardDrive className="w-5 h-5 text-green-500" />
+            </div>
+            <div className="flex gap-1 mt-4">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className={cn("h-1 flex-1 rounded-full", i < 7 ? "bg-green-500" : "bg-green-900/30")} />
+              ))}
             </div>
           </CardContent>
         </Card>
-
-        {/* Performance Metrics */}
-        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Performance Metrics
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-muted rounded-lg">
-                <p className="text-2xl font-bold text-green-600">98%</p>
-                <p className="text-xs text-muted-foreground">Uptime</p>
+        <Card className="bg-black border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs text-green-500/60 uppercase">Total Documents</p>
+                <h3 className="text-3xl font-bold mt-1 text-green-400">{stats.totalDocuments.toLocaleString()}</h3>
               </div>
-              <div className="text-center p-3 bg-muted rounded-lg">
-                <p className="text-2xl font-bold text-blue-600">12ms</p>
-                <p className="text-xs text-muted-foreground">Avg Response</p>
-              </div>
+              <Layers className="w-5 h-5 text-green-500" />
             </div>
-
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Database Health</span>
-                <Badge variant="default" className="bg-green-100 text-green-800">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Optimal
-                </Badge>
+            <p className="text-xs text-green-500/40 mt-4">Across {stats.totalCollections} collections</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-black border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs text-green-500/60 uppercase">System Uptime</p>
+                <h3 className="text-3xl font-bold mt-1 text-green-400">{stats.uptime}%</h3>
               </div>
+              <Server className="w-5 h-5 text-green-500" />
             </div>
+            <p className="text-xs text-green-500/40 mt-4">Last reboot: 14d ago</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Collections Table */}
-      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle>Database Collections</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">Collection</th>
-                  <th className="text-left py-3 px-4 font-medium">Documents</th>
-                  <th className="text-left py-3 px-4 font-medium">Size</th>
-                  <th className="text-left py-3 px-4 font-medium">Avg Doc Size</th>
-                  <th className="text-left py-3 px-4 font-medium">Indexes</th>
-                  <th className="text-left py-3 px-4 font-medium">Last Modified</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                  <th className="text-right py-3 px-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.collections.map((collection) => (
-                  <tr key={collection.name} className="border-b border-border/50">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Database className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{collection.name}</span>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Collections Monitor */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="bg-black/50 border border-green-500/20 backdrop-blur-md">
+            <CardHeader className="border-b border-green-500/20">
+              <CardTitle className="text-green-400 flex items-center gap-2">
+                <Code className="w-5 h-5" />
+                COLLECTION_STATUS
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-green-500/10">
+                {stats.collections.map((col) => (
+                  <div key={col.name} className="p-4 hover:bg-green-500/5 transition-colors flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded bg-green-500/10 text-green-400 group-hover:text-green-300 group-hover:shadow-[0_0_10px_rgba(34,197,94,0.2)] transition-all">
+                        <Database className="w-4 h-4" />
                       </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm">
-                      {collection.documentCount.toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4 text-sm">{collection.size}</td>
-                    <td className="text-sm text-muted-foreground">{collection.avgDocumentSize}</td>
-                    <td className="py-3 px-4 text-sm">{collection.indexes}</td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {new Date(collection.lastModified).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      {getStatusBadge(collection.status)}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        <Button variant="ghost" size="sm">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
+                      <div>
+                        <p className="font-bold text-green-300">{col.name}</p>
+                        <p className="text-xs text-green-500/50">{col.indexes} Indexes | {col.avgDocumentSize} avg</p>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-lg font-bold text-green-400">{col.documentCount.toLocaleString()}</p>
+                      <div className="flex items-center justify-end gap-2 mt-1">
+                        <span className={cn(
+                          "w-2 h-2 rounded-full animate-pulse",
+                          col.status === 'healthy' ? "bg-green-500" : "bg-red-500"
+                        )} />
+                        <span className="text-xs text-green-500/50 uppercase">{col.status}</span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Terminal & Logs */}
+        <div className="space-y-6">
+          <Card className="bg-black border border-green-500/30 h-full min-h-[400px] flex flex-col">
+            <CardHeader className="border-b border-green-500/20 bg-green-500/5">
+              <CardTitle className="text-green-400 flex items-center gap-2 text-sm font-mono">
+                <Terminal className="w-4 h-4" />
+                SYSTEM_LOGS
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 p-4 font-mono text-xs space-y-2 overflow-hidden">
+              {terminalLogs.map((log, i) => (
+                <div key={i} className="text-green-500/80 animate-in slide-in-from-left-2 fade-in duration-300">
+                  {log}
+                </div>
+              ))}
+              <div className="animate-pulse text-green-500">_</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-green-900/10 border border-green-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                <h4 className="font-bold text-yellow-500">System Notice</h4>
+              </div>
+              <p className="text-xs text-green-500/70">
+                Scheduled maintenance required for index optimization on 'users' collection. Performance degradation possible during peak hours.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+      </div>
     </div>
   );
 }

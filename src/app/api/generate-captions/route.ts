@@ -8,7 +8,7 @@ import { CaptionCacheService } from '@/lib/caption-cache';
 import { geminiManager } from '@/lib/smart-gemini-manager';
 import { smartErrorHandler } from '@/lib/smart-error-handler';
 
-// Groq caption generation function
+// Groq Vision caption generation function - NOW WITH IMAGE ANALYSIS! 🎯
 async function generateGroqCaptions(mood: string, description: string, imageUrl: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
   const startTime = Date.now();
 
@@ -18,7 +18,7 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
     const groqKey2 = process.env.GROQ_API_KEY_2;
     const groqKey = groqKey1 || groqKey2;
 
-    console.log('🔑 Groq key check:', {
+    console.log('🔑 Groq Vision key check:', {
       hasKey1: !!groqKey1,
       hasKey2: !!groqKey2,
       hasAnyKey: !!groqKey,
@@ -35,22 +35,28 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
       };
     }
 
-    console.log('🚀 Generating captions with Groq (primary provider)...');
+    console.log('🚀 Generating captions with Groq Vision (llama-3.2-11b-vision-preview)...');
 
-    // Optimized prompt
-    const prompt = `Generate 3 unique, engaging social media captions for an image with a ${mood} mood.${description ? ` Image description: ${description}` : ''
-      }
+    // Optimized prompt for vision model
+    const prompt = `Analyze this image and generate 3 unique, engaging social media captions.
 
-Requirements:
+MOOD: ${mood}
+${description ? `CONTEXT: ${description}` : ''}
+
+REQUIREMENTS:
+- Analyze the ACTUAL image content (colors, objects, people, setting, lighting, composition)
 - Each caption should be 10-25 words
 - Include 2-3 relevant hashtags per caption
 - Match the ${mood} mood perfectly
-- Be engaging and shareable
+- Reference specific visual elements you see in the image
+- Be engaging and shareable for Instagram/TikTok
 - Format as numbered list (1., 2., 3.)
+
+IMPORTANT: Your captions MUST prove you analyzed the image by mentioning specific visual details!
 
 Generate exactly 3 captions:`;
 
-    // Make Groq API call
+    // Make Groq Vision API call with image
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -58,18 +64,29 @@ Generate exactly 3 captions:`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.2-11b-vision-preview', // 🎯 VISION MODEL - Can see images!
         messages: [
           {
             role: 'system',
-            content: 'You are a professional social media caption generator. Generate exactly 3 unique, engaging captions for the given image and mood. Each caption should be 10-25 words, include relevant hashtags, and match the specified mood perfectly.'
+            content: 'You are a professional social media caption generator with image analysis capabilities. Analyze the image carefully and generate captions that reference specific visual elements you see.'
           },
           {
             role: 'user',
-            content: `${prompt}\n\nImage URL: ${imageUrl}`
+            content: [
+              {
+                type: 'text',
+                text: prompt
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl
+                }
+              }
+            ]
           }
         ],
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0.7,
         stream: false
       })
@@ -79,11 +96,11 @@ Generate exactly 3 captions:`;
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Groq API error:', response.status, errorData);
+      console.error('❌ Groq Vision API error:', response.status, errorData);
 
       return {
         success: false,
-        error: `Groq API error: ${response.status}`,
+        error: `Groq Vision API error: ${response.status}`,
         processingTime
       };
     }
@@ -112,7 +129,8 @@ Generate exactly 3 captions:`;
       captions.push(captions[captions.length - 1] || 'Great moment captured! 📸 #Life #Beautiful');
     }
 
-    console.log(`✅ Groq captions generated in ${processingTime}ms`);
+    console.log(`✅ Groq Vision captions generated in ${processingTime}ms`);
+    console.log(`🎯 Vision-based captions (analyzed actual image):`, captions.slice(0, 3));
 
     return {
       success: true,
@@ -121,7 +139,7 @@ Generate exactly 3 captions:`;
     };
 
   } catch (error: any) {
-    console.error('❌ Groq generation error:', error);
+    console.error('❌ Groq Vision generation error:', error);
 
     return {
       success: false,
@@ -260,34 +278,57 @@ export async function POST(req: NextRequest) {
       resetTime: rateLimitResult.resetTime
     });
 
-    // SMART: Use intelligent key management
-    keyResult = await geminiManager.getBestKey();
-    if (!keyResult) {
-      console.warn('⚠️ All Gemini API keys exhausted - enabling fallback mode');
-
-      return NextResponse.json({
-        success: false,
-        message: "Our AI servers are currently at capacity. Please try again in a few hours.",
-        error: 'all_keys_exhausted',
-        status: geminiManager.getStatus()
-      }, { status: 503 });
-    }
-
-    // 🚀 Using Gemini (Primary Provider) for multimodal analysis
-    // We prioritize Gemini because it can "see" the image, whereas Groq Llama 3.1 is text-only.
-    console.log(`🔑 Using Gemini key (Request #${Date.now()})`);
+    // 🚀 NEW STRATEGY: Try Groq Vision FIRST (14,400/day with image analysis!)
+    // Then fallback to Gemini (1,500/day) if Groq fails
+    console.log('🎯 Attempting Groq Vision first (Primary Provider - 14,400/day limit)...');
 
     let result;
-    result = await generateCaptions({
-      mood,
-      description,
-      imageUrl,
-      publicId,
-      userId: session?.user?.id,
-      ipAddress: clientIP,
-      // We already performed unified rate limit checks in this route, so skip the internal flow check
-      skipRateLimit: true,
-    });
+    const groqResult = await generateGroqCaptions(mood, description || '', imageUrl);
+
+    if (groqResult.success && groqResult.captions) {
+      console.log('✅ Groq Vision successful! (Primary provider)');
+      result = { captions: groqResult.captions };
+    } else {
+      console.warn('⚠️ Groq Vision failed, trying Gemini fallback...', groqResult.error);
+
+      // 🔄 FALLBACK: Try Gemini when Groq fails
+      keyResult = await geminiManager.getBestKey();
+
+      if (!keyResult) {
+        console.error('❌ Both Groq Vision and Gemini exhausted!');
+        return NextResponse.json({
+          success: false,
+          message: "Our AI servers are currently at capacity. Please try again in a few minutes.",
+          error: 'all_providers_exhausted',
+          status: geminiManager.getStatus()
+        }, { status: 503 });
+      }
+
+      console.log(`🔑 Using Gemini as fallback (Request #${Date.now()})`);
+
+      try {
+        result = await generateCaptions({
+          mood,
+          description,
+          imageUrl,
+          publicId,
+          userId: session?.user?.id,
+          ipAddress: clientIP,
+          skipRateLimit: true,
+        });
+        console.log('✅ Gemini fallback successful!');
+      } catch (geminiError: any) {
+        console.error('❌ Both Groq Vision and Gemini failed!', geminiError.message);
+
+        // Mark key as exhausted if it's a quota error
+        if (geminiError.message?.includes('quota') || geminiError.message?.includes('429')) {
+          geminiManager.markKeyExhausted(keyResult.index, geminiError);
+        }
+
+        // Both providers failed - throw error
+        throw geminiError;
+      }
+    }
 
     // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
     if (result.captions && result.captions.length > 0) {

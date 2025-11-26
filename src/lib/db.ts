@@ -3,13 +3,7 @@ import 'dotenv/config';
 import mongoose, { Mongoose } from 'mongoose';
 import { MongoClient } from 'mongodb';
 
-// Debug: Check environment variables
-console.log('🔍 Environment Check:', {
-  MONGODB_URI: process.env.MONGODB_URI ? '✅ Set' : '❌ Missing',
-  NODE_ENV: process.env.NODE_ENV || 'undefined',
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? '✅ Set' : '❌ Missing',
-  // IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY ? '✅ Set' : '❌ Missing' // Commented out - migrated to Cloudinary
-});
+// Environment validation
 
 // CRITICAL: Use the provided MongoDB Atlas URI - NO LOCAL CONNECTIONS
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -27,7 +21,7 @@ if (MONGODB_URI.includes('localhost') || MONGODB_URI.includes('127.0.0.1')) {
   throw new Error('MongoDB Atlas connection required. Local connections are not allowed.');
 }
 
-console.log('✅ Using MongoDB Atlas connection:', MONGODB_URI.replace(/\/\/.*@/, '//***:***@'));
+// Connection validated
 
 /**
  * Global is used here to maintain a cached connection across hot reloads
@@ -63,7 +57,7 @@ export async function dbConnect(): Promise<Mongoose> {
       retryWrites: true, // Enable retry for write operations
       retryReads: true, // Enable retry for read operations
     };
-    
+
     console.log('🔗 Attempting to connect to MongoDB Atlas with Mongoose...');
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
       console.log('✅ New Mongoose connection established to Atlas');
@@ -83,7 +77,7 @@ export async function dbConnect(): Promise<Mongoose> {
     cached.promise = null;
     throw e;
   }
-  
+
   return cached.conn;
 }
 
@@ -128,31 +122,31 @@ export default dbConnect;
  */
 export async function connectToDatabase(retryCount = 0) {
   const maxRetries = 3;
-  
+
   try {
     console.log(`🔗 Connecting to MongoDB Atlas via MongoClient... (attempt ${retryCount + 1})`);
     const client = await clientPromise;
     const db = client.db();
-    
+
     // Test the connection with timeout
     const pingPromise = db.admin().ping();
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Ping timeout')), 10000)
     );
-    
+
     await Promise.race([pingPromise, timeoutPromise]);
     console.log('✅ MongoDB Atlas connection successful');
-    
+
     return { client, db };
   } catch (error) {
     console.error(`❌ Failed to connect to MongoDB Atlas (attempt ${retryCount + 1}):`, error);
-    
+
     if (retryCount < maxRetries) {
       console.log(`🔄 Retrying connection in 2 seconds... (${retryCount + 1}/${maxRetries})`);
       await new Promise(resolve => setTimeout(resolve, 2000));
       return connectToDatabase(retryCount + 1);
     }
-    
+
     throw new Error(`Database connection failed after ${maxRetries} attempts - check Atlas connection string`);
   }
 }

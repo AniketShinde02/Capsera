@@ -13,8 +13,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, Database, HardDrive, Clock } from 'lucide-react';
 import JSZip from 'jszip';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
+import { cn } from '@/lib/utils';
 
 interface ImageItem {
   id: string;
@@ -89,7 +91,7 @@ export default function ImageManagementPage() {
   const [downloadingImage, setDownloadingImage] = useState<string | null>(null);
   const [exportingData, setExportingData] = useState(false);
   const [bulkDownloadProgress, setBulkDownloadProgress] = useState<{ current: number; total: number; zipSize?: string } | null>(null);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [imagesPerPage] = useState(12);
@@ -100,7 +102,7 @@ export default function ImageManagementPage() {
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 2000); // 2 second timeout
+    setTimeout(() => setNotification(null), 3000);
   };
 
   // Download image functionality
@@ -108,67 +110,43 @@ export default function ImageManagementPage() {
     try {
       setDownloadingImage(image.id);
       console.log('🔄 Starting download for:', image.originalName);
-      console.log('📥 Image URL:', image.url);
-      
-      // Check if URL is valid
+
       if (!image.url || image.url === 'https://placehold.co/400text=No+Image') {
-        console.error('❌ Invalid image URL for download');
         showNotification("Cannot download: Invalid image URL", "error");
         return;
       }
 
-      // Add CORS headers and use mode: 'cors'
       const response = await fetch(image.url, {
         method: 'GET',
         mode: 'cors',
-        headers: {
-          'Accept': 'image/*',
-        }
+        headers: { 'Accept': 'image/*' }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-      console.log('✅ Image fetched successfully, creating blob...');
       const blob = await response.blob();
-      console.log('📦 Blob created, size:', blob.size, 'bytes');
-
-      // Create download link
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = image.originalName || image.filename || `image-${Date.now()}.png`;
       a.style.display = 'none';
-      
-      // Append to body and trigger download
       document.body.appendChild(a);
-      console.log('🔗 Download link created, triggering download...');
       a.click();
-      
-      // Cleanup
+
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        console.log('🧹 Cleanup completed');
       }, 100);
 
-      console.log('✅ Download initiated successfully!');
       showNotification(`Downloading ${image.originalName || 'image'}...`, "info");
-      
+
     } catch (error) {
       console.error('❌ Download failed:', error);
-      
-      // Try alternative method for Cloudinary URLs
       if (image.url.includes('cloudinary.com')) {
-        console.log('🔄 Trying alternative download method for Cloudinary...');
         try {
-          // Open in new tab for manual download
           window.open(image.url, '_blank');
-          console.log('✅ Opened image in new tab for manual download');
           showNotification("Image opened in new tab for manual download", "info");
         } catch (altError) {
-          console.error('❌ Alternative method also failed:', altError);
           showNotification("Download Failed. Please right-click the image and 'Save image as...'.", "error");
         }
       } else {
@@ -189,41 +167,26 @@ export default function ImageManagementPage() {
 
       showNotification("Preparing images for compression...", "info");
 
-      // Initialize JSZip
       const zip = new JSZip();
       let processedCount = 0;
       setBulkDownloadProgress({ current: 0, total: images.length });
 
-      // Process each image and add to ZIP
       for (const image of images) {
         try {
           if (image.url && image.url !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') {
-            console.log(`🔄 Processing image: ${image.originalName}`);
-            
-            // Fetch the image
             const response = await fetch(image.url, {
               method: 'GET',
               mode: 'cors',
-              headers: {
-                'Accept': 'image/*',
-              }
+              headers: { 'Accept': 'image/*' }
             });
 
             if (response.ok) {
               const blob = await response.blob();
-              
-              // Generate filename with extension
               const extension = image.format.toLowerCase();
               const filename = `${image.originalName || image.filename || `image-${Date.now()}`}.${extension}`;
-              
-              // Add image to ZIP
               zip.file(filename, blob);
-              console.log(`✅ Added to ZIP: ${filename}`);
-              
               processedCount++;
               setBulkDownloadProgress({ current: processedCount, total: images.length });
-            } else {
-              console.warn(`⚠️ Failed to fetch image: ${image.originalName}`);
             }
           }
         } catch (error) {
@@ -238,42 +201,31 @@ export default function ImageManagementPage() {
 
       showNotification("Compressing ZIP File...", "info");
 
-      // Generate ZIP file
-      const zipBlob = await zip.generateAsync({ 
+      const zipBlob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
-        compressionOptions: {
-          level: 6 // Good balance between speed and compression
-        }
+        compressionOptions: { level: 6 }
       });
 
       const zipSizeMB = (zipBlob.size / 1024 / 1024).toFixed(2);
-      console.log(`📦 ZIP created successfully! Size: ${zipSizeMB} MB`);
-
-      // Update progress with ZIP size
       setBulkDownloadProgress(prev => prev ? { ...prev, zipSize: `${zipSizeMB} MB` } : null);
 
-      // Download the ZIP file
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `images-bulk-download-${new Date().toISOString().split('T')[0]}.zip`;
       a.style.display = 'none';
-      
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      
-      // Cleanup
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 100);
+
+      setTimeout(() => URL.revokeObjectURL(url), 100);
 
       showNotification(`Successfully downloaded ${processedCount} images in compressed ZIP file`, "success");
 
     } catch (error) {
       console.error('Bulk download failed:', error);
-      showNotification("ZIP Creation Failed. Failed to create ZIP file. Please try individual downloads.", "error");
+      showNotification("ZIP Creation Failed. Please try individual downloads.", "error");
     } finally {
       setBulkDownloadProgress(null);
     }
@@ -288,7 +240,7 @@ export default function ImageManagementPage() {
       }
 
       setExportingData(true);
-      
+
       const exportData = {
         timestamp: new Date().toISOString(),
         totalImages: images.length,
@@ -311,7 +263,6 @@ export default function ImageManagementPage() {
       };
 
       if (format === 'csv') {
-        // Create CSV content
         const headers = ['ID', 'Filename', 'Original Name', 'Size', 'Dimensions', 'Format', 'Uploaded By', 'Uploaded At', 'Status', 'Tags', 'URL', 'Storage Location', 'Access Count', 'Last Accessed'];
         const rows = exportData.images.map(img => [
           img.id || 'N/A',
@@ -330,11 +281,9 @@ export default function ImageManagementPage() {
           img.lastAccessed === 'Never' ? 'Never' : (img.lastAccessed ? new Date(img.lastAccessed).toLocaleDateString() : 'N/A')
         ]);
 
-        // Helper function to safely escape CSV values
         const escapeCSV = (value: any): string => {
           if (value === null || value === undefined) return 'N/A';
           const stringValue = String(value);
-          // If value contains comma, quote, or newline, wrap in quotes and escape internal quotes
           if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
             return `"${stringValue.replace(/"/g, '""')}"`;
           }
@@ -351,10 +300,9 @@ export default function ImageManagementPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showNotification("Image data exported as CSV file", "success");
       } else {
-        // Export as JSON
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -364,7 +312,7 @@ export default function ImageManagementPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showNotification("Image data exported as JSON file", "success");
       }
     } catch (error) {
@@ -374,37 +322,18 @@ export default function ImageManagementPage() {
       setExportingData(false);
     }
   };
-  
+
   // Fetch REAL data from database
   const fetchImages = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching images from API...');
       const response = await fetch('/api/admin/images');
-      
+
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Received image data:', data);
-        console.log('🖼️ Images array:', data.images);
-        console.log('📊 Storage metrics:', data.storageMetrics);
-        console.log('⚖️ Moderation queue:', data.moderationQueue);
-        
         setImages(data.images || []);
         setStorageMetrics(data.storageMetrics || storageMetrics);
         setModerationQueue(data.moderationQueue || moderationQueue);
-        
-        // Debug: Check first few images for thumbnail URLs
-        if (data.images && data.images.length > 0) {
-          console.log('🔍 First 3 images thumbnail URLs:');
-          data.images.slice(0, 3).forEach((img: any, index: number) => {
-            console.log(`  Image ${index + 1}:`, {
-              id: img.id,
-              thumbnailUrl: img.thumbnailUrl,
-              url: img.url,
-              originalName: img.originalName
-            });
-          });
-        }
       } else {
         console.error('Failed to fetch images:', response.status);
         setImages([]);
@@ -420,29 +349,22 @@ export default function ImageManagementPage() {
   // Silent background refresh function
   const fetchImagesSilently = async () => {
     try {
-      console.log('🔄 Silent background refresh of images...');
       const response = await fetch('/api/admin/images');
-      
       if (response.ok) {
         const data = await response.json();
         setImages(data.images || []);
         setStorageMetrics(data.storageMetrics || storageMetrics);
         setModerationQueue(data.moderationQueue || moderationQueue);
-        console.log('✅ Silent refresh completed');
       }
     } catch (error) {
       console.error('❌ Silent refresh failed:', error);
-      // Don't show errors to user during background refresh
     }
   };
 
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchImages(); // Initial fetch with loading
-      
-      // Set up auto-refresh every 30 seconds (silent)
+      fetchImages();
       const interval = setInterval(fetchImagesSilently, 30000);
-      
       return () => clearInterval(interval);
     }
   }, [session, status]);
@@ -450,13 +372,13 @@ export default function ImageManagementPage() {
   // Filter images based on search and filters
   const filteredImages = images.filter(image => {
     const matchesSearch = searchTerm === '' ||
-                         image.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         image.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         image.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         image.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+      image.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      image.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      image.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      image.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || image.status === statusFilter;
     const matchesFormat = formatFilter === 'all' || image.format.toLowerCase() === formatFilter.toLowerCase();
-    
+
     return matchesSearch && matchesStatus && matchesFormat;
   });
 
@@ -471,775 +393,414 @@ export default function ImageManagementPage() {
   };
 
   const handleModeration = async () => {
-    if (!selectedImage) {
-      showNotification("No image selected for moderation", "error");
-      return;
-    }
-
+    if (!selectedImage) return;
     if (!moderationNotes.trim()) {
       showNotification("Please enter moderation notes", "error");
       return;
     }
 
     try {
-      console.log('🔄 Moderating image:', selectedImage.id, 'with action:', moderationAction);
-      
-      // Call backend API to update image moderation status
       const response = await fetch(`/api/admin/images/${selectedImage.id}/moderate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: moderationAction,
           notes: moderationNotes,
-          status: moderationAction === 'approve' ? 'approved' : 
-                  moderationAction === 'reject' ? 'rejected' : 'flagged'
+          status: moderationAction === 'approve' ? 'approved' :
+            moderationAction === 'reject' ? 'rejected' : 'flagged'
         })
       });
 
-      console.log('📊 Moderation response status:', response.status);
-
       if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Image moderated successfully:', data);
-        
-        // Update local state after successful API call
-        const updatedImage = { ...selectedImage };
-        
-        if (moderationAction === 'approve') {
-          updatedImage.status = 'approved';
-          updatedImage.storageLocation = 'primary';
-          setModerationQueue(prev => ({ ...prev, approved: prev.approved + 1, pending: prev.pending - 1 }));
-        } else if (moderationAction === 'reject') {
-          updatedImage.status = 'rejected';
-          updatedImage.storageLocation = 'quarantine';
-          setModerationQueue(prev => ({ ...prev, rejected: prev.rejected + 1, pending: prev.pending - 1 }));
-        } else if (moderationAction === 'flag') {
-          updatedImage.status = 'flagged';
-          updatedImage.storageLocation = 'quarantine';
-          updatedImage.flaggedReason = moderationNotes;
-          setModerationQueue(prev => ({ ...prev, flagged: prev.flagged + 1, pending: prev.pending - 1 }));
-        }
-
-        updatedImage.moderationNotes = moderationNotes;
-        setImages(prev => prev.map(img => img.id === selectedImage.id ? updatedImage : img));
-        
         showNotification(`Image ${moderationAction}d successfully`, "success");
-        
-        // Refresh data after moderation
         setTimeout(() => fetchImages(), 1000);
-        
         setShowModerationDialog(false);
         setSelectedImage(null);
         setModerationNotes('');
         setModerationAction('approve');
       } else {
         const errorData = await response.json();
-        console.error('❌ Failed to moderate image:', errorData);
-        showNotification(`Failed to moderate image: ${errorData.error || errorData.message || 'Unknown error'}`, "error");
+        showNotification(`Failed to moderate image: ${errorData.error || 'Unknown error'}`, "error");
       }
     } catch (error) {
-      console.error('❌ Error moderating image:', error);
-      showNotification(`Error moderating image: ${error.message || 'Network error'}`, "error");
+      showNotification("Network error", "error");
     }
   };
 
   const handleDeleteImage = async (imageId: string) => {
     try {
-      // Call backend API to delete image
-      const response = await fetch(`/api/admin/images/${imageId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/admin/images/${imageId}`, { method: 'DELETE' });
 
       if (response.ok) {
-        const image = images.find(img => img.id === imageId);
-        if (image) {
-          // Update storage metrics
-          const sizeInMB = parseFloat(image.size);
-          setStorageMetrics(prev => ({
-            ...prev,
-            totalImages: prev.totalImages - 1,
-            totalSize: `${(parseFloat(prev.totalSize) - sizeInMB / 1024).toFixed(1)} GB`
-          }));
-
-          // Update moderation queue
-          if (image.status === 'pending') {
-            setModerationQueue(prev => ({ ...prev, pending: prev.pending - 1 }));
-          } else if (image.status === 'flagged') {
-            setModerationQueue(prev => ({ ...prev, flagged: prev.flagged - 1 }));
-          } else if (image.status === 'rejected') {
-            setModerationQueue(prev => ({ ...prev, rejected: prev.rejected - 1 }));
-          } else if (image.status === 'approved') {
-            setModerationQueue(prev => ({ ...prev, approved: prev.approved - 1 }));
-          }
-        }
-
         setImages(prev => prev.filter(img => img.id !== imageId));
-        
-        // Refresh data after deletion
         setTimeout(() => fetchImages(), 1000);
-        
         setShowDeleteDialog(false);
         setSelectedImage(null);
+        showNotification("Image deleted successfully", "success");
       } else {
-        console.error('Failed to delete image:', response.status);
-        showNotification("Failed to delete image. Please try again.", "error");
+        showNotification("Failed to delete image", "error");
       }
     } catch (error) {
-      console.error('Error deleting image:', error);
-      showNotification("Error deleting image. Please try again.", "error");
+      showNotification("Network error", "error");
     }
   };
 
   const getStatusColor = (status: ImageItem['status']) => {
     switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'flagged': return 'bg-orange-100 text-orange-800';
-    }
-  };
-
-  const getStatusIcon = (status: ImageItem['status']) => {
-    switch (status) {
-      case 'approved': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'pending': return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      case 'rejected': return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'flagged': return <AlertTriangle className="h-4 w-4 text-orange-600" />;
+      case 'approved': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'pending': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'rejected': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'flagged': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading images...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session?.user) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <p className="text-muted-foreground">Access denied. Admin privileges required.</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Image Management</h1>
-          <p className="text-muted-foreground">
-            Manage and moderate user-uploaded images • {loading ? 'Loading...' : `${images.length} total images`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            onClick={() => {
-              setLoading(true);
-              fetchImages();
-            }}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-                     <Button 
-             variant="default"
-             onClick={downloadAllImages}
-             className="bg-blue-600 hover:bg-blue-700"
-             disabled={images.length === 0 || bulkDownloadProgress !== null}
-           >
-             {bulkDownloadProgress ? (
-               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-             ) : (
-               <Download className="h-4 w-4 mr-2" />
-             )}
-                           {bulkDownloadProgress ? `Creating ZIP... (${bulkDownloadProgress.current}/${bulkDownloadProgress.total})` : `Download as ZIP (${images.length})`}
-           </Button>
-          <Button variant="outline">
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
-                     <Button 
-             variant="outline" 
-             onClick={() => exportImageData('csv')}
-             disabled={exportingData}
-           >
-             {exportingData ? (
-               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-             ) : (
-               <Download className="h-4 w-4 mr-2" />
-             )}
-             Export CSV
-           </Button>
-           <Button 
-             variant="outline" 
-             onClick={() => exportImageData('json')}
-             disabled={exportingData}
-           >
-             {exportingData ? (
-               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-             ) : (
-               <Download className="h-4 w-4 mr-2" />
-             )}
-             Export JSON
-           </Button>
-                 </div>
-       </div>
+    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-8">
 
-      {/* Plain Text Notification Display */}
+      {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
-          notification.type === 'success' 
-            ? 'bg-green-100 border border-green-300 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
-            : notification.type === 'error'
-            ? 'bg-red-100 border border-red-300 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
-            : 'bg-blue-100 border border-blue-300 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
-        }`}>
-          <div className="flex items-center space-x-2">
-            {notification.type === 'success' && <CheckCircle className="w-4 h-4" />}
-            {notification.type === 'error' && <AlertTriangle className="w-4 h-4" />}
-            {notification.type === 'info' && <Info className="w-4 h-4" />}
-            <span className="text-sm font-medium">{notification.message}</span>
-          </div>
+        <div className={cn(
+          "fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-md transition-all duration-300 animate-in slide-in-from-right-10",
+          notification.type === 'success' ? "bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-500" :
+            notification.type === 'error' ? "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-500" :
+              "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-500"
+        )}>
+          {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
+            notification.type === 'error' ? <AlertTriangle className="w-5 h-5" /> :
+              <Info className="w-5 h-5" />}
+          <span className="font-medium">{notification.message}</span>
         </div>
       )}
 
-      {/* Bulk Download Progress */}
-       {bulkDownloadProgress && (
-         <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-           <CardContent className="pt-4">
-             <div className="flex items-center justify-between mb-2">
-               <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                 Bulk Download Progress
-               </span>
-               <span className="text-sm text-blue-600 dark:text-blue-400">
-                 {bulkDownloadProgress.current} / {bulkDownloadProgress.total}
-               </span>
-             </div>
-             <Progress 
-               value={(bulkDownloadProgress.current / bulkDownloadProgress.total) * 100} 
-               className="h-2 bg-blue-100 dark:bg-blue-900"
-             />
-                           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                Processing images and creating ZIP file... Please wait.
-                {bulkDownloadProgress.zipSize && (
-                  <span className="block mt-1 font-medium">
-                    ZIP Size: {bulkDownloadProgress.zipSize}
-                  </span>
-                )}
-              </p>
-           </CardContent>
-         </Card>
-       )}
-
-       {/* Storage Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Images</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-16 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-24"></div>
-              </div>
+      {/* Header */}
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">Image Vault</h1>
+          <p className="text-muted-foreground">Manage and moderate user-uploaded content.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { setLoading(true); fetchImages(); }}
+            className="bg-card border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+          </Button>
+          <Button
+            onClick={downloadAllImages}
+            disabled={images.length === 0 || bulkDownloadProgress !== null}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            {bulkDownloadProgress ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             ) : (
-              <>
-                <div className="text-2xl font-bold">{storageMetrics.totalImages.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Total uploaded</p>
-              </>
+              <Download className="h-4 w-4 mr-2" />
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-20 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-16"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{storageMetrics.usedStorage}</div>
-                <p className="text-xs text-muted-foreground">of {storageMetrics.totalSize}</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-12 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-28"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-yellow-600">{moderationQueue.pending}</div>
-                <p className="text-xs text-muted-foreground">Awaiting moderation</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Today's Uploads</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-12 mb-1"></div>
-                <div className="text-xs text-muted-foreground">New images today</div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{storageMetrics.imagesToday}</div>
-                <p className="text-xs text-muted-foreground">New images today</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+            {bulkDownloadProgress ? `Zipping...` : `Download All`}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportImageData('csv')}
+            disabled={exportingData}
+            className="bg-card border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            Export CSV
+          </Button>
+        </div>
       </div>
 
-      {/* Storage Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Storage Usage</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {loading ? (
-              <div className="animate-pulse space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    <div className="h-4 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div className="h-3 bg-gray-200 rounded"></div>
-                </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="h-6 bg-gray-200 rounded w-16 mx-auto mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded w-12 mx-auto"></div>
-                  </div>
-                  <div>
-                    <div className="h-6 bg-gray-200 rounded w-20 mx-auto mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded w-16 mx-auto"></div>
-                  </div>
-                  <div>
-                    <div className="h-6 bg-gray-200 rounded w-16 mx-auto mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded w-12 mx-auto"></div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Storage Used</span>
-                    <span>Unknown Limit</span>
-                  </div>
-                  <Progress value={0} className="h-3" />
-                  <p className="text-xs text-muted-foreground mt-1">Storage limit not configured</p>
-                </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-semibold">{storageMetrics.usedStorage}</div>
-                    <div className="text-xs text-muted-foreground">Used</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-semibold">Unknown</div>
-                    <div className="text-xs text-muted-foreground">Storage Limit</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-semibold">{storageMetrics.averageImageSize}</div>
-                    <div className="text-xs text-muted-foreground">Avg Size</div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <MagicCard
+          title="Total Images"
+          value={storageMetrics.totalImages.toLocaleString()}
+          icon={ImageIcon}
+          trend="neutral"
+          trendValue="Stored"
+          className="bg-card border-none"
+        />
+        <MagicCard
+          title="Storage Used"
+          value={storageMetrics.usedStorage}
+          icon={Database}
+          trend="neutral"
+          trendValue={`of ${storageMetrics.totalSize}`}
+          className="bg-card border-none"
+        />
+        <MagicCard
+          title="Pending Review"
+          value={moderationQueue.pending.toString()}
+          icon={AlertTriangle}
+          trend="down"
+          trendValue="Queue"
+          className="bg-card border-none"
+        />
+        <MagicCard
+          title="New Today"
+          value={storageMetrics.imagesToday.toString()}
+          icon={Clock}
+          trend="up"
+          trendValue="Uploads"
+          className="bg-card border-none"
+        />
+      </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Bulk Download Progress */}
+      {bulkDownloadProgress && (
+        <div className="mb-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Bulk Download Progress</span>
+            <span className="text-sm text-blue-600 dark:text-blue-400">{bulkDownloadProgress.current} / {bulkDownloadProgress.total}</span>
+          </div>
+          <Progress value={(bulkDownloadProgress.current / bulkDownloadProgress.total) * 100} className="h-2 bg-blue-500/20" />
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+            Creating ZIP file... {bulkDownloadProgress.zipSize && `Size: ${bulkDownloadProgress.zipSize}`}
+          </p>
+        </div>
+      )}
+
+      {/* Filters & Grid */}
+      <div className="space-y-6">
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 p-4 rounded-[2rem] bg-card border border-border">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search images..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="md:col-span-2"
+              className="pl-10 bg-background border-none text-foreground h-10 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
             />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="flagged">Flagged</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={formatFilter} onValueChange={setFormatFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Format" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Formats</SelectItem>
-                <SelectItem value="JPEG">JPEG</SelectItem>
-                <SelectItem value="PNG">PNG</SelectItem>
-                <SelectItem value="GIF">GIF</SelectItem>
-                <SelectItem value="WEBP">WEBP</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
-        </CardContent>
-      </Card>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border text-foreground">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="flagged">Flagged</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={formatFilter} onValueChange={setFormatFilter}>
+            <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">
+              <SelectValue placeholder="Format" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border text-foreground">
+              <SelectItem value="all">All Formats</SelectItem>
+              <SelectItem value="JPEG">JPEG</SelectItem>
+              <SelectItem value="PNG">PNG</SelectItem>
+              <SelectItem value="GIF">GIF</SelectItem>
+              <SelectItem value="WEBP">WEBP</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* Images Grid */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Images ({filteredImages.length})</CardTitle>
-          <CardDescription>
-            Manage and moderate user-uploaded images
-            <span className="ml-2 text-xs text-green-600 dark:text-green-400">
-              🔄 Auto-refresh every 30s
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {[...Array(12)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="w-full h-32 bg-gray-200 rounded-lg mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-3/4 mb-1"></div>
-                  <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          ) : filteredImages.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Image className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">No images found</p>
-              <p className="text-sm">No images match the current filters.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {filteredImages.map((image) => (
-                <div key={image.id} className="group relative">
-                  {/* Image Card */}
-                  <div className="relative overflow-hidden rounded-lg border bg-background hover:shadow-md transition-shadow">
-                    {/* Image */}
-                    <div className="aspect-square overflow-hidden">
-                                             {image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image' ? (
-                      <img
-                        src={image.thumbnailUrl}
-                        alt={`Thumbnail for ${image.id}`}
-                        className="w-full h-full object-cover rounded"
-                        onError={(e) => {
-                          console.log('❌ Image failed to load:', image.thumbnailUrl);
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          // Show fallback
-                          const fallback = target.parentElement?.querySelector('.image-fallback');
-                          if (fallback) {
-                            (fallback as HTMLElement).style.display = 'flex';
-                          }
-                        }}
-                        onLoad={() => {
-                          console.log('✅ Image loaded successfully:', image.thumbnailUrl);
-                        }}
-                      />
-                    ) : null}
-                    
-                    {/* Fallback when image fails to load */}
-                    <div 
-                      className="image-fallback w-full h-full flex items-center justify-center bg-muted rounded"
-                      style={{ display: (image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') ? 'none' : 'flex' }}
+        {/* Images Grid */}
+        {filteredImages.length === 0 ? (
+          <div className="text-center py-20 bg-card rounded-[2rem] border border-border">
+            <ImageIcon className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-medium text-muted-foreground">No images found</p>
+            <p className="text-sm text-muted-foreground/80">Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {currentImages.map((image) => (
+              <div key={image.id} className="group relative bg-card rounded-xl overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all border border-border">
+                <div className="aspect-square relative overflow-hidden bg-muted/20">
+                  {image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image' ? (
+                    <img
+                      src={image.thumbnailUrl}
+                      alt={image.originalName}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLElement).parentElement?.querySelector('.fallback')?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <ImageIcon className="w-8 h-8" />
+                    </div>
+                  )}
+                  <div className="fallback hidden w-full h-full absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground">
+                    <ImageIcon className="w-8 h-8" />
+                  </div>
+
+                  {/* Overlay Actions */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-white hover:bg-white/20 rounded-full"
+                      onClick={() => { setSelectedImage(image); setShowModerationDialog(true); }}
                     >
-                      <div className="text-center p-4">
-                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
-                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">No Image</p>
-                      </div>
-                    </div>
-                    </div>
-                    
-                    {/* Status Badge */}
-                    <div className="absolute top-2 left-2">
-                      <Badge className={`text-xs ${getStatusColor(image.status)}`}>
-                        {image.status}
-                      </Badge>
-                    </div>
-                    
-                    {/* Action Buttons - Hidden by default, shown on hover */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedImage(image);
-                          setShowModerationDialog(true);
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => downloadImage(image)}
-                        className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
-                        title="Download Image"
-                        disabled={downloadingImage === image.id}
-                      >
-                        {downloadingImage === image.id ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedImage(image);
-                          setShowDeleteDialog(true);
-                        }}
-                        className="h-8 w-8 p-0"
-                        title="Delete Image"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-white hover:bg-white/20 rounded-full"
+                      onClick={() => downloadImage(image)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-red-400 hover:bg-red-500/20 rounded-full"
+                      onClick={() => { setSelectedImage(image); setShowDeleteDialog(true); }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  
-                  {/* Image Info */}
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs font-medium truncate" title={image.originalName}>
-                      {image.originalName}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{image.size}</span>
-                      <span>{image.format}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      by {image.uploadedBy}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(image.uploadedAt).toLocaleDateString()}
-                    </p>
+
+                  <div className="absolute top-2 left-2">
+                    <Badge className={cn("text-[10px] border-none", getStatusColor(image.status))}>
+                      {image.status}
+                    </Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Pagination */}
-          {!loading && filteredImages.length > 0 && (
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * imagesPerPage) + 1} to {Math.min(currentPage * imagesPerPage, totalImages)} of {totalImages} images
+
+                <div className="p-3">
+                  <p className="text-sm font-medium text-foreground truncate" title={image.originalName}>{image.originalName}</p>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>{image.size}</span>
+                    <span>{image.format}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm">
-                  Page {currentPage} of {Math.ceil(totalImages / imagesPerPage)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(totalImages / imagesPerPage)}
-                >
-                  Next
-                </Button>
-              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && filteredImages.length > 0 && (
+          <div className="flex items-center justify-between p-4 bg-card rounded-xl border border-border">
+            <div className="text-sm text-muted-foreground">
+              Showing {indexOfFirstImage + 1}-{Math.min(indexOfLastImage, filteredImages.length)} of {filteredImages.length}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="bg-background border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="bg-background border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Moderation Dialog */}
       <Dialog open={showModerationDialog} onOpenChange={setShowModerationDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Image Moderation</DialogTitle>
-            <DialogDescription>Review and moderate the selected image</DialogDescription>
+            <DialogDescription className="text-muted-foreground">Review and moderate the selected image</DialogDescription>
           </DialogHeader>
           {selectedImage && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium mb-2">Image Details</h4>
-                  <div className="space-y-2 text-sm">
-                    <div><strong>Filename:</strong> {selectedImage.filename}</div>
-                    <div><strong>Size:</strong> {selectedImage.size}</div>
-                    <div><strong>Dimensions:</strong> {selectedImage.dimensions}</div>
-                    <div><strong>Format:</strong> {selectedImage.format}</div>
-                    <div><strong>Uploaded by:</strong> {selectedImage.uploadedBy}</div>
-                    <div><strong>Uploaded:</strong> {new Date(selectedImage.uploadedAt).toLocaleString()}</div>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <h4 className="font-medium text-foreground">Details</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <span className="text-muted-foreground">Filename:</span> <span className="truncate text-foreground">{selectedImage.filename}</span>
+                    <span className="text-muted-foreground">Size:</span> <span className="text-foreground">{selectedImage.size}</span>
+                    <span className="text-muted-foreground">Uploaded:</span> <span className="text-foreground">{new Date(selectedImage.uploadedAt).toLocaleDateString()}</span>
+                    <span className="text-muted-foreground">By:</span> <span className="text-foreground">{selectedImage.uploadedBy}</span>
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-medium mb-2">Preview</h4>
-                  <div className="w-full h-32 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
-                    {selectedImage.thumbnailUrl ? (
-                      <img 
-                        src={selectedImage.thumbnailUrl} 
-                        alt={selectedImage.originalName}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100" style={{ display: selectedImage.thumbnailUrl ? 'none' : 'flex' }}>
-                      <Image className="h-8 w-8 text-gray-400" />
-                    </div>
-                  </div>
+                <div className="aspect-video bg-background rounded-lg overflow-hidden flex items-center justify-center border border-border">
+                  {selectedImage.thumbnailUrl ? (
+                    <img src={selectedImage.thumbnailUrl} alt="Preview" className="max-h-full max-w-full object-contain" />
+                  ) : <ImageIcon className="text-muted-foreground" />}
                 </div>
               </div>
-              <div>
-                <h4 className="font-medium mb-2">Tags</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedImage.tags.map((tag, index) => (
-                    <Badge key={index} variant="outline">
-                      {tag}
-                    </Badge>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Action</label>
+                <div className="flex gap-4">
+                  {['approve', 'reject', 'flag'].map((action) => (
+                    <label key={action} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="moderation"
+                        value={action}
+                        checked={moderationAction === action}
+                        onChange={(e) => setModerationAction(e.target.value as any)}
+                        className="accent-primary"
+                      />
+                      <span className="capitalize text-foreground">{action}</span>
+                    </label>
                   ))}
                 </div>
               </div>
-              <div>
-                <h4 className="font-medium mb-2">Moderation Action</h4>
-                <div className="flex space-x-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      name="moderation"
-                      value="approve"
-                      checked={moderationAction === 'approve'}
-                      onChange={(e) => setModerationAction(e.target.value as any)}
-                    />
-                    <span>Approve</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      name="moderation"
-                      value="reject"
-                      checked={moderationAction === 'reject'}
-                      onChange={(e) => setModerationAction(e.target.value as any)}
-                    />
-                    <span>Reject</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      name="moderation"
-                      value="flag"
-                      checked={moderationAction === 'flag'}
-                      onChange={(e) => setModerationAction(e.target.value as any)}
-                    />
-                    <span>Flag</span>
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Moderation Notes</label>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Notes</label>
                 <Textarea
                   value={moderationNotes}
                   onChange={(e) => setModerationNotes(e.target.value)}
                   placeholder="Enter moderation notes..."
+                  className="bg-background border-border text-foreground resize-none focus-visible:ring-primary"
                   rows={3}
                 />
               </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowModerationDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleModeration}>Apply Action</Button>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="ghost" onClick={() => setShowModerationDialog(false)} className="text-muted-foreground hover:text-foreground">Cancel</Button>
+                <Button onClick={handleModeration} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply Action</Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Delete Image</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete this image? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          {selectedImage && (
-            <div className="space-y-4">
-              <div className="text-sm">
-                <strong>Image:</strong> {selectedImage.originalName}
-                <br />
-                <strong>Size:</strong> {selectedImage.size}
-                <br />
-                <strong>Uploaded by:</strong> {selectedImage.uploadedBy}
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={() => {
-                    if (selectedImage) {
-                      handleDeleteImage(selectedImage.id);
-                      setShowDeleteDialog(false);
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} className="text-muted-foreground hover:text-foreground">Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedImage && handleDeleteImage(selectedImage.id)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

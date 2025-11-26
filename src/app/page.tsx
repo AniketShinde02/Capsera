@@ -1,34 +1,30 @@
 "use client";
 
 import { CaptionGenerator } from "@/components/caption-generator";
-import { Button } from "@/components/ui/button";
-import {  Bot, Palette, Sun, Zap, Shield } from "lucide-react";
-import Link from "next/link";
+import { Hero } from "@/components/hero";
 import CookieConsent from "@/components/CookieConsent";
-
-import { useEffect, useState, Suspense } from 'react';
+import { Testimonials } from "@/components/testimonials";
+import { MagicShowcase } from "@/components/magic-showcase";
+import { FeaturesGrid } from "@/components/features-grid";
+import Link from "next/link";
+import { useEffect } from 'react';
 import { useAuthModal } from '@/context/AuthModalContext';
 
+
 function HomeContent() {
-  
   const { setOpen, setInitialEmail } = useAuthModal();
-  const [isShaking, setIsShaking] = useState(false);
 
   // Handle automatic login modal opening with email pre-filled
   useEffect(() => {
-    // Check if we're on the client side to avoid hydration issues
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const shouldOpenLogin = urlParams.get('login');
       const email = urlParams.get('email');
-      
+
       if (shouldOpenLogin === 'true' && email) {
-        // Set the email in the auth modal context
         setInitialEmail(email);
-        // Open the login modal
         setOpen(true);
-        
-        // Clean up the URL without refreshing the page
+
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('login');
         newUrl.searchParams.delete('email');
@@ -37,52 +33,16 @@ function HomeContent() {
     }
   }, [setOpen, setInitialEmail]);
 
-  // Function to handle scroll to caption generator
-  const scrollToCaptionGenerator = () => {
-    setIsShaking(true);
-    
-    // Find the caption generator section
-    const captionSection = document.querySelector('[data-section="caption-generator"]');
-    if (captionSection) {
-      captionSection.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      });
-    }
-    
-    // Stop shaking after animation
-    setTimeout(() => setIsShaking(false), 500);
-  };
-
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background text-foreground">
       <main className="flex-grow">
-        {/* Hero Section - Mobile First */}
-        <section className="py-8 sm:py-12 md:py-16 lg:py-20 xl:py-24 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-slate-900/[0.2] [mask-image:linear-gradient(to_bottom,white_0%,transparent_70%)]"></div>
-          <div className="container mx-auto px-3 sm:px-4 md:px-6 relative">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold mb-3 sm:mb-4 md:mb-6 leading-tight tracking-tighter px-2">
-              Free <span className="gradient-text">AI Caption Generator</span><br className="hidden sm:block" /> Online - Capsera
-            </h1>
-            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 md:mb-10 px-3 sm:px-4 leading-relaxed">
-              Create viral Instagram captions instantly with our free AI caption generator. Best caption tool for social media. No signup required - start generating captions now!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-              <Button 
-                size="lg" 
-                onClick={scrollToCaptionGenerator}
-                className={`w-auto max-w-[280px] sm:max-w-none h-12 sm:h-14 px-6 sm:px-8 text-sm sm:text-base font-bold rounded-xl bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105 active:scale-95 ${
-                  isShaking ? 'animate-shake' : ''
-                }`}
-              >
-                Start Generating
-              </Button>
-            </div>
-          </div>
-        </section>
+        {/* New Hero Section */}
+        <Hero />
+
+
 
         {/* Main Caption Generator */}
-        <section data-section="caption-generator" className="py-6 sm:py-8 md:py-12 lg:py-16">
+        <section data-section="caption-generator" className="py-6 sm:py-8 md:py-12 lg:py-16 relative z-10">
           <div className="container mx-auto px-3 sm:px-4 md:px-6">
             <CaptionGenerator />
           </div>
@@ -114,158 +74,18 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* Example Output - Mobile First */}
-        <section className="py-8 sm:py-12 md:py-16 lg:py-20 bg-[#E3E1D9]/20 dark:bg-muted/20">
-          <div className="container mx-auto px-3 sm:px-4 md:px-6">
-            <div className="text-center mb-8 sm:mb-10 md:mb-12">
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 sm:mb-4 leading-tight">
-                See the Magic in Action
-              </h2>
-              <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed px-2">
-                Here&apos;s what our AI generates from a simple sunset photo
-              </p>
-            </div>
-            
-            <div className="bg-[#F2EFE5]/20 dark:bg-muted/20 shadow-lg p-4 sm:p-6 md:p-8 max-w-3xl mx-auto border border-[#C7C8CC]/80 dark:border-border rounded-xl sm:rounded-2xl">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-start md:items-center">
-                <div className="md:col-span-2 space-y-3 sm:space-y-4">
-                  <p className="text-xs sm:text-sm md:text-base text-foreground/90 leading-relaxed">
-                    Chasing horizons and embracing the glow. ✨ Every sunset paints a story of gratitude and wonder. Couldn&apos;t ask for a better view to end the day.
-                  </p>
-                  <div className="bg-[#F2EFE5]/50 dark:bg-background/50 p-3 sm:p-4 border border-[#C7C8CC]/50 dark:border-border/50 rounded-lg">
-                    <p className="text-muted-foreground font-mono text-xs sm:text-sm">#SunsetVibes #GoldenHourGlow #Gratitude #Mindfulness #NaturePhotography</p>
-                  </div>
-                </div>
-                <div className="flex justify-center md:justify-end">
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
-                    <Sun className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Features Grid - Mobile First */}
-        <section className="py-8 sm:py-12 md:py-16 lg:py-20">
-          <div className="container mx-auto px-3 sm:px-4 md:px-6">
-            <div className="text-center mb-8 sm:mb-10 md:mb-12">
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 sm:mb-4 leading-tight">
-                Why Choose Our AI?
-              </h2>
-              <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed px-2">
-                Built for creators who want results, not just fancy tech
-              </p>
-            </div>
-            
-            {/* Features Grid - Mobile First */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              <div className="bg-[#F2EFE5]/40 dark:bg-muted/40 p-4 sm:p-6 border border-[#C7C8CC]/80 dark:border-border transition-all hover:border-[#B4B4B8]/90 dark:hover:border-border/70 hover:bg-[#E3E1D9]/60 dark:hover:bg-muted/60 shadow-sm rounded-xl sm:rounded-2xl">
-                <div className="bg-primary/10 text-primary w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 rounded-lg">
-                  <Bot className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-                <h3 className="font-bold text-sm sm:text-base md:text-lg mb-2 text-foreground">Contextual AI</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">Our AI understands your image and video content, not just keywords.</p>
-              </div>
-              
-              <div className="bg-[#F2EFE5]/40 dark:bg-muted/40 p-4 sm:p-6 border border-[#C7C8CC]/80 dark:border-border transition-all hover:border-[#B4B4B8]/90 dark:hover:border-border/70 hover:bg-[#E3E1D9]/60 dark:hover:bg-muted/60 shadow-sm rounded-xl sm:rounded-2xl">
-                <div className="bg-secondary/10 text-secondary w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 rounded-lg">
-                  <Zap className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-                <h3 className="font-bold text-sm sm:text-base md:text-lg mb-2 text-foreground">Lightning Fast</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">Generate 3 unique captions in under 10 seconds. No waiting around.</p>
-              </div>
-              
-              <div className="bg-[#F2EFE5]/40 dark:bg-muted/40 p-4 sm:p-6 border border-[#C7C8CC]/80 dark:border-border transition-all hover:border-[#B4B4B8]/90 dark:hover:border-border/70 hover:bg-[#E3E1D9]/60 dark:hover:bg-muted/60 shadow-sm rounded-xl sm:rounded-2xl">
-                <div className="bg-accent/10 text-accent w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 rounded-lg">
-                  <Palette className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-                <h3 className="font-bold text-sm sm:text-base md:text-lg mb-2 text-foreground">40+ Moods</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">From romantic to vintage, plus custom styles - every vibe covered.</p>
-              </div>
-              
-              <div className="bg-[#F2EFE5]/40 dark:bg-muted/40 p-4 sm:p-6 border border-[#C7C8CC]/80 dark:border-border transition-all hover:border-[#B4B4B8]/90 dark:hover:border-border/70 hover:bg-[#E3E1D9]/60 dark:hover:bg-muted/60 shadow-sm rounded-xl sm:rounded-2xl">
-                <div className="bg-green-500/10 text-green-500 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3 sm:mb-4 rounded-lg">
-                  <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-                <h3 className="font-bold text-sm sm:text-base md:text-lg mb-2 text-foreground">Privacy First</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">Your images are processed securely and never stored permanently.</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Magic Showcase Section */}
+        <MagicShowcase />
 
-        {/* FAQ Section for SEO */}
-        <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-muted/20">
-          <div className="container mx-auto px-3 sm:px-4 md:px-6">
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-8 sm:mb-12 text-foreground">
-                Frequently Asked Questions About Our AI Caption Generator
-              </h2>
-              
-              <div className="grid gap-6 sm:gap-8">
-                <div className="bg-card p-6 sm:p-8 rounded-xl border border-border">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-3 text-foreground">
-                    Is Capsera's AI caption generator really free?
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Yes! Our AI caption generator is completely free to use. You can generate unlimited captions without any signup or payment required. We believe everyone should have access to powerful AI tools for content creation.
-                  </p>
-                </div>
+        {/* Features Grid Section */}
+        <FeaturesGrid />
 
-                <div className="bg-card p-6 sm:p-8 rounded-xl border border-border">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-3 text-foreground">
-                    How does the AI caption generator work?
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Simply upload your image and our advanced AI analyzes the visual content, mood, and context to generate engaging captions. Our AI understands Instagram trends and creates captions optimized for maximum engagement.
-                  </p>
-                </div>
-
-                <div className="bg-card p-6 sm:p-8 rounded-xl border border-border">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-3 text-foreground">
-                    What makes Capsera the best caption generator?
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Capsera combines advanced AI technology with Instagram optimization to create viral captions. Our tool understands trending hashtags, optimal caption length, and engagement psychology to generate captions that actually perform.
-                  </p>
-                </div>
-
-                <div className="bg-card p-6 sm:p-8 rounded-xl border border-border">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-3 text-foreground">
-                    Can I use the captions for commercial purposes?
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Absolutely! All captions generated by our AI caption generator are yours to use for any purpose - personal, commercial, or business. No restrictions or watermarks.
-                  </p>
-                </div>
-
-                <div className="bg-card p-6 sm:p-8 rounded-xl border border-border">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-3 text-foreground">
-                    Do I need to create an account to use the caption generator?
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    No account required! Our free AI caption generator works instantly without any signup. Just upload your image and get captions immediately. It's that simple.
-                  </p>
-                </div>
-
-                <div className="bg-card p-6 sm:p-8 rounded-xl border border-border">
-                  <h3 className="text-lg sm:text-xl font-semibold mb-3 text-foreground">
-                    What types of images work best with the caption generator?
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Our AI caption generator works with any image - photos, graphics, artwork, or screenshots. The AI analyzes visual elements, colors, composition, and context to create relevant, engaging captions for any type of content.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Testimonials Section */}
+        <Testimonials />
       </main>
-      
-      
-      
-      {/* Cookie Consent - Only shows on main page */}
+
+      {/* Cookie Consent */}
       <CookieConsent />
     </div>
   );

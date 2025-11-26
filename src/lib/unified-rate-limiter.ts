@@ -6,18 +6,18 @@ import mongoose from 'mongoose';
 import { ObjectId } from 'mongodb';
 
 // Rate limiting configuration - Daily quotas with soft limiting
-  // Default values that will be overridden by database values when available
-  export const DEFAULT_RATE_LIMITS = {
-    ANONYMOUS: {
-      MAX_GENERATIONS: 10, // 10 images per day (30 captions total)
-      WINDOW_HOURS: 24, // 24 hours (daily reset)
-      USER_TYPE: 'anonymous' as const,
-    },
-    REGISTERED: {
-      MAX_GENERATIONS: 20, // 20 images per day (60 captions total)
-      WINDOW_HOURS: 24, // 24 hours (daily reset)
-      USER_TYPE: 'registered' as const,
-    },
+// Default values that will be overridden by database values when available
+export const DEFAULT_RATE_LIMITS = {
+  ANONYMOUS: {
+    MAX_GENERATIONS: 10, // 10 images per day (30 captions total)
+    WINDOW_HOURS: 24, // 24 hours (daily reset)
+    USER_TYPE: 'anonymous' as const,
+  },
+  REGISTERED: {
+    MAX_GENERATIONS: 20, // 20 images per day (60 captions total)
+    WINDOW_HOURS: 24, // 24 hours (daily reset)
+    USER_TYPE: 'registered' as const,
+  },
   PRO: {
     MAX_GENERATIONS: 50, // 50 images per day (150 captions total)
     WINDOW_HOURS: 24, // 24 hours (daily reset)
@@ -76,16 +76,16 @@ let violationStats = {
  */
 export class UnifiedRateLimiter {
   private trustedIPs: Set<string> = new Set();
-  
+
   constructor() {
     // Load trusted IPs from environment
     const trustedIPsEnv = process.env.TRUSTED_IPS?.split(',') || [];
     trustedIPsEnv.forEach(ip => this.trustedIPs.add(ip.trim()));
-    
+
     // Clean up blocked credentials periodically
     setInterval(() => this.cleanupBlockedCredentials(), 15 * 60 * 1000); // 15 minutes
   }
-  
+
   /**
    * Get client IP address from request
    */
@@ -93,23 +93,23 @@ export class UnifiedRateLimiter {
     const forwarded = request.headers.get('x-forwarded-for');
     const realIP = request.headers.get('x-real-ip');
     const cfConnectingIP = request.headers.get('cf-connecting-ip');
-    
+
     if (forwarded) {
       return forwarded.split(',')[0].trim();
     }
-    
+
     if (cfConnectingIP) {
       return cfConnectingIP;
     }
-    
+
     if (realIP) {
       return realIP;
     }
-    
+
     // Fallback to connection remote address
     return 'unknown';
   }
-  
+
   /**
    * Generate rate limit key based on user ID or IP
    */
@@ -119,28 +119,28 @@ export class UnifiedRateLimiter {
     }
     return `ip:${ip || 'unknown'}`;
   }
-  
+
   /**
    * Get suspicious IPs that have been flagged for rate limit violations
    */
   getSuspiciousIPs(): Set<string> {
     return suspiciousIPs;
   }
-  
+
   /**
    * Get violation statistics for rate limiting
    */
   async getViolationStats() {
     return violationStats;
   }
-  
+
   /**
    * Get total violation count
    */
   getViolationCount(): number {
     return violationCount;
   }
-  
+
   /**
    * Detect user tier based on authentication and admin status
    */
@@ -151,26 +151,28 @@ export class UnifiedRateLimiter {
 
     try {
       const { db } = await connectToDatabase();
-      const usersCollection = db.collection('users');
-      
+
       // Check if userId is a valid MongoDB ObjectId
       let user = null;
       if (userId && userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)) {
+        // Check regular users collection first
+        const usersCollection = db.collection('users');
         user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-      }
-      
-      if (user?.isAdmin) {
-        return { tier: 'pro', isAdmin: true };
+
+        if (user?.isAdmin) {
+          console.log(`👑 Admin user detected from users collection: ${userId}`);
+          return { tier: 'pro', isAdmin: true };
+        }
       }
 
       // Check adminusers collection
       const adminUsersCollection = db.collection('adminusers');
-      const adminUser = await adminUsersCollection.findOne({ 
-        email: user?.email || userId,
-        isAdmin: true 
+      const adminUser = await adminUsersCollection.findOne({
+        _id: (userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)) ? new ObjectId(userId) : userId
       });
-      
-      if (adminUser) {
+
+      if (adminUser?.isAdmin) {
+        console.log(`👑 Admin user detected from adminusers collection: ${userId}`);
         return { tier: 'pro', isAdmin: true };
       }
 
@@ -182,7 +184,7 @@ export class UnifiedRateLimiter {
       return { tier: 'registered', isAdmin: false };
     }
   }
-  
+
   /**
    * Get next midnight in user's timezone
    */
@@ -192,10 +194,10 @@ export class UnifiedRateLimiter {
     const nextMidnight = new Date(userTime);
     nextMidnight.setDate(nextMidnight.getDate() + 1);
     nextMidnight.setHours(0, 0, 0, 0);
-    
+
     return nextMidnight;
   }
-  
+
   /**
    * Get rate limit configuration for a specific tier
    */
@@ -227,10 +229,10 @@ export class UnifiedRateLimiter {
         };
       }
     }
-    
+
     // Refresh cache
     await this.refreshRateLimitConfigCache();
-    
+
     // Return appropriate config based on tier
     if (tier === 'anonymous' && rateLimitConfigCache.anonymous) {
       return {
@@ -251,7 +253,7 @@ export class UnifiedRateLimiter {
         WINDOW_HOURS: rateLimitConfigCache.pro.windowHours as 24,
       };
     }
-    
+
     // Fallback to default values if no database config is available
     if (tier === 'anonymous') {
       return DEFAULT_RATE_LIMITS.ANONYMOUS;
@@ -261,7 +263,7 @@ export class UnifiedRateLimiter {
       return DEFAULT_RATE_LIMITS.PRO;
     }
   }
-  
+
   /**
    * Refresh rate limit configuration cache from database
    */
@@ -278,12 +280,12 @@ export class UnifiedRateLimiter {
 
       // Get configurations from database
       const configs = await mongoose.model('RateLimitConfig').find({});
-      
+
       // Update cache
       rateLimitConfigCache = {
         lastFetched: new Date()
       };
-      
+
       for (const config of configs) {
         if (config.tier === 'anonymous') {
           rateLimitConfigCache.anonymous = {
@@ -310,7 +312,7 @@ export class UnifiedRateLimiter {
       // Keep using existing cache or defaults if refresh fails
     }
   }
-  
+
   /**
    * Check if user/IP has exceeded rate limit (database version) - Updated for daily limits
    */
@@ -325,14 +327,14 @@ export class UnifiedRateLimiter {
   }> {
     try {
       await dbConnect();
-      
+
       // Check if IP is trusted
       const isTrusted = ip ? this.trustedIPs.has(ip) : false;
-      
+
       // Get user tier info
       const userTierInfo = await this.getUserTierInfo(userId);
       const config = await this.getRateLimitConfig(userTierInfo.tier);
-      
+
       // Admin bypass for pro users
       if (userTierInfo.isAdmin || userTierInfo.tier === 'pro' || isTrusted) {
         console.log(`👑 Pro/Admin/Trusted user ${userId || ip} - bypassing rate limits`);
@@ -344,12 +346,12 @@ export class UnifiedRateLimiter {
           isAdmin: userTierInfo.isAdmin,
         };
       }
-      
+
       // Check if credentials are blocked
       if (this.isBlocked(key)) {
         const blockedInfo = blockedCredentialsStore.get(key);
         const retryAfter = Math.ceil((blockedInfo!.blockedUntil - Date.now()) / 1000);
-        
+
         return {
           allowed: false,
           remaining: 0,
@@ -360,16 +362,16 @@ export class UnifiedRateLimiter {
           retryAfter
         };
       }
-      
+
       const now = new Date();
       const resetTime = this.getNextMidnight(); // Daily reset at midnight
-      
+
       // Find existing rate limit record
       let rateLimitRecord = await mongoose.model('RateLimit').findOne({ key });
-      
+
       if (!rateLimitRecord || now > rateLimitRecord.resetTime) {
         // First request or window expired, create/update entry
-        
+
         if (rateLimitRecord) {
           rateLimitRecord.count = 1;
           rateLimitRecord.resetTime = resetTime;
@@ -382,7 +384,7 @@ export class UnifiedRateLimiter {
           });
           await rateLimitRecord.save();
         }
-        
+
         return {
           allowed: true,
           remaining: maxGenerations - 1,
@@ -391,14 +393,14 @@ export class UnifiedRateLimiter {
           isAdmin: userTierInfo.isAdmin
         };
       }
-      
+
       // Check if limit exceeded
       if (rateLimitRecord.count >= maxGenerations) {
         // Increment violation count for smart rate limiting
         if (ip) {
           this.recordViolation(ip);
         }
-        
+
         return {
           allowed: false,
           remaining: 0,
@@ -409,15 +411,15 @@ export class UnifiedRateLimiter {
           retryAfter: Math.ceil((rateLimitRecord.resetTime.getTime() - now.getTime()) / 1000)
         };
       }
-      
+
       // Increment count - only increment if this is a new request, not a duplicate
       // This prevents double-counting when the same request is made multiple times
       const requestId = `${key}_${now.getTime()}`;
       const oldCount = rateLimitRecord.count;
-      
+
       if (!rateLimitRecord.processedRequests || !rateLimitRecord.processedRequests.includes(requestId)) {
         rateLimitRecord.count += 1;
-        
+
         console.log(`📊 Incrementing rate limit count:`, {
           key,
           oldCount,
@@ -425,19 +427,19 @@ export class UnifiedRateLimiter {
           requestId,
           processedRequests: rateLimitRecord.processedRequests?.length || 0
         });
-        
+
         // Track this request to prevent double counting
         if (!rateLimitRecord.processedRequests) {
           rateLimitRecord.processedRequests = [];
         }
-        
+
         // Keep only the last 10 processed requests to prevent memory issues
         if (rateLimitRecord.processedRequests.length >= 10) {
           rateLimitRecord.processedRequests.shift();
         }
-        
+
         rateLimitRecord.processedRequests.push(requestId);
-        
+
         try {
           await rateLimitRecord.save();
           console.log(`✅ Rate limit record saved successfully:`, {
@@ -455,7 +457,7 @@ export class UnifiedRateLimiter {
           currentCount: rateLimitRecord.count
         });
       }
-      
+
       return {
         allowed: true,
         remaining: maxGenerations - rateLimitRecord.count,
@@ -465,7 +467,7 @@ export class UnifiedRateLimiter {
       };
     } catch (error) {
       console.error('Error checking rate limit:', error);
-      
+
       // Fallback to allowing the request in case of database errors
       return {
         allowed: true,
@@ -474,7 +476,7 @@ export class UnifiedRateLimiter {
       };
     }
   }
-  
+
   /**
    * Get rate limit info for display to user
    */
@@ -493,10 +495,10 @@ export class UnifiedRateLimiter {
       // Get user tier info
       const userTierInfo = await this.getUserTierInfo(userId);
       const config = await this.getRateLimitConfig(userTierInfo.tier);
-      
+
       // Check if IP is trusted
       const isTrusted = ip ? this.trustedIPs.has(ip) : false;
-      
+
       // Admin bypass for pro users and trusted IPs (MATCHES checkRateLimit logic)
       if (userTierInfo.isAdmin || userTierInfo.tier === 'pro' || isTrusted) {
         console.log(`👑 Pro/Admin/Trusted user ${userId || ip} - showing unlimited rate limit info`);
@@ -512,18 +514,18 @@ export class UnifiedRateLimiter {
           resetMessage: 'Unlimited access',
         };
       }
-      
+
       const key = this.generateRateLimitKey(userId, ip);
-      
+
       await dbConnect();
-      
+
       const now = new Date();
       const resetTime = this.getNextMidnight(); // Daily reset at midnight
       const rateLimitRecord = await mongoose.model('RateLimit').findOne({ key });
-      
+
       let currentUsage = 0;
       let actualResetTime = resetTime.getTime();
-      
+
       if (rateLimitRecord && now <= rateLimitRecord.resetTime) {
         currentUsage = rateLimitRecord.count;
         actualResetTime = rateLimitRecord.resetTime.getTime();
@@ -536,10 +538,10 @@ export class UnifiedRateLimiter {
       } else {
         console.log(`📊 No valid rate limit record found for key:`, key);
       }
-      
+
       const remaining = Math.max(0, config.MAX_GENERATIONS - currentUsage);
       const hoursUntilReset = Math.ceil((actualResetTime - now.getTime()) / (60 * 60 * 1000));
-      
+
       console.log(`📊 Rate limit info calculation:`, {
         userId: userId || 'anonymous',
         key,
@@ -549,7 +551,7 @@ export class UnifiedRateLimiter {
         resetTime: actualResetTime,
         now: now.getTime()
       });
-      
+
       // Generate friendly reset message
       let resetMessage = 'tomorrow';
       if (hoursUntilReset < 24) {
@@ -559,7 +561,7 @@ export class UnifiedRateLimiter {
           resetMessage = `in ${hoursUntilReset} hours`;
         }
       }
-      
+
       return {
         isAuthenticated: !!userId,
         maxGenerations: config.MAX_GENERATIONS,
@@ -573,7 +575,7 @@ export class UnifiedRateLimiter {
       };
     } catch (error) {
       console.error('Error getting rate limit info:', error);
-      
+
       // Fallback to default values
       return {
         isAuthenticated: !!userId,
@@ -586,7 +588,7 @@ export class UnifiedRateLimiter {
       };
     }
   }
-  
+
   /**
    * Record a violation for an IP address (for smart rate limiting)
    */
@@ -595,14 +597,14 @@ export class UnifiedRateLimiter {
     if (this.getViolationCountForIP(ip) > 5) {
       suspiciousIPs.add(ip);
       console.warn(`🚨 Suspicious IP detected: ${ip}`);
-      
+
       // Block after too many violations
       if (this.getViolationCountForIP(ip) > 10) {
         this.blockCredentials(`ip:${ip}`, 'rate_limit_abuse', ip);
       }
     }
   }
-  
+
   /**
    * Get violation count for an IP
    */
@@ -610,14 +612,14 @@ export class UnifiedRateLimiter {
     // Simple implementation - could be enhanced with a proper counter
     return suspiciousIPs.has(ip) ? 6 : 0;
   }
-  
+
   /**
    * Block credentials (user ID or IP) for a period of time
    */
   async blockCredentials(key: string, reason: string, ip?: string, userAgent?: string): Promise<void> {
     const now = Date.now();
     const entry = blockedCredentialsStore.get(key);
-    
+
     if (!entry) {
       // First violation - block for 15 minutes
       blockedCredentialsStore.set(key, {
@@ -630,27 +632,27 @@ export class UnifiedRateLimiter {
       entry.blockedUntil = now + blockDuration;
       entry.attempts += 1;
     }
-    
+
     console.warn(`🚫 Blocked ${key} for ${reason}. IP: ${ip || 'unknown'}, UA: ${userAgent || 'unknown'}`);
   }
-  
+
   /**
    * Check if credentials are blocked
    */
   isBlocked(key: string): boolean {
     const entry = blockedCredentialsStore.get(key);
     if (!entry) return false;
-    
+
     const now = Date.now();
     if (now > entry.blockedUntil) {
       // Block expired
       blockedCredentialsStore.delete(key);
       return false;
     }
-    
+
     return true;
   }
-  
+
   /**
    * Clean up expired blocked credentials
    */
@@ -662,32 +664,32 @@ export class UnifiedRateLimiter {
       }
     }
   }
-  
+
   /**
    * Get rate limiting insights for admin dashboard
    */
-  getInsights(): { 
-    suspiciousIPs: string[]; 
-    blockedCount: number; 
-    recommendations: string[] 
+  getInsights(): {
+    suspiciousIPs: string[];
+    blockedCount: number;
+    recommendations: string[]
   } {
     const suspiciousIPsList = Array.from(suspiciousIPs);
     const blockedCount = blockedCredentialsStore.size;
-    
+
     const recommendations: string[] = [];
-    
+
     if (suspiciousIPsList.length > 0) {
       recommendations.push(`Consider blocking ${suspiciousIPsList.length} suspicious IPs`);
     }
-    
+
     if (blockedCount > 10) {
       recommendations.push('High number of blocked credentials - consider reviewing security measures');
     }
-    
-    return { 
-      suspiciousIPs: suspiciousIPsList, 
-      blockedCount, 
-      recommendations 
+
+    return {
+      suspiciousIPs: suspiciousIPsList,
+      blockedCount,
+      recommendations
     };
   }
 }
@@ -702,10 +704,10 @@ export const getUserTierInfo = (userId?: string) => unifiedRateLimiter.getUserTi
 export const getNextMidnight = (timezone?: string) => unifiedRateLimiter.getNextMidnight(timezone);
 export const getRateLimitConfig = (tier: UserTier) => unifiedRateLimiter.getRateLimitConfig(tier);
 export const refreshRateLimitConfigCache = () => unifiedRateLimiter.refreshRateLimitConfigCache();
-export const checkRateLimit = (key: string, maxGenerations: number, windowHours: number, userId?: string, ip?: string) => 
+export const checkRateLimit = (key: string, maxGenerations: number, windowHours: number, userId?: string, ip?: string) =>
   unifiedRateLimiter.checkRateLimit(key, maxGenerations, windowHours, userId, ip);
 export const getRateLimitInfo = (userId?: string, ip?: string) => unifiedRateLimiter.getRateLimitInfo(userId, ip);
-export const blockCredentials = (key: string, reason: string, ip?: string, userAgent?: string) => 
+export const blockCredentials = (key: string, reason: string, ip?: string, userAgent?: string) =>
   unifiedRateLimiter.blockCredentials(key, reason, ip, userAgent);
 export const isBlocked = (key: string) => unifiedRateLimiter.isBlocked(key);
 export const getInsights = () => unifiedRateLimiter.getInsights();

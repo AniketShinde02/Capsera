@@ -1,1037 +1,269 @@
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { Edit, Home, Clock, Settings, Bell, LogOut, Loader2, User, AlertCircle, CheckCircle, Star, X, Trash2, Copy, MessageSquare, Image as ImageIcon, Crown, Shield, Users, Activity } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useSession, signOut } from 'next-auth/react';
-import { useToast } from '@/hooks/use-toast';
-import { useEffect, useRef, useState } from 'react';
-import { IPost } from '@/models/Post';
-import { format } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { Camera, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { InlineMessage } from '@/components/ui/inline-message';
-import ProfileDeletion from '@/components/ProfileDeletion';
-
-// Note: Client components cannot use server-side exports like dynamic/revalidate
-// The component will be dynamic by default since it uses useSession
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
+    const { data: session, update } = useSession();
     const { toast } = useToast();
-    const { data: session, status } = useSession({
-        required: false, // Don't force authentication
+    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+
+    const [formData, setFormData] = useState({
+        username: '',
+        title: '',
+        bio: '',
+        email: '',
     });
 
-    const sessionStatus = status || 'loading';
-    const sessionData = session || null;
-
-    // Session monitoring (debug logs removed for production)
     useEffect(() => {
-        // Session state monitoring without console logs for better performance
-    }, [session, status, sessionData]);
-
-    // State management
-    const [posts, setPosts] = useState<IPost[]>([]);
-    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-    const [expandedCaptionId, setExpandedCaptionId] = useState<string | null>(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-    const [username, setUsername] = useState<string>('');
-    const [title, setTitle] = useState<string>('');
-    const [bio, setBio] = useState<string>('');
-    const [imageUrl, setImageUrl] = useState<string>('');
-    const [savingProfile, setSavingProfile] = useState<boolean>(false);
-    const [profileError, setProfileError] = useState('');
-    const [profileSuccess, setProfileSuccess] = useState('');
-    const [profileImage, setProfileImage] = useState<string>('');
-    const [uploadingImage, setUploadingImage] = useState(false);
-    const [stats, setStats] = useState({
-        captionsGenerated: 0,
-        mostUsedMood: 'None',
-        averageLength: 0,
-        totalImages: 0
-    });
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
-    const [inlineMessage, setInlineMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
-    const [userData, setUserData] = useState<any>(null);
-    const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-    
-    // Pagination state for captions
-    const [currentPage, setCurrentPage] = useState(1);
-    const [isMobile, setIsMobile] = useState(false);
-    const captionsPerPage = 3; // 3 captions per row for desktop (3x1)
-    const mobileCaptionsPerPage = 2; // 2 captions for mobile
-    
-    const profileImageInputRef = useRef<HTMLInputElement>(null);
-
-    // Check if user is admin
-    const isAdmin = sessionData?.user?.role?.name === 'admin' || sessionData?.user?.isAdmin === true;
-
-    // Mobile detection effect
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 1024);
-        };
-        
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-    
-    // Restore profile image from localStorage on mount
-    useEffect(() => {
-        if (!profileImage && !imageUrl) {
-            const localImage = localStorage.getItem('profileImage');
-            if (localImage) {
-                setImageUrl(localImage);
-                setProfileImage(localImage);
-            }
-        }
-    }, [profileImage, imageUrl]);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            if (sessionData?.user?.id) {
-                setIsLoadingPosts(true);
-                try {
-                    const [postsRes, userRes] = await Promise.all([
-                        fetch('/api/posts', { credentials: 'include' }),
-                        fetch('/api/user', { credentials: 'include' }),
-                    ]);
-                    
-                    if (postsRes.ok) {
-                        const p = await postsRes.json();
-                        setPosts(p.data || []);
-                        
-                        if (p.data && Array.isArray(p.data)) {
-                            const moodCounts: { [key: string]: number } = {};
-                            let totalLength = 0;
-                            let imageCount = 0;
-                            
-                            p.data.forEach((post: IPost) => {
-                                const mood = post.mood || 'None';
-                                moodCounts[mood] = (moodCounts[mood] || 0) + 1;
-                                if (post.captions && post.captions.length > 0) {
-                                    totalLength += post.captions[0].length;
-                                }
-                                if (post.image) {
-                                    imageCount++;
-                                }
-                            });
-                            
-                            const mostUsedMood = Object.keys(moodCounts).length > 0 
-                                ? Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b) 
-                                : 'None';
-                            
-                            setStats({
-                                captionsGenerated: p.data.length,
-                                totalImages: imageCount,
-                                averageLength: p.data.length > 0 ? Math.round(totalLength / p.data.length) : 0,
-                                mostUsedMood: mostUsedMood
-                            });
-                        }
-                    }
-                    
-                    if (userRes.ok) {
-                        const userData = await userRes.json();
-                        console.log('📊 User data received:', {
-                            success: userData.success,
-                            data: userData.data,
-                            createdAt: userData.data?.createdAt,
-                            createdAtType: typeof userData.data?.createdAt
-                        }); // Debug log
-                        setUserData(userData.data); // Store user data in state
-                        setUsername(userData.data.username || '');
-                        setTitle(userData.data.title || '');
-                        setBio(userData.data.bio || '');
-                        // Use session image if available, otherwise use database image
-                        const sessionImage = sessionData?.user?.image;
-                        const dbImage = userData.data.image;
-                        const finalImage = sessionImage || dbImage;
-                        
-                        setImageUrl(finalImage || '');
-                        setProfileImage(finalImage || '');
-                        
-                        // If no image from session/database, try localStorage
-                        if (!finalImage) {
-                            const localImage = localStorage.getItem('profileImage');
-                            if (localImage) {
-                                setImageUrl(localImage);
-                                setProfileImage(localImage);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    // Error handled silently for production
-                } finally {
-                    setIsLoadingPosts(false);
-                }
-            }
-        };
-        
-        fetchData();
-    }, [sessionData?.user?.id]);
-
-    if (sessionStatus === 'loading' || !sessionData) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-indigo-600" />
-                    <p className="text-gray-600 dark:text-gray-400">Loading your profile...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (!sessionData?.user) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-                <div className="text-center max-w-md mx-auto p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
-                    <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Authentication Required</h2>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">Please sign in to access your profile.</p>
-                    <Link href="/" className="text-indigo-700 dark:text-indigo-400 font-medium">
-                        Go back to home
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
-    const userEmail = sessionData?.user?.email || 'user@example.com';
-    const fallbackName = userEmail ? userEmail.split('@')[0] : 'User';
-    const displayName = username || fallbackName;
-    
-    // Get real user creation date with proper formatting
-    const getJoinedDate = () => {
-        // Try userData.createdAt first (from database)
-        if (userData?.createdAt) {
-            try {
-                return format(new Date(userData.createdAt), 'MMM yyyy');
-            } catch (error) {
-                console.error('Error formatting userData.createdAt:', error);
-            }
-        }
-        
-        // Try sessionData.user.createdAt as fallback      
-        if ((sessionData?.user as any)?.createdAt) {
-            try {
-                return format(new Date((sessionData.user as any).createdAt), 'MMM yyyy');                                              
-            } catch (error) {
-                console.error('Error formatting sessionData.createdAt:', error);
-            }
-        }
-        
-        // Final fallback: show current month/year
-        return format(new Date(), 'MMM yyyy');
-    };
-    
-    const userJoined = getJoinedDate();
-
-    // Profile functions
-    const handleSaveProfile = async () => {
-        setSavingProfile(true);
-        setProfileError('');
-        setProfileSuccess('');
-        
-        try {
-            const response = await fetch('/api/user', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, title, bio, image: imageUrl })
+        if (session?.user) {
+            setFormData({
+                username: (session.user as any).username || '',
+                title: (session.user as any).title || '',
+                bio: (session.user as any).bio || '',
+                email: session.user.email || '',
             });
-            
-            if (!response.ok) {
-                let errorMessage = 'Failed to update profile.';
-                try {
-                    const data = await response.json();
-                    errorMessage = data.message || errorMessage;
-                } catch (parseError) {
-                    console.error('Failed to parse error response:', parseError);
-                    errorMessage = `Server error (${response.status}). Please try again.`;
-                }
-                setProfileError(errorMessage);
-            } else {
-                setProfileSuccess('Profile updated successfully!');
-            }
-        } catch (err) {
-            setProfileError('Network error. Please try again.');
-        } finally {
-            setSavingProfile(false);
         }
-    };
+    }, [session]);
 
-    const handleCancel = async () => {
-        setProfileError('');
-        setProfileSuccess('');
-        try {
-            const res = await fetch('/api/user');
-            if (res.ok) {
-                const u = await res.json();
-                setUsername(u.data.username || '');
-                setTitle(u.data.title || '');
-                setBio(u.data.bio || '');
-                setImageUrl(u.data.image || '');
-                setProfileImage(u.data.image || '');
-            }
-                    } catch (err) {
-                // Error handled silently for production
-            }
-    };
-
-    const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
         if (!file) return;
-        
+
+        // Validate file type
         if (!file.type.startsWith('image/')) {
-            setInlineMessage({ type: 'error', message: 'Please select an image file.' });
+            toast({
+                title: 'Invalid file type',
+                description: 'Please upload an image file (JPG, PNG, or GIF)',
+                variant: 'destructive',
+            });
             return;
         }
-        
+
+        // Validate file size (5MB)
         if (file.size > 5 * 1024 * 1024) {
-            setInlineMessage({ type: 'error', message: 'Please select an image smaller than 5MB.' });
+            toast({
+                title: 'File too large',
+                description: 'Please upload an image smaller than 5MB',
+                variant: 'destructive',
+            });
             return;
         }
-        
-        setUploadingImage(true);
+
+        setUploading(true);
+
         try {
             const formData = new FormData();
             formData.append('file', file);
-            
-            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-            const uploadData = await uploadRes.json();
-            
-            if (!uploadRes.ok) {
-                throw new Error(uploadData.message || 'Upload failed');
-            }
-            
-            const imageUrl = uploadData.url;
-            const updateRes = await fetch('/api/user/profile-image', {
+
+            const response = await fetch('/api/upload', {
                 method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const data = await response.json();
+
+            // Update user profile with new image
+            const updateResponse = await fetch('/api/user', {
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl }),
+                body: JSON.stringify({ image: data.url }),
             });
-            
-            const updateData = await updateRes.json();
-            if (!updateRes.ok) {
-                throw new Error(updateData.message || 'Failed to update profile image');
-            }
-            
-            setProfileImage(imageUrl);
-            setImageUrl(imageUrl);
-            
-            // Store in localStorage as backup for session persistence
-            localStorage.setItem('profileImage', imageUrl);
-            
-            setInlineMessage({ type: 'success', message: 'Your profile image has been successfully updated.' });
-        } catch (error) {
-            setInlineMessage({ type: 'error', message: 'Failed to update profile image. Please try again.' });
-        } finally {
-            setUploadingImage(false);
-            if (profileImageInputRef.current) {
-                profileImageInputRef.current.value = '';
-            }
-        }
-    };
 
-    const removeProfileImage = async () => {
-        try {
-            const res = await fetch('/api/user/profile-image', { method: 'DELETE' });
-            if (!res.ok) {
-                throw new Error('Failed to remove profile image');
-            }
-            setProfileImage('');
-            setImageUrl('');
-            
-            // Remove from localStorage
-            localStorage.removeItem('profileImage');
-            
-            setInlineMessage({ type: 'success', message: 'Your profile image has been removed.' });
-        } catch (error) {
-            setInlineMessage({ type: 'error', message: 'Failed to remove profile image. Please try again.' });
-        }
-    };
-
-
-    const handleDeleteCaption = async (postId: string) => {
-        if (!confirm('Are you sure you want to delete this caption? This action cannot be undone.')) {
-            return;
-        }
-        
-        setIsDeleting(postId);
-        
-        try {
-            const response = await fetch(`/api/posts/${postId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            
-            if (response.ok) {
-                // Remove from local state
-                setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
-                // Update stats
-                setStats(prev => ({
-                    ...prev,
-                    captionsGenerated: Math.max(0, prev.captionsGenerated - 1)
-                }));
-            } else {
+            if (updateResponse.ok) {
+                await update();
                 toast({
-                    title: "Delete Failed",
-                    description: "Failed to delete caption. Please try again.",
-                    variant: "destructive"
+                    title: 'Success',
+                    description: 'Profile picture updated successfully',
                 });
             }
         } catch (error) {
             toast({
-                title: "Delete Error",
-                description: "Failed to delete caption. Please try again.",
-                variant: "destructive"
+                title: 'Error',
+                description: 'Failed to upload image',
+                variant: 'destructive',
             });
         } finally {
-            setIsDeleting(null);
+            setUploading(false);
         }
     };
 
-    // Pagination logic - Different for mobile vs desktop
-    const currentCaptionsPerPage = isMobile ? mobileCaptionsPerPage : captionsPerPage;
-    const startIndex = (currentPage - 1) * currentCaptionsPerPage;
-    const displayedCaptions = posts.slice(startIndex, startIndex + currentCaptionsPerPage);
-    const totalPages = Math.ceil(posts.length / currentCaptionsPerPage);
-    const hasMoreCaptions = currentPage < totalPages;
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            const response = await fetch('/api/user', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) throw new Error('Update failed');
+
+            await update();
+
+            toast({
+                title: 'Success',
+                description: 'Profile updated successfully',
+            });
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to update profile',
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-            <div className="container mx-auto px-1 sm:px-3 py-4 sm:py-6 lg:py-8">
-                <div className="max-w-6xl mx-auto">
-                    
-                    {/* Enhanced Header Section - Mobile Optimized */}
-                    <div className="mb-6 sm:mb-8 lg:mb-12">
-                        {/* Welcome Header - Stack on Mobile */}
-                        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-                            <div className="flex flex-col items-center sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-6">
-                                {/* Profile Avatar - Smaller on Mobile */}
-                                <div className="relative">
-                                    <Avatar className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 xl:w-28 xl:h-28 border-4 border-white dark:border-slate-800 shadow-2xl ring-4 ring-indigo-100 dark:ring-indigo-900/30">
-                                        {profileImage ? (
-                                            <AvatarImage 
-                                                src={profileImage} 
-                                                alt={`${displayName}'s avatar`}
-                                                className="object-cover"
-                                            />
-                                        ) : (
-                                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold">
-                                                {displayName.charAt(0).toUpperCase()}
-                                            </AvatarFallback>
-                                        )}
-                                    </Avatar>
-                                    
-                                    {/* Admin Crown Badge */}
-                                    {isAdmin && (
-                                        <div className="absolute -top-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center shadow-lg">
-                                            <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                                        </div>
-                                    )}
-                                    
-                                    {/* Online Status Indicator */}
-                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 bg-green-500 rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center">
-                                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 lg:w-2.5 lg:h-2.5 bg-white rounded-full"></div>
-                                    </div>
-                                    
-                                    {/* Upload Overlay */}
-                                    <div 
-                                        className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-all duration-300 bg-black/60 rounded-full cursor-pointer group"
-                                        onClick={() => profileImageInputRef.current?.click()}
-                                    >
-                                        {uploadingImage ? (
-                                            <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white animate-spin" />
-                                        ) : (
-                                            <Edit className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white group-hover:scale-110 transition-transform duration-200" />
-                                        )}
-                                    </div>
-                                    
-                                    {/* Hidden file input */}
-                                    <input
-                                        ref={profileImageInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleProfileImageUpload}
-                                        className="hidden"
-                                    />
-                                </div>
-                                
-                                {/* User Info - Centered on Mobile */}
-                                <div className="text-center sm:text-left space-y-2">
-                                    <div className="space-y-1">
-                                        <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 dark:text-white leading-tight">
-                                            Hi {displayName},
-                                        </h1>
-                                        <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
-                                            {isAdmin ? 'Admin Dashboard' : 'Welcome back!'}
-                                        </h2>
-                                    </div>
-                                    
-                                    {title && (
-                                        <p className="text-base sm:text-lg text-indigo-600 dark:text-indigo-400 font-medium">
-                                            {title}
-                                        </p>
-                                    )}
-                                    
-                                    {/* Badges - Stack on Mobile */}
-                                    <div className="flex flex-col items-center sm:flex-row sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                                        <span className="flex items-center gap-1.5 sm:gap-2 bg-gray-100 dark:bg-slate-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full">
-                                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                                            Joined in {userJoined}
-                                        </span>
-                                        <span className="flex items-center gap-1.5 sm:gap-2 bg-indigo-100 dark:bg-indigo-900/30 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-indigo-700 dark:text-indigo-300">
-                                            <User className="w-3 h-3 sm:w-4 sm:h-4" />
-                                            {stats.captionsGenerated} captions
-                                        </span>
-                                        {isAdmin && (
-                                            <span className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/40 dark:to-orange-900/40 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-yellow-700 dark:text-yellow-300">
-                                                <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                Admin
-                                            </span>
-                                        )}
-                                        
-                                        {/* Admin Dashboard Button */}
-                                        {isAdmin && (
-                                            <Link 
-                                                href="/admin/dashboard"
-                                                className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/40 dark:to-blue-900/40 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-purple-700 dark:text-purple-300 hover:from-purple-200 hover:to-blue-200 dark:hover:from-purple-800/60 dark:hover:to-blue-800/60 transition-all duration-200 cursor-pointer"
-                                            >
-                                                <Crown className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                Admin Dashboard
-                                            </Link>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                        </div>
-
-                        {/* Quick Actions Bar - 2x2 Grid Layout - Mobile Only */}
-                        <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-4 lg:hidden w-[90%] mx-auto">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => document.getElementById('recent-captions')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
-                            >
-                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
-                                View History
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => window.location.href = '/settings'}
-                                className="border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
-                            >
-                                <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
-                                Preferences
-                            </Button>
-                            
-                            {/* Admin Dashboard Button - Mobile */}
-                            {isAdmin && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => window.location.href = '/admin/dashboard'}
-                                    className="border-yellow-200 dark:border-yellow-700 hover:border-yellow-300 dark:hover:border-yellow-600 text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
-                                >
-                                    <Crown className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
-                                    Admin Panel
-                                </Button>
-                            )}
-                            
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    // Double-tap logout: NextAuth + hard-clear + redirect
-                                    await signOut({ redirect: false });
-                                    await fetch("/logout", { method: "POST" }).catch(() => {});
-                                    window.location.replace("/");
-                                  } catch (error) {
-                                    console.error('Logout error:', error);
-                                    window.location.replace("/");
-                                  }
-                                }}
-                                className="border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 h-9 sm:h-11 px-2 sm:px-3 rounded-xl font-medium transition-all duration-200 text-xs sm:text-sm"
-                            >
-                                <LogOut className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
-                                Logout
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-                        {/* Left Sidebar - Mobile: 90% width, Desktop: Full */}
-                        <div className="w-[90%] mx-auto lg:w-full lg:col-span-1 order-2 lg:order-1">
-                            <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm lg:sticky lg:top-4">
-                                <CardContent className="p-4 lg:p-6">
-                                    {/* Navigation */}
-                                    <nav className="space-y-2">
-                                        <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
-                                            <User className="w-4 h-4" />
-                                            Account
-                                        </button>
-                                        
-                                        {/* Admin Dashboard Navigation */}
-                                        {isAdmin && (
-                                            <Link 
-                                                href="/admin/dashboard"
-                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
-                                            >
-                                                <Crown className="w-4 h-4" />
-                                                Admin Dashboard
-                                            </Link>
-                                        )}
-                                        <button 
-                                            onClick={() => document.getElementById('recent-captions')?.scrollIntoView({ behavior: 'smooth' })}
-                                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                                        >
-                                            <Clock className="w-4 h-4" />
-                                            Caption History
-                                        </button>
-                                        <button 
-                                            onClick={() => window.location.href = '/settings'}
-                                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                                        >
-                                            <Settings className="w-4 h-4" />
-                                            Preferences
-                                        </button>
-                                        <Link href="#" className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                            <Bell className="w-4 h-4" />
-                                            Notifications
-                                        </Link>
-                                        
-                                        {/* Desktop Action Buttons */}
-                                        <div className="pt-2 space-y-2">
-                                            <button 
-                                                onClick={async () => {
-                                                  try {
-                                                    // Double-tap logout: NextAuth + hard-clear + redirect
-                                                    await signOut({ redirect: false });
-                                                    await fetch("/logout", { method: "POST" }).catch(() => {});
-                                                    window.location.replace("/");
-                                                  } catch (error) {
-                                                    console.error('Logout error:', error);
-                                                    window.location.replace("/");
-                                                  }
-                                                }}
-                                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                            >
-                                                <LogOut className="w-4 h-4" />
-                                                Logout
-                                            </button>
-                                        </div>
-                                    </nav>
-                                    
-                                    {/* Profile Image Actions */}
-                                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
-                                        <div className="flex gap-2 justify-center">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                onClick={() => profileImageInputRef.current?.click()}
-                                                disabled={uploadingImage}
-                                                className="text-xs border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300"
-                                            >
-                                                {uploadingImage ? (
-                                                    <>
-                                                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                                        Uploading...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Edit className="w-3 h-3 mr-1" />
-                                                        {profileImage ? 'Change' : 'Add'} Photo
-                                                    </>
-                                                )}
-                                            </Button>
-                                            {profileImage && (
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
-                                                    onClick={removeProfileImage}
-                                                    className="text-xs border-red-200 dark:border-red-700 hover:border-red-300 dark:hover:border-red-600 text-red-700 dark:text-red-300"
-                                                >
-                                                    <X className="w-3 h-3 mr-1" />
-                                                    Remove
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Main Content - Full Width on Mobile */}
-                        <div className="lg:col-span-3 order-1 lg:order-2 space-y-4 sm:space-y-6 w-full">
-                            
-                            {/* Profile Settings */}
-                            <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm w-[90%] mx-auto lg:w-full">
-                                <CardContent className="p-4 sm:p-6">
-                                    <div className="flex items-center gap-3 mb-4 sm:mb-6">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                                            <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                                        </div>
-                                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Profile Settings</h3>
-                                    </div>
-                                    
-                                    <div className="grid gap-3 sm:gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
-                                            <Input
-                                                value={username}
-                                                onChange={(e) => setUsername(e.target.value)}
-                                                placeholder="Enter username"
-                                                className="border-gray-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
-                                            <Input
-                                                value={title}
-                                                onChange={(e) => setTitle(e.target.value)}
-                                                placeholder="Enter your title"
-                                                className="border-gray-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
-                                            <Textarea
-                                                value={bio}
-                                                onChange={(e) => setBio(e.target.value)}
-                                                placeholder="Tell us about yourself..."
-                                                rows={3}
-                                                className="border-gray-300 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
-                                            />
-                                        </div>
-                                        
-                                        {profileError && (
-                                            <p className="text-red-600 dark:text-red-400 text-sm">{profileError}</p>
-                                        )}
-                                        {profileSuccess && (
-                                            <p className="text-green-600 dark:text-green-400 text-sm">{profileSuccess}</p>
-                                        )}
-                                        
-                                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                                            <Button 
-                                                onClick={handleSaveProfile}
-                                                disabled={savingProfile}
-                                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-6 py-2 rounded-xl text-sm sm:text-base"
-                                            >
-                                                {savingProfile ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Saving...
-                                                    </>
-                                                ) : (
-                                                    'Save Changes'
-                                                )}
-                                            </Button>
-                                            <Button 
-                                                variant="outline" 
-                                                onClick={handleCancel}
-                                                className="border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-2 rounded-xl text-sm sm:text-base"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Usage Statistics - Mobile Optimized Grid */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-[90%] mx-auto lg:w-full">
-                                <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
-                                    <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
-                                            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-                                        </div>
-                                        <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.captionsGenerated}</p>
-                                        <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Captions</p>
-                                    </CardContent>
-                                </Card>
-                                
-                                <Card className="bg-gradient-to-br from-indigo-400 to-indigo-500 dark:from-indigo-500 dark:to-indigo-600 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
-                                    <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
-                                            <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-                                        </div>
-                                        <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.totalImages}</p>
-                                        <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Images</p>
-                                    </CardContent>
-                                </Card>
-                                
-                                <Card className="bg-gradient-to-br from-indigo-300 to-indigo-400 dark:from-indigo-400 dark:to-indigo-500 text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
-                                    <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
-                                            <Star className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-                                        </div>
-                                        <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.mostUsedMood}</p>
-                                        <p className="text-indigo-100 dark:text-indigo-200 text-xs sm:text-sm">Mood</p>
-                                    </CardContent>
-                                </Card>
-                                
-                                <Card className="bg-gradient-to-br from-indigo-200 to-indigo-300 dark:from-indigo-300 dark:to-indigo-400 text-indigo-900 dark:text-white border-0 rounded-xl sm:rounded-2xl shadow-lg">
-                                    <CardContent className="p-3 sm:p-4 text-center">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-indigo-600/20 dark:bg-white/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
-                                            <Activity className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-                                        </div>
-                                        <p className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.averageLength}</p>
-                                        <p className="text-indigo-700 dark:text-indigo-200 text-xs sm:text-sm">Length</p>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Caption History - Mobile Optimized */}
-                            <div id="recent-captions" className="w-[90%] mx-auto lg:w-full">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                                        </div>
-                                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Caption History</h3>
-                                    </div>
-                                    {totalPages > 1 && (
-                                        <div className="flex items-center gap-3">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                                disabled={currentPage === 1}
-                                                className="border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm px-3 py-2 h-9 sm:h-10 disabled:opacity-50"
-                                            >
-                                                Previous
-                                            </Button>
-                                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                Page {currentPage} of {totalPages}
-                                            </span>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                                disabled={currentPage === totalPages}
-                                                className="border-purple-200 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm px-3 py-2 h-9 sm:h-10 disabled:opacity-50"
-                                            >
-                                                Next
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {isLoadingPosts ? (
-                                    <div className="text-center py-12">
-                                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-600" />
-                                        <p className="text-gray-600 dark:text-gray-400">Loading your captions...</p>
-                                    </div>
-                                ) : posts.length === 0 ? (
-                                    <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm">
-                                        <CardContent className="p-12 text-center">
-                                                                                         <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                <MessageSquare className="w-8 h-8 text-gray-400" />
-                                            </div>
-                                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Captions Yet</h3>
-                                            <p className="text-gray-600 dark:text-gray-400 mb-6">Start generating amazing captions for your images!</p>
-                                            <Link href="/" className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
-                                                <ImageIcon className="w-5 h-5" />
-                                                Start Generating
-                                            </Link>
-                                        </CardContent>
-                                    </Card>
-                                ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
-                                        {displayedCaptions.map((post, index) => (
-                                            <Card 
-                                                key={post._id} 
-                                                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden"
-                                            >
-                                                <CardContent className="p-0">
-                                                    {/* Image Section */}
-                                                    <div className="relative overflow-hidden">
-                                                        <div className="relative h-28 sm:h-32 lg:h-36 xl:h-40 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                                                            {post.image && !imageErrors.has(post._id) ? (
-                                                                <img
-                                                                    src={post.image}
-                                                                    alt="Generated caption image"
-                                                                    className="w-full h-full object-contain bg-gray-50 dark:bg-gray-800 group-hover:scale-105 transition-transform duration-300"
-                                                                    style={{ 
-                                                                        opacity: 1, 
-                                                                        display: 'block', 
-                                                                        visibility: 'visible',
-                                                                        maxWidth: '100%',
-                                                                        maxHeight: '100%'
-                                                                    }}
-                                                                    decoding="async"
-                                                                    onError={() => {
-                                                                        setImageErrors(prev => new Set([...prev, post._id]));
-                                                                    }}
-                                                                    onLoad={(e) => {
-                                                                        // Ensure visibility on load
-                                                                        const target = e.target as HTMLImageElement;
-                                                                        target.style.opacity = '1';
-                                                                        target.style.display = 'block';
-                                                                        target.style.visibility = 'visible';
-                                                                    }}
-                                                                />
-                                                            ) : imageErrors.has(post._id) ? (
-                                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                                                                    <div className="text-center">
-                                                                        <div className="text-2xl mb-2">⚠️</div>
-                                                                        <div className="text-sm">Image Error</div>
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
-                                                                    <div className="text-center p-4">
-                                                                        <div className="w-16 h-16 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                                            <ImageIcon className="w-8 h-8 text-gray-400" />
-                                                                        </div>
-                                                                        <p className="text-sm text-gray-500">No Image</p>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                                    
-                                                                    {/* Floating Mood Badge - Smaller on Mobile */}
-                                                                        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3 z-60">
-                                                                            <Badge className="bg-indigo-600/90 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                                {post.mood || 'Unknown'}
-                                                                            </Badge>
-                                                                        </div>
-                                                                        {/* Floating Date Badge - Smaller on Mobile */}
-                                                                        <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 lg:bottom-3 lg:left-3 z-60">
-                                                                            <Badge className="bg-gray-900/80 backdrop-blur-sm text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-3 lg:py-1 rounded-full text-xs font-medium">
-                                                                                {format(new Date(post.createdAt), 'MMM dd')}
-                                                                            </Badge>
-                                                                        </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    {/* Caption Content - Compact Padding */}
-                                                    <div className="p-2 sm:p-3 lg:p-4">
-                                                        <div className="space-y-1.5 sm:space-y-2 lg:space-y-3">
-                                                            {post.captions && post.captions.length > 0 && (
-                                                                <div>
-                                                                    <p className="text-gray-900 dark:text-white text-xs sm:text-sm leading-relaxed">
-                                                                        {expandedCaptionId === post._id 
-                                                                            ? post.captions[0]
-                                                                            : post.captions[0].length > 60 
-                                                                                ? `${post.captions[0].substring(0, 60)}...`
-                                                                                : post.captions[0]
-                                                                        }
-                                                                    </p>
-                                                                    {post.captions[0].length > 60 && (
-                                                                        <button
-                                                                            onClick={() => setExpandedCaptionId(expandedCaptionId === post._id ? null : post._id)}
-                                                                            className="text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm font-medium hover:underline mt-1"
-                                                                        >
-                                                                            {expandedCaptionId === post._id ? 'Show Less' : 'Read More'}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            
-                                                            {post.description && (
-                                                                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm italic">
-                                                                    "{post.description}"
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        
-                                                        {/* Action Buttons - Compact Design */}
-                                                                                                                 <div className="flex items-center justify-between mt-2 sm:mt-3 lg:mt-4 pt-2 sm:pt-3 lg:pt-4 border-t border-gray-100 dark:border-gray-800">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={async (e) => {
-                                                                    if (post.captions && post.captions.length > 0) {
-                                                                        try {
-                                                                            await navigator.clipboard.writeText(post.captions[0]);
-                                                                            // Show success feedback
-                                                                            const button = e.currentTarget;
-                                                                            if (button && button.textContent !== null) {
-                                                                                const originalText = button.textContent;
-                                                                                button.textContent = 'Copied!';
-                                                                                button.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                                setTimeout(() => {
-                                                                                    if (button && button.textContent !== null) {
-                                                                                        button.textContent = originalText;
-                                                                                        button.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                                    }
-                                                                                }, 1500);
-                                                                            }
-                                                                        } catch (error) {
-                                                                            // Fallback for older browsers
-                                                                            const textArea = document.createElement('textarea');
-                                                                            textArea.value = post.captions[0];
-                                                                            document.body.appendChild(textArea);
-                                                                            textArea.select();
-                                                                            document.execCommand('copy');
-                                                                            document.body.removeChild(textArea);
-                                                                            
-                                                                            // Show success feedback
-                                                                            const button = e.currentTarget;
-                                                                            if (button && button.textContent !== null) {
-                                                                                const originalText = button.textContent;
-                                                                                button.textContent = 'Copied!';
-                                                                                button.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                                setTimeout(() => {
-                                                                                    if (button && button.textContent !== null) {
-                                                                                        button.textContent = originalText;
-                                                                                        button.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
-                                                                                    }
-                                                                                }, 1500);
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className="text-xs border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg transition-all duration-300 flex items-center gap-1 sm:gap-1.5 group hover:scale-105"
-                                                            >
-                                                                <Copy className="w-3 h-3 transition-transform duration-300 group-hover:rotate-12" />
-                                                                Copy
-                                                            </Button>
-                                                            
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleDeleteCaption(post._id)}
-                                                                disabled={isDeleting === post._id}
-                                                                className="text-xs border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1.5 sm:px-3 sm:py-2 rounded-md sm:rounded-lg transition-all duration-300 flex items-center gap-1 sm:gap-1.5 relative"
-                                                            >
-                                                                {isDeleting === post._id ? (
-                                                                    <>
-                                                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                                                        <span>Deleting...</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Trash2 className="w-3 h-3" />
-                                                                        <span>Delete</span>
-                                                                    </>
-                                                                )}
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                )}
-
-                            </div>
-
-                            {/* Profile Deletion */}
-                            <ProfileDeletion userEmail={userEmail} />
-                        </div>
-                    </div>
-                </div>
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Edit Profile</h1>
+                <p className="text-muted-foreground mt-2">
+                    Update your public profile details.
+                </p>
             </div>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Profile Photo</CardTitle>
+                    <CardDescription>
+                        At least 800×800px recommended. JPG or PNG is allowed.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-6">
+                        <div className="relative">
+                            <Avatar className="h-24 w-24">
+                                <AvatarImage src={session?.user?.image || ''} />
+                                <AvatarFallback className="bg-primary text-white text-2xl">
+                                    {session?.user?.email?.[0]?.toUpperCase() || 'U'}
+                                </AvatarFallback>
+                            </Avatar>
+                            <label
+                                htmlFor="avatar-upload"
+                                className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors"
+                            >
+                                {uploading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Camera className="h-4 w-4" />
+                                )}
+                            </label>
+                            <input
+                                id="avatar-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleImageUpload}
+                                disabled={uploading}
+                            />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium">Upload new photo</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Click the camera icon to change your profile picture
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <form onSubmit={handleSubmit}>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Personal Info</CardTitle>
+                        <CardDescription>
+                            Update your personal information and how others see you.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="username">Username</Label>
+                                <Input
+                                    id="username"
+                                    value={formData.username}
+                                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                    placeholder="Enter your username"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    disabled
+                                    className="bg-muted"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="title">Professional Title</Label>
+                            <Input
+                                id="title"
+                                value={formData.title}
+                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                placeholder="e.g. Content Creator, Photographer"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="bio">Bio</Label>
+                            <Textarea
+                                id="bio"
+                                value={formData.bio}
+                                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                                placeholder="Tell us a little about yourself..."
+                                rows={4}
+                                className="resize-none"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                {formData.bio.length} / 500 characters
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    if (session?.user) {
+                                        setFormData({
+                                            username: (session.user as any).username || '',
+                                            title: (session.user as any).title || '',
+                                            bio: (session.user as any).bio || '',
+                                            email: session.user.email || '',
+                                        });
+                                    }
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={loading}>
+                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save changes
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </form>
         </div>
     );
 }

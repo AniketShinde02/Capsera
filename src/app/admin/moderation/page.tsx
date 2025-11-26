@@ -1,23 +1,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  MessageSquare, 
-  Search, 
-  Filter, 
+  MessageSquare,
+  Search,
+  Filter,
   Eye,
   CheckCircle,
   XCircle,
   AlertTriangle,
   User,
-  Calendar,
   Flag,
-  Shield
+  Shield,
+  Zap,
+  Clock,
+  LayoutGrid,
+  List,
+  MoreHorizontal,
+  ThumbsUp,
+  ThumbsDown,
+  Ban,
+  RefreshCw,
+  Trash2,
+  CheckSquare
 } from 'lucide-react';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ContentReport {
   _id: string;
@@ -39,403 +56,421 @@ export default function ContentModerationPage() {
   const [reports, setReports] = useState<ContentReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterSeverity, setFilterSeverity] = useState('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
+  const [activeTab, setActiveTab] = useState('pending');
 
-  // Fetch real data from database
-  useEffect(() => {
-    const fetchContentReports = async () => {
-      try {
-        setLoading(true);
-        
-        // Real API call to get content reports
-        const response = await fetch('/api/admin/moderation/reports');
-        
-        if (response.ok) {
-          const data = await response.json();
-          setReports(data.reports || []);
-        } else {
-          console.error('Failed to fetch content reports:', response.status);
-          // NO MORE MOCK DATA - show empty state instead
-          setReports([]);
-        }
-      } catch (error) {
-        console.error('Error fetching content reports:', error);
-        // NO MORE MOCK DATA - show empty state instead
-        setReports([]);
-      } finally {
-        setLoading(false);
+  // Bulk Selection State
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  // Fetch Data
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/moderation/reports');
+      if (response.ok) {
+        const data = await response.json();
+        setReports(data.reports || []);
+        // Clear selection on refresh
+        setSelectedReports([]);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchContentReports();
+  useEffect(() => {
+    fetchReports();
   }, []);
 
-  // REMOVED: getMockContentReports function - no more mock data!
-
-  const filteredReports = reports.filter(report => {
-    const matchesSearch = report.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.reportedUser.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || report.status === filterStatus;
-    const matchesSeverity = filterSeverity === 'all' || report.severity === filterSeverity;
-    return matchesSearch && matchesStatus && matchesSeverity;
-  });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'reviewed': return <Badge variant="outline">Reviewed</Badge>;
-      case 'resolved': return <Badge variant="default" className="bg-green-100 text-green-800">Resolved</Badge>;
-      case 'dismissed': return <Badge variant="outline">Dismissed</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case 'low': return <Badge variant="default" className="bg-green-100 text-green-800">Low</Badge>;
-      case 'medium': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Medium</Badge>;
-      case 'high': return <Badge variant="destructive" className="bg-orange-100 text-orange-800">High</Badge>;
-      case 'critical': return <Badge variant="destructive">Critical</Badge>;
-      default: return <Badge variant="outline">{severity}</Badge>;
-    }
-  };
-
-  const getActionBadge = (action?: string) => {
-    if (!action) return null;
-    
-    switch (action) {
-      case 'warned': return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Warned</Badge>;
-      case 'suspended': return <Badge variant="secondary" className="bg-orange-100 text-orange-800">Suspended</Badge>;
-      case 'banned': return <Badge variant="destructive">Banned</Badge>;
-      case 'removed': return <Badge variant="outline" className="bg-red-100 text-red-800">Content Removed</Badge>;
-      case 'no_action': return <Badge variant="outline">No Action</Badge>;
-      default: return <Badge variant="outline">{action}</Badge>;
-    }
-  };
-
-  const handleReviewReport = async (reportId: string, action: string) => {
+  // Actions
+  const handleAction = async (reportId: string, action: string, status: string = 'resolved') => {
     try {
-      const response = await fetch(`/api/admin/moderation/reports/${reportId}/review`, {
+      const endpoint = status === 'dismissed'
+        ? `/api/admin/moderation/reports/${reportId}/dismiss`
+        : `/api/admin/moderation/reports/${reportId}/review`;
+
+      const body = status === 'dismissed' ? {} : { action, status };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, status: 'resolved' })
+        body: JSON.stringify(body)
       });
-      
+
       if (response.ok) {
-        // Update local state
-        setReports(prev => prev.map(r => 
-          r._id === reportId ? { 
-            ...r, 
-            status: 'resolved' as const, 
+        setReports(prev => prev.map(r =>
+          r._id === reportId ? {
+            ...r,
+            status: status as any,
             action: action as any,
-            reviewedAt: new Date().toISOString(),
-            reviewedBy: 'ai.captioncraft@outlook.com'
+            reviewedAt: new Date().toISOString()
           } : r
         ));
-      } else {
-        console.error('Failed to review report');
+        setSelectedReport(null);
+        // Remove from selection if it was selected
+        setSelectedReports(prev => prev.filter(id => id !== reportId));
       }
     } catch (error) {
-      console.error('Error reviewing report:', error);
+      console.error('Error processing report:', error);
     }
   };
 
-  const handleDismissReport = async (reportId: string) => {
+  // Bulk Actions
+  const handleBulkAction = async (action: string, status: string = 'resolved') => {
+    if (selectedReports.length === 0) return;
+
+    setBulkActionLoading(true);
     try {
-      const response = await fetch(`/api/admin/moderation/reports/${reportId}/dismiss`, {
-        method: 'POST'
-      });
-      
-      if (response.ok) {
-        setReports(prev => prev.map(r => 
-          r._id === reportId ? { ...r, status: 'dismissed' as const } : r
-        ));
-      }
+      // Process all selected reports concurrently
+      await Promise.all(selectedReports.map(reportId => {
+        const endpoint = status === 'dismissed'
+          ? `/api/admin/moderation/reports/${reportId}/dismiss`
+          : `/api/admin/moderation/reports/${reportId}/review`;
+
+        const body = status === 'dismissed' ? {} : { action, status };
+
+        return fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      }));
+
+      // Refresh data after bulk action
+      await fetchReports();
+      setSelectedReports([]);
     } catch (error) {
-      console.error('Error dismissing report:', error);
+      console.error('Error processing bulk action:', error);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const toggleSelection = (reportId: string) => {
+    setSelectedReports(prev =>
+      prev.includes(reportId)
+        ? prev.filter(id => id !== reportId)
+        : [...prev, reportId]
+    );
+  };
+
+  // Filtering
+  const filteredReports = reports.filter(report => {
+    const matchesSearch =
+      report.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.reportedUser.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesTab =
+      activeTab === 'all' ? true :
+        activeTab === 'pending' ? report.status === 'pending' :
+          activeTab === 'resolved' ? ['resolved', 'dismissed'].includes(report.status) :
+            activeTab === 'critical' ? report.severity === 'critical' : true;
+
+    return matchesSearch && matchesTab;
+  });
+
+  const toggleSelectAll = () => {
+    if (selectedReports.length === filteredReports.length) {
+      setSelectedReports([]);
+    } else {
+      setSelectedReports(filteredReports.map(r => r._id));
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading content reports...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
-
-  // Show empty state if no reports
-  if (reports.length === 0) {
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Content Moderation</h1>
-            <p className="text-muted-foreground">Review and manage content reports and violations</p>
-          </div>
-        </div>
-
-        {/* Empty State */}
-        <Card>
-          <CardContent className="p-12 text-center">
-            <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Content Reports</h3>
-            <p className="text-muted-foreground mb-4">
-              There are currently no content reports requiring moderation.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Reports will appear here when users flag inappropriate content or violations are detected.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const totalReports = reports.length;
-  const pendingReports = reports.filter(r => r.status === 'pending').length;
-  const criticalReports = reports.filter(r => r.severity === 'critical').length;
-  const resolvedReports = reports.filter(r => r.status === 'resolved').length;
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-8 min-h-screen bg-background text-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Content Moderation</h1>
-          <p className="text-muted-foreground">Review and manage content reports and violations</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            Moderation Queue
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Review and manage user-reported content
+          </p>
         </div>
+        <Button onClick={fetchReports} variant="outline" size="sm" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Flag className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Reports</p>
-                <p className="text-2xl font-bold">{totalReports}</p>
-              </div>
+        <MagicCard className="p-6" gradientColor="#D9D9D955">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pending Reports</p>
+              <h3 className="text-2xl font-bold mt-2">{reports.filter(r => r.status === 'pending').length}</h3>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
-                <p className="text-2xl font-bold">{pendingReports}</p>
-              </div>
+            <Clock className="h-5 w-5 text-yellow-500" />
+          </div>
+        </MagicCard>
+        <MagicCard className="p-6" gradientColor="#D9D9D955">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Critical Issues</p>
+              <h3 className="text-2xl font-bold mt-2">{reports.filter(r => r.severity === 'critical').length}</h3>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Critical Issues</p>
-                <p className="text-2xl font-bold">{criticalReports}</p>
-              </div>
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+          </div>
+        </MagicCard>
+        <MagicCard className="p-6" gradientColor="#D9D9D955">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Resolved Today</p>
+              <h3 className="text-2xl font-bold mt-2">{reports.filter(r => r.status === 'resolved').length}</h3>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Resolved</p>
-                <p className="text-2xl font-bold">{resolvedReports}</p>
-              </div>
+            <CheckCircle className="h-5 w-5 text-green-500" />
+          </div>
+        </MagicCard>
+        <MagicCard className="p-6" gradientColor="#D9D9D955">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Reports</p>
+              <h3 className="text-2xl font-bold mt-2">{reports.length}</h3>
             </div>
-          </CardContent>
-        </Card>
+            <Flag className="h-5 w-5 text-blue-500" />
+          </div>
+        </MagicCard>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Main Content */}
+      <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between gap-4 items-center">
+          <TabsList>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="critical">Critical</TabsTrigger>
+            <TabsTrigger value="resolved">Resolved</TabsTrigger>
+            <TabsTrigger value="all">All Reports</TabsTrigger>
+          </TabsList>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* Search */}
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                  placeholder="Search reports by reason, description, or user..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                placeholder="Search reports..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
               />
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedReports.length > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleBulkAction('removed')}
+                  disabled={bulkActionLoading}
+                >
+                  {bulkActionLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                  Remove ({selectedReports.length})
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkAction('no_action', 'dismissed')}
+                  disabled={bulkActionLoading}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Dismiss ({selectedReports.length})
+                </Button>
+              </div>
+            )}
+
+            {/* View Toggle */}
+            <div className="border rounded-md p-1 flex bg-muted/20">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <TabsContent value={activeTab} className="mt-0">
+          {filteredReports.length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground border rounded-lg bg-muted/5 border-dashed">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-20" />
+              <p>No reports found matching your criteria.</p>
+            </div>
+          ) : (
+            <div className={cn(
+              "grid gap-4",
+              viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+            )}>
+              {filteredReports.map(report => (
+                <Card key={report._id} className={cn(
+                  "transition-all hover:shadow-md border-muted",
+                  selectedReports.includes(report._id) && "ring-2 ring-primary border-primary"
+                )}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedReports.includes(report._id)}
+                          onCheckedChange={() => toggleSelection(report._id)}
+                        />
+                        <Badge variant={
+                          report.severity === 'critical' ? 'destructive' :
+                            report.severity === 'high' ? 'default' :
+                              'secondary'
+                        }>
+                          {report.severity}
+                        </Badge>
+                        <Badge variant="outline">{report.contentType}</Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(report.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <CardTitle className="text-base mt-2 line-clamp-1">
+                      {report.reason}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                      {report.description}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      <User className="h-3 w-3" />
+                      <span>Reported by: {report.reportedBy}</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-2 flex justify-between">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedReport(report)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Review
+                    </Button>
+                    {report.status === 'pending' && (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50"
+                          onClick={() => handleAction(report._id, 'no_action', 'dismissed')}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleAction(report._id, 'removed', 'resolved')}
+                        >
+                          <Ban className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Review Dialog */}
+      <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Review Report</DialogTitle>
+            <DialogDescription>
+              Review the details of this report and take appropriate action.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedReport && (
+            <div className="space-y-4 my-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Reason</span>
+                  <p className="text-sm font-medium">{selectedReport.reason}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Severity</span>
+                  <Badge variant={selectedReport.severity === 'critical' ? 'destructive' : 'secondary'}>
+                    {selectedReport.severity}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Reported User</span>
+                  <p className="text-sm">{selectedReport.reportedUser}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Date</span>
+                  <p className="text-sm">{new Date(selectedReport.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                <span className="text-xs font-medium text-muted-foreground">Description</span>
+                <p className="text-sm">{selectedReport.description}</p>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <span className="text-xs font-medium text-muted-foreground block mb-2">Content Preview</span>
+                <div className="bg-background border rounded p-4 text-center text-muted-foreground">
+                  {/* Placeholder for content preview */}
+                  {selectedReport.contentType === 'image' ? (
+                    <div className="aspect-video bg-muted flex items-center justify-center">
+                      <Eye className="h-8 w-8 opacity-50" />
+                    </div>
+                  ) : (
+                    <p className="italic">Content preview not available</p>
+                  )}
+                </div>
               </div>
             </div>
+          )}
 
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSelectedReport(null)}>Cancel</Button>
             <div className="flex gap-2">
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-input rounded-md bg-background"
+              <Button
+                variant="secondary"
+                onClick={() => selectedReport && handleAction(selectedReport._id, 'no_action', 'dismissed')}
               >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="reviewed">Reviewed</option>
-                <option value="resolved">Resolved</option>
-                <option value="dismissed">Dismissed</option>
-              </select>
-              
-              <select
-                value={filterSeverity}
-                onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-3 py-2 border border-input rounded-md bg-background"
+                Dismiss
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => selectedReport && handleAction(selectedReport._id, 'removed', 'resolved')}
               >
-                <option value="all">All Severity</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
+                Remove Content
+              </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Content Reports Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Content Reports ({filteredReports.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">Report</th>
-                  <th className="text-left py-3 px-4 font-medium">Content & User</th>
-                  <th className="text-left py-3 px-4 font-medium">Reason & Description</th>
-                  <th className="text-left py-3 px-4 font-medium">Status & Severity</th>
-                  <th className="text-left py-3 px-4 font-medium">Actions</th>
-                  <th className="text-right py-3 px-4 font-medium">Moderation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredReports.map((report) => (
-                  <tr key={report._id} className="border-b border-border/50">
-                    <td className="py-3 px-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {report.contentType}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          ID: {report.contentId}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(report.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-sm font-medium">Reported User</p>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{report.reportedUser}</p>
-                        <div className="flex items-center gap-2">
-                          <Flag className="h-3 w-3 text-muted-foreground" />
-                          <p className="text-xs text-muted-foreground">by {report.reportedBy}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <div className="space-y-1 max-w-xs">
-                        <p className="text-sm font-medium">{report.reason}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {report.description}
-                        </p>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <div className="space-y-2">
-                        {getStatusBadge(report.status)}
-                        {getSeverityBadge(report.severity)}
-                        {report.action && getActionBadge(report.action)}
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <div className="space-y-1">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {report.status === 'pending' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDismissReport(report._id)}
-                            className="text-muted-foreground"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      {report.status === 'pending' && (
-                        <div className="flex flex-col gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                            onClick={() => handleReviewReport(report._id, 'warned')}
-                            className="text-xs"
-                          >
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Warn
-                        </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleReviewReport(report._id, 'suspended')}
-                            className="text-xs"
-                          >
-                            <Shield className="h-3 w-3 mr-1" />
-                            Suspend
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleReviewReport(report._id, 'banned')}
-                            className="text-xs"
-                          >
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Ban
-                          </Button>
-                        </div>
-                        )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

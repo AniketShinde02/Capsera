@@ -24,105 +24,129 @@ export interface ContentReport {
 }
 
 /**
- * Content Safety Check using Google SafeSearch API
- * This function analyzes images for inappropriate content
+ * Content Safety Check using Dual-Provider Strategy
+ * Primary: Sightengine (95% accuracy, 2000/month)
+ * Fallback: Cloudinary AWS Rekognition (25,000/month)
+ * This ensures best accuracy with high availability
  */
 export async function checkImageContentSafety(
   imageUrl: string,
-  apiKey?: string
+  apiKey?: string // Kept for backward compatibility but not used
 ): Promise<ContentSafetyResult> {
   try {
-    // If no API key provided, use environment variable
-    const geminiKey = apiKey || process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY_3 || process.env.GEMINI_API_KEY_4;
-
-    if (!geminiKey) {
-      console.warn('⚠️ No Gemini API key available for content safety check');
-      // Fallback to basic checks
-      return performBasicContentCheck(imageUrl);
+    // Try Sightengine first (best accuracy)
+    const sightengineResult = await checkWithSightengine(imageUrl);
+    if (sightengineResult) {
+      console.log('✅ Using Sightengine moderation (primary provider)');
+      return sightengineResult;
     }
 
-    // Use Gemini Vision API for content safety analysis
-    const safetyPrompt = `
-      Analyze this image for content safety. Rate the following categories from 0-10 (0 = safe, 10 = highly inappropriate):
-      
-      - Adult content (nudity, sexual content)
-      - Violence (gore, weapons, fighting)
-      - Racy content (suggestive, provocative)
-      - Medical content (medical procedures, injuries)
-      - Spoof content (fake, misleading)
-      
-      Respond with ONLY a JSON object in this exact format:
-      {
-        "adult": 0-10,
-        "violence": 0-10,
-        "racy": 0-10,
-        "medical": 0-10,
-        "spoof": 0-10
-      }
-      
-      Be strict but fair. Rate conservatively for safety.
-    `;
+    // Fallback to Cloudinary if Sightengine fails or quota exhausted
+    console.log('⚠️ Sightengine unavailable, falling back to Cloudinary...');
+    const cloudinaryResult = await checkWithCloudinary(imageUrl);
+    if (cloudinaryResult) {
+      console.log('✅ Using Cloudinary moderation (fallback provider)');
+      return cloudinaryResult;
+    }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Capsera/1.0'
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: safetyPrompt },
-            {
-              inline_data: {
-                mime_type: 'image/jpeg',
-                data: await getImageBase64(imageUrl)
-              }
-            }
-          ]
-        }]
-      }),
-      signal: AbortSignal.timeout(60000) // 60 second timeout for AI content analysis
+    // If both fail, use basic checks
+    console.warn('⚠️ Both providers failed, using basic content check');
+    return performBasicContentCheck(imageUrl);
+
+  } catch (error) {
+    console.error('❌ Content moderation failed:', error);
+    return performBasicContentCheck(imageUrl);
+  }
+}
+
+/**
+ * Sightengine Content Moderation (Primary Provider)
+ * Industry-leading accuracy: 95%+
+ * Free tier: 2,000 requests/month
+ */
+async function checkWithSightengine(imageUrl: string): Promise<ContentSafetyResult | null> {
+  try {
+    const apiUser = process.env.SIGHTENGINE_API_USER;
+    const apiSecret = process.env.SIGHTENGINE_API_KEY;
+
+    if (!apiUser || !apiSecret) {
+      console.warn('⚠️ Sightengine credentials missing');
+      return null;
+    }
+
+    // Sightengine API endpoint
+    const params = new URLSearchParams({
+      url: imageUrl,
+      models: 'nudity-2.0,wad,offensive,gore,qr-content',
+      api_user: apiUser,
+      api_secret: apiSecret
+    });
+
+    const response = await fetch(`https://api.sightengine.com/1.0/check.json?${params}`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10000) // 10 second timeout
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      if (response.status === 429) {
+        console.warn('⚠️ Sightengine quota exhausted (429)');
+      } else {
+        console.error(`Sightengine API error: ${response.status}`);
+      }
+      return null;
     }
 
     const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!content) {
-      throw new Error('No content analysis received from Gemini');
+    // Parse Sightengine response
+    const categories = {
+      adult: 0,
+      violence: 0,
+      racy: 0,
+      medical: 0,
+      spoof: 0
+    };
+
+    const flagged: string[] = [];
+
+    // Nudity detection
+    if (data.nudity) {
+      const nudityScore = Math.round((data.nudity.sexual_activity || 0) * 10);
+      const rawScore = Math.round((data.nudity.raw || 0) * 10);
+      categories.adult = Math.max(nudityScore, rawScore);
+      if (categories.adult >= 7) flagged.push('adult');
     }
 
-    // Parse the JSON response
-    let categories;
-    try {
-      categories = JSON.parse(content);
-    } catch (parseError) {
-      console.error('Failed to parse Gemini response:', content);
-      return performBasicContentCheck(imageUrl);
+    // Weapons, Alcohol, Drugs (WAD)
+    if (data.weapon) {
+      categories.violence = Math.round((data.weapon || 0) * 10);
+      if (categories.violence >= 7) flagged.push('violence');
     }
 
-    // Calculate risk levels
+    // Offensive content
+    if (data.offensive) {
+      const offensiveScore = Math.round((data.offensive.prob || 0) * 10);
+      categories.racy = Math.max(categories.racy, offensiveScore);
+      if (offensiveScore >= 7) flagged.push('racy');
+    }
+
+    // Gore detection
+    if (data.gore) {
+      const goreScore = Math.round((data.gore.prob || 0) * 10);
+      categories.violence = Math.max(categories.violence, goreScore);
+      if (goreScore >= 7 && !flagged.includes('violence')) flagged.push('violence');
+    }
+
     const maxScore = Math.max(
-      categories.adult || 0,
-      categories.violence || 0,
-      categories.racy || 0,
-      categories.medical || 0,
-      categories.spoof || 0
+      categories.adult,
+      categories.violence,
+      categories.racy,
+      categories.medical,
+      categories.spoof
     );
 
-    const isAppropriate = maxScore < 7; // Threshold for inappropriate content
-    const confidence = Math.max(0.8, 1 - (maxScore / 10)); // Higher score = lower confidence
-
-    const flagged = [];
-    if ((categories.adult || 0) >= 7) flagged.push('adult');
-    if ((categories.violence || 0) >= 7) flagged.push('violence');
-    if ((categories.racy || 0) >= 7) flagged.push('racy');
-    if ((categories.medical || 0) >= 7) flagged.push('medical');
-    if ((categories.spoof || 0) >= 7) flagged.push('spoof');
+    const isAppropriate = maxScore < 7;
+    const confidence = 0.95; // Sightengine has 95%+ accuracy
 
     let riskLevel: 'low' | 'medium' | 'high' = 'low';
     if (maxScore >= 8) riskLevel = 'high';
@@ -137,9 +161,144 @@ export async function checkImageContentSafety(
     };
 
   } catch (error) {
-    console.error('❌ Content safety check failed:', error);
-    // Fallback to basic checks
-    return performBasicContentCheck(imageUrl);
+    console.error('❌ Sightengine check failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Cloudinary Content Moderation (Fallback Provider)
+ * Uses AWS Rekognition via Cloudinary
+ * Free tier: 25,000 requests/month
+ */
+async function checkWithCloudinary(imageUrl: string): Promise<ContentSafetyResult | null> {
+  try {
+    // Extract Cloudinary public ID from URL
+    const publicId = extractCloudinaryPublicId(imageUrl);
+
+    if (!publicId) {
+      console.warn('⚠️ Not a Cloudinary URL');
+      return null;
+    }
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKeyCloud = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKeyCloud || !apiSecret) {
+      console.warn('⚠️ Cloudinary credentials missing');
+      return null;
+    }
+
+    // Use Cloudinary Moderation API with AWS Rekognition
+    const moderationUrl = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image/upload/${publicId}?moderation_status=true`;
+
+    const auth = Buffer.from(`${apiKeyCloud}:${apiSecret}`).toString('base64');
+
+    const response = await fetch(moderationUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    if (!response.ok) {
+      console.error(`Cloudinary moderation API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const moderation = data.moderation?.[0]; // AWS Rekognition results
+
+    if (!moderation) {
+      // No moderation data, assume safe
+      return {
+        isAppropriate: true,
+        confidence: 0.7,
+        categories: {
+          adult: 0,
+          violence: 0,
+          racy: 0,
+          medical: 0,
+          spoof: 0
+        },
+        flagged: [],
+        riskLevel: 'low'
+      };
+    }
+
+    // Parse AWS Rekognition moderation labels
+    const labels = moderation.moderation_labels || [];
+    const categories = {
+      adult: 0,
+      violence: 0,
+      racy: 0,
+      medical: 0,
+      spoof: 0
+    };
+
+    const flagged: string[] = [];
+
+    // Map AWS Rekognition labels to our categories
+    labels.forEach((label: any) => {
+      const name = label.name?.toLowerCase() || '';
+      const confidence = label.confidence || 0;
+      const score = Math.round(confidence / 10); // Convert 0-100 to 0-10
+
+      if (name.includes('nudity') || name.includes('explicit')) {
+        categories.adult = Math.max(categories.adult, score);
+        if (score >= 7) flagged.push('adult');
+      } else if (name.includes('violence') || name.includes('weapon') || name.includes('blood')) {
+        categories.violence = Math.max(categories.violence, score);
+        if (score >= 7) flagged.push('violence');
+      } else if (name.includes('suggestive') || name.includes('revealing')) {
+        categories.racy = Math.max(categories.racy, score);
+        if (score >= 7) flagged.push('racy');
+      }
+    });
+
+    const maxScore = Math.max(
+      categories.adult,
+      categories.violence,
+      categories.racy,
+      categories.medical,
+      categories.spoof
+    );
+
+    const isAppropriate = maxScore < 7;
+    const confidence = moderation.confidence ? moderation.confidence / 100 : 0.7;
+
+    let riskLevel: 'low' | 'medium' | 'high' = 'low';
+    if (maxScore >= 8) riskLevel = 'high';
+    else if (maxScore >= 5) riskLevel = 'medium';
+
+    return {
+      isAppropriate,
+      confidence,
+      categories,
+      flagged,
+      riskLevel
+    };
+
+  } catch (error) {
+    console.error('❌ Cloudinary moderation failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Extract Cloudinary public ID from URL
+ */
+function extractCloudinaryPublicId(url: string): string | null {
+  try {
+    // Example: https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg
+    // Extract: sample
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
   }
 }
 

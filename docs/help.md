@@ -1,18 +1,144 @@
 # 🚀 CaptionCraft Help & Documentation
 
-Welcome to CaptionCraft! This guide covers authentication, email configuration, deployment, and troubleshooting.
+Welcome to CaptionCraft! This guide covers authentication, email configuration, deployment, AI providers, and troubleshooting.
 
 ---
 
 ## 📋 Table of Contents
 
-1. [Authentication System](#authentication-system)
-2. [Email Configuration](#email-configuration)
-3. [Password Reset Flow](#password-reset-flow)
-4. [Deployment Guide](#deployment-guide)
-5. [Environment Variables](#environment-variables)
-6. [Troubleshooting](#troubleshooting)
-7. [Development Tips](#development-tips)
+1. [AI Provider System](#ai-provider-system) **NEW!**
+2. [Image Upload Features](#image-upload-features) **NEW!**
+3. [Authentication System](#authentication-system)
+4. [Email Configuration](#email-configuration)
+5. [Password Reset Flow](#password-reset-flow)
+6. [Deployment Guide](#deployment-guide)
+7. [Environment Variables](#environment-variables)
+8. [Troubleshooting](#troubleshooting)
+9. [Admin Panel Features](#admin-panel-features)
+10. [Development Tips](#development-tips)
+
+---
+
+## 🤖 AI Provider System
+
+CaptionCraft uses a **dual-vision AI strategy** for maximum reliability and capacity.
+
+### Current Provider Architecture
+
+**Primary Provider: Groq Vision** (llama-3.2-11b-vision-preview)
+- ✅ **14,400 requests/day** (10x more than Gemini!)
+- ✅ **Can analyze images** - Sees colors, objects, people, settings, lighting
+- ✅ **Fast responses** - ~500ms average
+- ✅ **Analyzes**: Actual image content + Mood + Description
+- ✅ **Free tier** - No credit card required
+
+**Fallback Provider: Gemini** (gemini-1.5-flash-latest)
+- ✅ **1,500 requests/day**
+- ✅ **Can analyze images** - Multimodal vision capabilities
+- ✅ **High quality** - Excellent caption generation
+- ✅ **Analyzes**: Actual image content + Mood + Description
+- ✅ **Free tier** - Google AI API
+
+### How It Works
+
+1. **Groq Vision tries first** → Analyzes image + mood + description
+2. **If Groq fails** → Gemini takes over automatically
+3. **User always gets captions** → No errors, seamless experience
+
+### Why Dual Vision?
+
+**Before (Old System):**
+- Gemini (1,500/day, vision) → Groq (14,400/day, **text-only**)
+- ❌ Groq couldn't see images, generated generic captions
+
+**Now (New System):**
+- Groq Vision (14,400/day, **vision**) → Gemini (1,500/day, **vision**)
+- ✅ Both providers analyze actual images
+- ✅ 10x more capacity with same quality
+- ✅ No more random text-based captions
+
+### Environment Variables
+
+```env
+# Groq API Keys (Primary Provider)
+GROQ_API_KEY_1=gsk_your_first_key_here
+GROQ_API_KEY_2=gsk_your_second_key_here
+
+# Gemini API Keys (Fallback Provider)
+GEMINI_API_KEY_1=AIzaSy_your_first_key_here
+GEMINI_API_KEY_2=AIzaSy_your_second_key_here
+GEMINI_API_KEY_3=AIzaSy_your_third_key_here
+GEMINI_API_KEY_4=AIzaSy_your_fourth_key_here
+```
+
+### Getting API Keys
+
+**Groq:**
+1. Visit [console.groq.com](https://console.groq.com)
+2. Sign up for free account
+3. Create API key
+4. Copy to `.env.local`
+
+**Gemini:**
+1. Visit [aistudio.google.com](https://aistudio.google.com)
+2. Sign in with Google account
+3. Click "Get API Key"
+4. Copy to `.env.local`
+
+---
+
+## 📸 Image Upload Features
+
+CaptionCraft supports multiple ways to upload images for caption generation.
+
+### Upload Methods
+
+#### 1. **Click to Upload** (Traditional)
+- Click the upload area
+- Select image from file browser
+- Supports: JPEG, PNG, GIF, WebP
+- Max size: 4MB (auto-compressed if larger)
+
+#### 2. **Drag & Drop**
+- Drag image file onto upload area
+- Visual feedback during drag
+- Instant preview after drop
+
+#### 3. **Paste from Clipboard** ⭐ **NEW!**
+- Copy any image (Ctrl+C or Right-click → Copy Image)
+- Click anywhere on the page
+- Press **Ctrl+V** (or Cmd+V on Mac)
+- Image automatically uploads and shows preview
+- Works with:
+  - Screenshots
+  - Images from websites
+  - Images from other apps
+  - Clipboard images
+
+#### 4. **URL Upload** (Right-click)
+- Right-click on upload area
+- Enter image URL
+- Supports public image URLs
+- Automatic validation
+
+### Image Processing
+
+**Automatic Compression:**
+- Files > 5MB are automatically compressed
+- Maintains aspect ratio
+- Optimized for fast upload
+- Quality: 80% (configurable)
+
+**Supported Formats:**
+- JPEG/JPG
+- PNG
+- GIF
+- WebP
+
+**Upload Limits:**
+- Max file size: 4MB (after compression)
+- Max dimensions: 1920x1920 (auto-resized)
+- Cloudinary storage integration
 
 ---
 
@@ -253,6 +379,21 @@ MongoServerSelectionError
 - Run `npm run lint` to check for issues
 - Verify all imports are correct
 - Check TypeScript errors with `npm run type-check`
+
+---
+
+## 📊 Admin Panel Features
+
+The Admin Panel has been upgraded with advanced analytics and real-time monitoring.
+
+### Key Capabilities
+
+- **Advanced Analytics**: Real-time user growth, content generation trends, and conversion funnels.
+- **User Management**: Enhanced UI for managing users with live activity stats.
+- **Role Management**: Flexible RBAC with visual permission management.
+- **Database Monitoring**: Live health checks and storage usage metrics.
+
+For a detailed guide on all new features, please refer to the [Admin Panel Features Guide](ADMIN_PANEL_FEATURES.md).
 
 ---
 

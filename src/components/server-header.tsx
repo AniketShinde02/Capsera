@@ -95,7 +95,7 @@ export default function ServerHeader() {
                 </h1>
                 <div className="flex items-center gap-1.5 -mt-1">
                   <span className="text-[6px] sm:text-[9px] md:text-[8px] bg-gradient-to-r from-blue-600 to-purple-600 text-white px-1 sm:px-1.5 py-0.5 rounded-full font-semibold leading-none">BETA</span>
-                  <span className="text-[6px] sm:text-[8px] md:text-[10px] text-muted-foreground leading-none">v1.0.0</span>
+                  <span className="text-[6px] sm:text-[8px] md:text-[10px] text-muted-foreground leading-none">v2.5.0</span>
                 </div>
               </div>
             </Link>

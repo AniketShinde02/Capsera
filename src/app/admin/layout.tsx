@@ -17,14 +17,14 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  
+
   // Session validation (removed debug logging for security)
-  
+
   // If no session, redirect to setup page
   if (!session) {
-    redirect('/setup');
+    redirect('/');
   }
-  
+
   // Check if user has admin access using the permission system
   try {
     const hasAdminAccess = await canManageAdmins(session.user.id);
@@ -40,42 +40,23 @@ export default async function AdminLayout({
       <AdminThemeProvider>
         <AdminMaintenanceCheck />
         <div className="min-h-screen bg-background flex flex-col lg:flex-row">
-          {/* Mobile Header - Only show on mobile */}
-          <div className="lg:hidden bg-sidebar border-b border-sidebar-border p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold text-sidebar-foreground">Capsera</h1>
-                  <p className="text-sm text-sidebar-foreground/60">Admin Panel</p>
-                </div>
-              </div>
-              <AdminHeader user={{ 
-                email: session.user.email || 'unknown@example.com',
-                username: session.user.username || undefined
-              }} />
-            </div>
-          </div>
+          {/* Mobile Header removed - handled by AdminSidebar */}
 
           {/* Sidebar - Fixed on desktop, mobile overlay */}
           <div className="lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 lg:z-30">
             <AdminSidebar />
           </div>
-          
+
           {/* Main content area - With left margin on desktop to account for fixed sidebar */}
           <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
             {/* Desktop Header - Only show on desktop */}
             <div className="hidden lg:block">
-              <AdminHeader user={{ 
+              <AdminHeader user={{
                 email: session.user.email || 'unknown@example.com',
                 username: session.user.username || undefined
               }} />
             </div>
-            
+
             <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
               <div className="max-w-full">
                 {children}

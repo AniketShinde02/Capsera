@@ -26,7 +26,7 @@ export async function GET(
 
     if (!post) {
       return NextResponse.json(
-        { error: 'Post not found' }, 
+        { error: 'Post not found' },
         { status: 404 }
       );
     }
@@ -36,7 +36,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching image:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch image' }, 
+      { error: 'Failed to fetch image' },
       { status: 500 }
     );
   }
@@ -64,9 +64,35 @@ export async function DELETE(
 
     if (!post) {
       return NextResponse.json(
-        { error: 'Post not found' }, 
+        { error: 'Post not found' },
         { status: 404 }
       );
+    }
+
+    // --- CLOUDINARY DELETION LOGIC ---
+    // Import dynamically to avoid circular deps if any, or just standard import at top
+    const { deleteCloudinaryImage, extractCloudinaryPublicId } = await import('@/lib/cloudinary');
+
+    let imageUrl = '';
+    if (post.image && typeof post.image === 'object') {
+      imageUrl = post.image.url || post.image.secure_url || post.image.publicUrl || '';
+    } else if (typeof post.image === 'string') {
+      imageUrl = post.image;
+    } else {
+      imageUrl = post.imageUrl || post.secure_url || '';
+    }
+
+    if (imageUrl) {
+      try {
+        const publicId = post.image?.publicId || extractCloudinaryPublicId(imageUrl);
+        if (publicId) {
+          console.log(`🗑️ Deleting Cloudinary image: ${publicId}`);
+          await deleteCloudinaryImage(publicId);
+        }
+      } catch (cloudError) {
+        console.error('❌ Failed to delete image from Cloudinary:', cloudError);
+        // Continue with DB deletion even if cloud delete fails, but log it
+      }
     }
 
     // Delete the post (which contains the image)
@@ -76,22 +102,22 @@ export async function DELETE(
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
-        { error: 'Post not found' }, 
+        { error: 'Post not found' },
         { status: 404 }
       );
     }
 
     console.log(`🗑️ Deleted post with image: ${postId}`);
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Image and post deleted successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Image and post deleted successfully'
     });
 
   } catch (error) {
     console.error('Error deleting image:', error);
     return NextResponse.json(
-      { error: 'Failed to delete image' }, 
+      { error: 'Failed to delete image' },
       { status: 500 }
     );
   }

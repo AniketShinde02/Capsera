@@ -16,36 +16,36 @@ export async function GET(request: NextRequest) {
     const { getServerSession } = await import('next-auth');
     const { authOptions } = await import('@/lib/auth');
     const session = await getServerSession(authOptions);
-    
+
     // Check if user can access admin dashboard
     const userId = session?.user?.id;
     if (!userId) {
       return NextResponse.json({ error: 'User session not found' }, { status: 401 });
     }
-    
+
     const canAccess = await canManageAdmins(userId);
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied. Admin privileges required.' }, { status: 403 });
     }
 
     const { db } = await connectToDatabase();
-    
+
     // Fetch users from both User and AdminUser collections using direct MongoDB
     const regularUsers = await db.collection('users').find({}).project({
-      email: 1, 
-      username: 1, 
-      role: 1, 
-      createdAt: 1, 
-      lastLogin: 1, 
+      email: 1,
+      username: 1,
+      role: 1,
+      createdAt: 1,
+      lastLogin: 1,
       isActive: 1
     }).toArray();
-    
+
     const adminUsers = await db.collection('adminusers').find({}).project({
-      email: 1, 
-      username: 1, 
-      role: 1, 
-      createdAt: 1, 
-      lastLoginAt: 1, 
+      email: 1,
+      username: 1,
+      role: 1,
+      createdAt: 1,
+      lastLoginAt: 1,
       status: 1
     }).toArray();
 
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch users' }, 
+      { error: 'Failed to fetch users' },
       { status: 500 }
     );
   }
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log('🔄 POST /api/admin/users - Creating new user');
-    
+
     // Check admin authentication using middleware
     const adminError = await verifyAdminAccess(request);
     if (adminError) return adminError;
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     const { getServerSession } = await import('next-auth');
     const { authOptions } = await import('@/lib/auth');
     const session = await getServerSession(authOptions);
-    
+
     // Check if user can manage admins
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Session not found' }, { status: 401 });
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     // Check if user already exists
     const existingUser = await db.collection('users').findOne({ email });
     const existingAdmin = await db.collection('adminusers').findOne({ email });
-    
+
     if (existingUser || existingAdmin) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
     }
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     // Handle role assignment
     let userRole = { name: 'user', displayName: 'User' }; // Default role
-    
+
     if (role) {
       // Check if role exists in roles collection
       const roleDoc = await db.collection('roles').findOne({ name: role.toLowerCase() });
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     // Insert into appropriate collection
     const collection = isAdmin ? 'adminusers' : 'users';
     let newUser;
-    
+
     if (isAdmin) {
       // AdminUser collection schema
       newUser = {
@@ -222,18 +222,33 @@ export async function POST(request: NextRequest) {
     const result = await db.collection(collection).insertOne(newUser);
     console.log('✅ User created successfully:', { userId: result.insertedId, collection });
 
+    // Log admin action
+    const { logAdminAction } = await import('@/lib/audit-logger');
+    await logAdminAction(
+      request,
+      'CREATE_USER',
+      result.insertedId.toString(),
+      isAdmin ? 'AdminUser' : 'User',
+      {
+        email,
+        role: userRole,
+        isAdmin,
+        createdBy: session.user.id
+      }
+    );
+
     // Return user without password
     const { password: _, ...userWithoutPassword } = newUser;
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       user: { ...userWithoutPassword, _id: result.insertedId.toString() }
     }, { status: 201 });
 
   } catch (error) {
     console.error('Error creating user:', error);
     return NextResponse.json(
-      { error: 'Failed to create user' }, 
+      { error: 'Failed to create user' },
       { status: 500 }
     );
   }

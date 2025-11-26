@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { canManageAdmins } from '@/lib/init-admin';
 import { ObjectId } from 'mongodb';
+import { deleteCloudinaryImage, extractCloudinaryPublicId } from '@/lib/cloudinary';
 
 export async function DELETE(
   request: NextRequest,
@@ -28,12 +29,12 @@ export async function DELETE(
     // Check if user exists in either collection
     let user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     let isAdminUser = false;
-    
+
     if (!user) {
       user = await db.collection('adminusers').findOne({ _id: new ObjectId(userId) });
       isAdminUser = true;
     }
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -48,13 +49,47 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 });
     }
 
+    // --- CASCADING DELETE LOGIC ---
+    console.log(`🗑️ Starting cascading delete for user: ${userId}`);
+
+    // 1. Find all images associated with the user
+    const userImages = await db.collection('images').find({ userId: userId }).toArray();
+    console.log(`📸 Found ${userImages.length} images to delete.`);
+
+    // 2. Delete images from Cloudinary and Database
+    let deletedImagesCount = 0;
+    let failedImagesCount = 0;
+
+    for (const image of userImages) {
+      try {
+        // Extract public ID if not stored directly (assuming url is stored)
+        const publicId = image.publicId || extractCloudinaryPublicId(image.url);
+
+        if (publicId) {
+          await deleteCloudinaryImage(publicId);
+          console.log(`✅ Deleted Cloudinary image: ${publicId}`);
+        }
+
+        // Delete from database
+        await db.collection('images').deleteOne({ _id: image._id });
+        deletedImagesCount++;
+      } catch (error) {
+        console.error(`❌ Failed to delete image ${image._id}:`, error);
+        failedImagesCount++;
+      }
+    }
+
+    console.log(`🏁 Image deletion complete. Success: ${deletedImagesCount}, Failed: ${failedImagesCount}`);
+
     // Soft delete - move to deletedprofiles collection
     const deletedProfile = {
       ...user,
       deletedAt: new Date(),
       deletedBy: session.user.email,
       originalId: user._id,
-      userType: isAdminUser ? 'admin' : 'user'
+      userType: isAdminUser ? 'admin' : 'user',
+      deletedImagesCount,
+      failedImagesCount
     };
 
     // Insert into deletedprofiles collection
@@ -65,7 +100,29 @@ export async function DELETE(
     const result = await db.collection(collection).deleteOne({ _id: new ObjectId(userId) });
 
     if (result.deletedCount === 1) {
-      return NextResponse.json({ success: true, message: 'User deleted successfully' });
+      // Log admin action
+      const { logAdminAction } = await import('@/lib/audit-logger');
+      await logAdminAction(
+        request,
+        'DELETE_USER',
+        userId,
+        isAdminUser ? 'AdminUser' : 'User',
+        {
+          deletedBy: session.user.email,
+          userEmail: user.email,
+          userRole: user.role,
+          cascadedImagesDeleted: deletedImagesCount
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'User and associated data deleted successfully',
+        details: {
+          imagesDeleted: deletedImagesCount,
+          imagesFailed: failedImagesCount
+        }
+      });
     } else {
       return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
     }
@@ -86,7 +143,7 @@ export async function PATCH(
   try {
     const { id: userId } = await params;
     console.log('🔄 PATCH /api/admin/users/[id] - Updating user:', userId);
-    
+
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -101,18 +158,18 @@ export async function PATCH(
 
     const { db } = await connectToDatabase();
     const updates = await request.json();
-    
+
     console.log('📊 Update data received:', updates);
 
     // Check if user exists in either collection
     let user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     let isAdminUser = false;
-    
+
     if (!user) {
       user = await db.collection('adminusers').findOne({ _id: new ObjectId(userId) });
       isAdminUser = true;
     }
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -124,7 +181,7 @@ export async function PATCH(
 
     // Validate updates - only allow certain fields to be updated
     const allowedUpdates: any = {};
-    
+
     if (updates.isActive !== undefined) {
       // Both collections use status field, but with different enum values
       if (isAdminUser) {
@@ -133,14 +190,14 @@ export async function PATCH(
         allowedUpdates.status = updates.isActive ? 'active' : 'suspended';
       }
     }
-    
+
     if (updates.role) {
       // Handle role updates - can be string or object
       let roleName = updates.role;
       if (typeof updates.role === 'object' && updates.role.name) {
         roleName = updates.role.name;
       }
-      
+
       // Check if role exists in roles collection
       const role = await db.collection('roles').findOne({ name: roleName.toLowerCase() });
       if (role) {
@@ -175,8 +232,22 @@ export async function PATCH(
 
     if (result.modifiedCount === 1) {
       console.log('✅ User updated successfully:', { userId, allowedUpdates });
-      return NextResponse.json({ 
-        success: true, 
+
+      // Log admin action
+      const { logAdminAction } = await import('@/lib/audit-logger');
+      await logAdminAction(
+        request,
+        'UPDATE_USER',
+        userId,
+        isAdminUser ? 'AdminUser' : 'User',
+        {
+          updates: allowedUpdates,
+          updatedBy: session.user.email
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
         message: 'User updated successfully',
         updates: allowedUpdates
       });

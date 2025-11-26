@@ -1,6 +1,6 @@
 # 🎨 Capsera: AI-Powered Social Media Caption Generator
 
-> **Transform your social media presence with intelligent, image-aware caption generation powered by Google Gemini AI**
+> **Transform your social media presence with intelligent, image-aware caption generation powered by Groq Vision AI & Google Gemini**
 
 <div align="center">
 
@@ -24,7 +24,9 @@
 Capsera isn't just another caption generator – it's your **AI-powered creative partner** that actually *sees* and *understands* your images to create contextually perfect captions with maximum variety.
 
 ### 🎯 **Key Differentiators:**
-- **🔍 Advanced Image Analysis**: AI analyzes colors, objects, people, and scenes
+- **🤖 Dual-AI Provider System**: Groq Vision (14,400/day) + Gemini (1,500/day) for 99.9% uptime
+- **🔍 Advanced Image Analysis**: Both AI providers analyze colors, objects, people, and scenes
+- **📋 Paste-to-Upload**: Copy & paste images directly (Ctrl+V) - no file browser needed!
 - **🎭 Mood-Driven Generation**: 41 different moods for perfect tone matching
 - **🔄 Maximum Caption Variety**: 3 completely different caption styles every time
 - **🛡️ Smart Rate Limiting**: 3 free generations, 25 for registered users, **UNLIMITED for admins**
@@ -365,6 +367,28 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## 🎨 **Admin UI Overhaul (November 2025)**
+
+### **✨ Magic UI Transformation**
+The admin dashboard has been completely reimagined with a futuristic "Magic UI" design language, featuring:
+- **Glassmorphism**: Extensive use of `backdrop-blur-3xl`, gradients, and translucent layers for a premium feel.
+- **Bento Grid Layouts**: Modular, responsive grid layouts for better data visualization and organization.
+- **Interactive Elements**: Hover effects, smooth transitions, and dynamic feedback for all actions.
+- **Themed Interfaces**:
+  - **Dashboard**: High-level metrics with sparklines and activity feeds.
+  - **Roles**: "Command Center" style with a "Role Deck" and quick tier management.
+  - **Moderation**: "Incident Command" interface with Tinder-like review actions and real-time alerts.
+  - **Database**: "Cyberpunk/Matrix" theme with neon accents, terminal logs, and system health HUD.
+  - **System Lock**: "Security Vault" theme with a visual vault door and keypad interface.
+
+### **🛡️ Enhanced Security & Functionality**
+- **Audit Logging**: Comprehensive tracking of all admin actions (Create, Update, Delete) with a dedicated `AuditLog` model.
+- **Real-time Data**: All admin pages now fetch real-time data from the backend, replacing mock data.
+- **System Lock**: Enhanced security for the setup page with a PIN-based lock system.
+- **Database Management**: Real-time monitoring of database health, collections, and performance metrics.
+
+---
+
 ## 🏗️ **Complete Project Structure**
 
 ```
@@ -382,17 +406,24 @@ Capsera/
 │   │   │   ├── 📁 cache/            # Cache management
 │   │   │   ├── 📁 dashboard/        # Main admin dashboard
 │   │   │   ├── 📁 data-recovery/    # Data recovery tools
-│   │   │   ├── 📁 database/         # Database management
+│   │   │   ├── 📁 database/         # Database management (Matrix Theme)
 │   │   │   ├── 📁 images/           # Image management
 │   │   │   ├── 📁 keys/             # API key management
-│   │   │   ├── 📁 moderation/       # Content moderation
+│   │   │   ├── 📁 moderation/       # Content moderation (Command Center)
 │   │   │   ├── 📁 performance/      # Performance monitoring
-│   │   │   ├── 📁 roles/            # Role management
+│   │   │   ├── 📁 roles/            # Role management (Glassmorphism)
 │   │   │   ├── 📁 seo/              # SEO management
-│   │   │   ├── 📁 settings/         # Admin settings
-│   │   │   └── 📁 setup/            # Admin setup process
+│   │   │   ├── 📁 settings/         # Admin settings (Control Panel)
+│   │   │   ├── 📁 system-lock/      # System lock (Security Vault)
+│   │   │   └── 📁 users/            # User management
 │   │   ├── 📁 api/                  # API endpoints
-│   │   │   ├── 📁 admin/            # Admin API routes
+│   │   │   ├── 📁 admin/            # Admin API routes (Audit Logged)
+│   │   │   │   ├── 📁 audit-logs/   # Audit log retrieval
+│   │   │   │   ├── 📁 database/     # Database stats & ops
+│   │   │   │   ├── 📁 moderation/   # Moderation actions
+│   │   │   │   ├── 📁 roles/        # Role CRUD
+│   │   │   │   ├── 📁 system-lock/  # Lock status & actions
+│   │   │   │   └── 📁 users/        # User CRUD
 │   │   │   ├── 📁 analytics/        # Analytics tracking
 │   │   │   ├── 📁 archive/          # Archive operations
 │   │   │   ├── 📁 auth/             # Authentication APIs
@@ -407,6 +438,7 @@ Capsera/
 │   │   │   ├── 📁 test-env/         # Environment testing
 │   │   │   ├── 📁 unsubscribe/      # Email unsubscribe
 │   │   │   └── 📁 upload/           # Image upload API
+│   │   │   └── ...                  # Other API routes
 │   │   ├── 📁 api-docs/             # API documentation
 │   │   ├── 📁 blog/                 # Blog section
 │   │   ├── 📁 careers/              # Careers page
@@ -435,7 +467,9 @@ Capsera/
 │   │   ├── 📁 admin/                # Admin-specific components
 │   │   │   ├── 📄 AdminHeader.tsx   # Admin header component
 │   │   │   ├── 📄 AdminSidebar.tsx  # Admin sidebar navigation
-│   │   │   └── 📄 AdminThemeProvider.tsx # Admin theme provider
+│   │   │   ├── 📄 AdminThemeProvider.tsx # Admin theme provider
+│   │   │   ├── 📁 dashboard/    # Dashboard widgets (MagicCard)
+│   │   │   └── ...
 │   │   ├── 📄 auth-form.tsx         # Authentication form
 │   │   ├── 📄 auth-modal.tsx        # Authentication modal
 │   │   ├── 📄 caption-card.tsx      # Caption display card
@@ -493,6 +527,7 @@ Capsera/
 │   │   └── 📄 image.png             # Default image
 │   ├── 📁 lib/                      # Utility libraries
 │   │   ├── 📄 auth.ts               # NextAuth configuration
+│   │   ├── 📄 audit-logger.ts   # Audit logging utility
 │   │   ├── 📄 caption-cache.ts      # Caption caching system
 │   │   ├── 📄 caption-queue.ts      # Caption generation queue
 │   │   ├── 📄 cloudinary-archive.ts # Cloudinary archive utilities
@@ -515,24 +550,28 @@ Capsera/
 │   │   ├── 📄 rate-limit.ts         # Advanced rate limiting
 │   │   ├── 📄 session-utils.ts      # Session management utilities
 │   │   └── 📄 utils.ts              # General utilities
+│   │   └── ...
 │   ├── 📁 middleware.ts             # Next.js middleware
 │   ├── 📁 models/                   # Database models
 │   │   ├── 📄 AdminUser.ts          # Admin user model
+│   │   ├── 📄 AuditLog.ts       # Audit log model
 │   │   ├── 📄 BlockedCredentials.ts # Blocked credentials model
 │   │   ├── 📄 CaptionCache.ts       # Caption cache model
 │   │   ├── 📄 Contact.ts            # Contact form model
 │   │   ├── 📄 DataRecoveryRequest.ts # Data recovery model
 │   │   ├── 📄 DeletedProfile.ts     # Deleted profile model
-│   │   │   ├── 📄 Post.ts           # Post model
+│   │   ├── 📄 Post.ts           # Post model
 │   │   ├── 📄 RateLimit.ts          # Rate limiting model
 │   │   ├── 📄 Role.ts               # Role model
-│   │   └── 📄 User.ts               # User model
+│   │   ├── 📄 User.ts               # User model
+│   │   └── ...
 │   └── 📁 next-auth.d.ts            # NextAuth type definitions
 ├── 📁 docs/                         # Documentation
 │   ├── 📄 ADMIN_DASHBOARD_IMPROVEMENTS_SUMMARY.md # Admin improvements
 │   ├── 📄 ADMIN_FIXES_SUMMARY.md    # Admin fixes summary
 │   ├── 📄 ADMIN_LOGIN_FIX_SUMMARY.md # Admin login fixes
 │   ├── 📄 ADMIN_SETUP.md            # Admin setup guide
+│   ├── 📄 ADMIN_UI_OVERHAUL.md      # Admin UI changes summary
 │   ├── 📄 API_DOCUMENTATION.md      # API documentation
 │   ├── 📄 blueprint.md              # Design blueprint
 │   ├── 📄 CAPTION_CACHING_SYSTEM.md # Caption caching documentation
@@ -567,6 +606,7 @@ Capsera/
 │   ├── 📄 SETUP.md                  # Setup guide
 │   ├── 📄 SIMPLIFIED_SETUP_SUMMARY.md # Simplified setup summary
 │   └── 📄 SUPER_ADMIN_SETUP.md      # Super admin setup
+│   └── ...
 ├── 📁 scripts/                      # Utility scripts
 │   ├── 📄 check-docs-status.js      # Documentation status checker
 │   ├── 📄 check-env-vars.js         # Environment variables checker

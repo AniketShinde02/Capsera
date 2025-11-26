@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -1229,7 +1229,6 @@ export function CaptionGenerator() {
           publicId: uploadData.public_id
         });
         setHasExplicitlyReset(false);
-
         // Don't clean up the object URL - keep it for instant display
         // The image will show instantly from blob URL while Cloudinary loads in background
 
@@ -1245,7 +1244,6 @@ export function CaptionGenerator() {
 
       // Track analytics if consent given
       if (hasConsent('analytics')) {
-        // Ensure startTime is defined and accessible in this scope
         const processingTime = typeof startTime === 'number' ? Date.now() - startTime : 0;
         trackCaptionGeneration({
           mood: currentMood,
@@ -1267,59 +1265,33 @@ export function CaptionGenerator() {
       setTimeout(() => {
         fetchFreemiumUsage();
       }, 500);
-      // Captions set successfully
 
       // 🗑️ AUTO-ARCHIVE IMAGE FOR ANONYMOUS USERS (Privacy Protection)
       if (!quotaData.isAuthenticated && uploadData.public_id) {
-        // Anonymous user - auto-archiving image after caption generation for privacy
-
-        // Show auto-archiving message to user
         setShowAutoDeleteMessage(true);
-        setTimeout(() => setShowAutoDeleteMessage(false), 5000); // Hide after 5 seconds
+        setTimeout(() => setShowAutoDeleteMessage(false), 5000);
 
-        // Start animated archiving process
         setTimeout(() => {
           handleAnimatedImageDeletion();
-        }, 1000); // Start animation after 1 second
+        }, 1000);
 
-        // Auto-archive image in background (don't wait for response)
         fetch('/api/delete-image', {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageUrl: uploadData.url,
             publicId: uploadData.public_id,
           }),
-        }).then(response => {
-          if (response.ok) {
-          } else {
-          }
-        }).catch(error => {
-          // Ignore archive errors
-        });
-      }
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      // Handle specific error types
-      if (error.name === 'AbortError') {
-        if (error.message.includes('upload')) {
-          setError('Image upload timed out. Please check your internet connection and try again.');
-        } else {
-          setError('Caption generation timed out. Please try again with a smaller image or better connection.');
-        }
-        return;
+        }).catch(() => { });
       }
 
-      // Enhanced error logging for debugging
-      console.error("Caption Generation Error:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-        cause: error.cause
-      });
+    } catch (error: any) {
+      console.error('❌ Caption generation error:', error);
 
-      // Track failed generation analytics if consent given
+      setUploadStage('idle');
+      setImageLoading(false);
+      updateButtonState('idle');
+
       if (hasConsent('analytics')) {
         const processingTime = Date.now() - startTime;
         trackCaptionGeneration({
@@ -1331,61 +1303,37 @@ export function CaptionGenerator() {
         });
       }
 
-      // Only log non-rate-limit errors to avoid console spam
-      if (!error.message?.includes('free images today') &&
-        !error.message?.includes('daily limit') &&
-        !error.message?.includes('quota will reset') &&
-        !error.message?.includes('hit your daily limit') &&
-        !error.message?.includes('used all your free requests') &&
-        !error.message?.includes('used all 5 free images today') &&
-        !error.message?.includes('You\'ve used all') &&
-        !error.message?.includes('You\'ve reached your daily limit')) {
-        // console.error("Caption Generation Error:", error);
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+
+      if (error.message) {
+        errorMessage = error.message;
+
+        if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('limit') || errorMessage.includes('free images')) {
+          errorMessage = 'You have reached your daily limit! Please try again tomorrow or sign in for more.';
+          setRefreshTrigger(prev => prev + 1);
+          setShowLimitShake(true);
+          setTimeout(() => setShowLimitShake(false), 500);
+        } else if (errorMessage.includes('500') || errorMessage.includes('Server error')) {
+          errorMessage = 'Our AI servers are currently busy. Please try again in a moment.';
+        } else if (errorMessage.includes('503') || errorMessage.includes('unavailable')) {
+          errorMessage = 'AI service is temporarily unavailable. We are working on it!';
+        } else if (errorMessage.includes('safety') || errorMessage.includes('violation')) {
+          errorMessage = 'This image could not be processed due to content safety guidelines.';
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('AbortError')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
       }
 
-      // If it's a rate limit error, trigger quota refresh and shake animation
-      if (error.message?.includes('free images today') ||
-        error.message?.includes('daily limit') ||
-        error.message?.includes('quota will reset') ||
-        error.message?.includes('hit your daily limit') ||
-        error.message?.includes('used all your free requests') ||
-        error.message?.includes('used all 5 free images today') ||
-        error.message?.includes('You\'ve used all') ||
-        error.message?.includes('You\'ve reached your daily limit')) {
-        // Daily limit detected, triggering shake animation and quota refresh
-        setRefreshTrigger(prev => prev + 1);
-        setShowLimitShake(true);
-        // Force immediate quota refresh
-        setTimeout(() => {
-          fetch('/api/rate-limit-info')
-            .then(response => response.json())
-            .then(data => {
-              setQuotaInfo({
-                remaining: data.remaining,
-                total: data.maxGenerations,
-                isAuthenticated: data.isAuthenticated,
-                isAdmin: data.isAdmin
-              });
-              // Forced quota refresh after daily limit
-            })
-            .catch(_ => {
-              // Failed to force refresh quota
-            });
-        }, 100);
-        // Reset shake animation after animation completes
-        setTimeout(() => setShowLimitShake(false), 600);
+      setErrorWithTimer(errorMessage, 8000);
 
-        // Set error with timer for daily limit errors
-        setErrorWithTimer(error.message, 10000);
-      } else {
-        // Set error with timer for other errors
-        setErrorWithTimer(error.message, 10000);
-      }
     } finally {
       setIsLoading(false);
-      // Button state already changed immediately after successful generation
+      if (uploadStage === 'generating' || uploadStage === 'processing' || uploadStage === 'uploading' || uploadStage === 'loading') {
+        setUploadStage('idle');
+        updateButtonState('idle');
+      }
     }
-  }
+  };
 
   // Enhanced debug logging for image state
   useEffect(() => {
@@ -1539,6 +1487,20 @@ export function CaptionGenerator() {
     };
   }, [objectUrl]);
 
+  // Attach paste event listener for Ctrl+V functionality
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      handlePasteImage(e);
+    };
+
+    // Attach to document so it works anywhere on the page
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, []);
+
   return (
     <div className="flex justify-center items-start py-6">
       {/* Main Centered Card - Optimized for 1920x1080 */}
@@ -1629,15 +1591,15 @@ export function CaptionGenerator() {
                           </div>
                           <p className="text-sm font-medium text-foreground mb-1">
                             {uploadStage === 'uploading' && 'Uploading Image...'}
-                            {uploadStage === 'processing' && 'Analyzing Image...'}
+                            {uploadStage === 'processing' && 'Checking Safety...'}
                             {uploadStage === 'generating' && 'Generating Captions...'}
-                            {uploadStage === 'loading' && 'AI is analyzing your image...'}
+                            {uploadStage === 'loading' && 'Processing...'}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {uploadStage === 'uploading' && 'Please wait while we upload your image'}
-                            {uploadStage === 'processing' && 'Analyzing your image content'}
-                            {uploadStage === 'generating' && 'Creating amazing captions for you'}
-                            {uploadStage === 'loading' && 'Please wait while we process'}
+                            {uploadStage === 'uploading' && 'Preparing your image'}
+                            {uploadStage === 'processing' && 'Ensuring content is safe'}
+                            {uploadStage === 'generating' && 'Crafting the perfect captions'}
+                            {uploadStage === 'loading' && 'Almost there...'}
                           </p>
                         </div>
                       ) : (imagePreview || currentImageData?.url) ? (

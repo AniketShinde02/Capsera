@@ -1,5 +1,5 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { getNextGeminiKey } from '@/lib/gemini-keys';
 
 // Get the first available Gemini API key for Genkit initialization
@@ -18,7 +18,7 @@ export const ai = genkit({
       apiKey: geminiKey || 'missing-api-key',
     })
   ],
-  model: 'googleai/gemini-2.0-flash-exp',
+  model: 'googleai/gemini-2.0-flash', // Stable Gemini 2.0 Flash (confirmed available)
 });
 
 // Export a function to check if AI is properly configured

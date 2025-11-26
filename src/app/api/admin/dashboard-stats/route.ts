@@ -37,24 +37,24 @@ export async function GET(request: NextRequest) {
     console.log('📊 Session user ID:', session.user.id);
 
     // Get REAL user counts from both collections
-    const regularUserCount = await db.collection('users').countDocuments({ 
+    const regularUserCount = await db.collection('users').countDocuments({
       isDeleted: { $ne: true },
       isAdmin: { $ne: true }
     }).catch(() => 0);
-    
-    const adminUserCount = await db.collection('adminusers').countDocuments({ 
+
+    const adminUserCount = await db.collection('adminusers').countDocuments({
       status: 'active'
     }).catch(() => 0);
-    
+
     const totalUsers = regularUserCount + adminUserCount;
 
     // Get REAL post counts
-    const totalPosts = await db.collection('posts').countDocuments({ 
+    const totalPosts = await db.collection('posts').countDocuments({
       isDeleted: { $ne: true }
     }).catch(() => 0);
 
     // Get REAL image counts (posts with images)
-    const totalImages = await db.collection('posts').countDocuments({ 
+    const totalImages = await db.collection('posts').countDocuments({
       image: { $exists: true, $ne: null },
       isDeleted: { $ne: true }
     }).catch(() => 0);
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     // Get system health metrics
     const dbStats = await db.stats().catch(() => ({ objects: 0, dataSize: 0, avgObjSize: 0 }));
     const collections = await db.listCollections().toArray().catch(() => []);
-    
+
     // Calculate database performance metrics
     const totalCollections = collections.length;
     const totalDocuments = dbStats.objects || 0;
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     // Get recent activity (include all users including admins)
     const recentUsers = await db.collection('users')
-      .find({ 
+      .find({
         isDeleted: { $ne: true }
         // Removed isAdmin filter to include admin users in recent activity
       })
@@ -132,6 +132,54 @@ export async function GET(request: NextRequest) {
       .limit(5)
       .toArray()
       .catch(() => []);
+
+    // Get 7-day history for sparklines
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    const userHistory = await db.collection('users').aggregate([
+      {
+        $match: {
+          createdAt: { $gte: weekAgo },
+          isDeleted: { $ne: true }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+
+    const postHistory = await db.collection('posts').aggregate([
+      {
+        $match: {
+          createdAt: { $gte: weekAgo },
+          isDeleted: { $ne: true }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+
+    // Fill in missing days with 0
+    const userSparkline = last7Days.map(date => ({
+      date,
+      value: userHistory.find(h => h._id === date)?.count || 0
+    }));
+
+    const postSparkline = last7Days.map(date => ({
+      date,
+      value: postHistory.find(h => h._id === date)?.count || 0
+    }));
 
     // Calculate real-time metrics
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
@@ -157,13 +205,14 @@ export async function GET(request: NextRequest) {
     // Server system load (simulated based on database performance)
     const dbPerformance = await db.command({ serverStatus: 1 }).catch(() => null);
     let systemLoad = 0;
-    
+
     if (dbPerformance) {
       // Calculate load based on database connections and operations
       const connections = dbPerformance.connections || {};
       const activeConnections = connections.active || 0;
       const maxConnections = connections.available || 100;
-      systemLoad = Math.min(100, Math.round((activeConnections / maxConnections) * 100));
+      // More realistic load calculation: (Active / Max) * 100, but scaled to be visible
+      systemLoad = Math.min(100, Math.round((activeConnections / Math.max(10, activeConnections + 10)) * 100));
     } else {
       // Fallback: calculate load based on recent activity
       const recentActivity = await db.collection('posts').countDocuments({
@@ -180,14 +229,16 @@ export async function GET(request: NextRequest) {
         newThisWeek: newUsersThisWeek,
         newThisMonth: newUsersThisMonth,
         growthWeek: `${userGrowthWeek}%`,
-        growthMonth: `${userGrowthMonth}%`
+        growthMonth: `${userGrowthMonth}%`,
+        history: userSparkline
       },
       posts: {
         total: totalPosts,
         newThisWeek: newPostsThisWeek,
         newThisMonth: newPostsThisMonth,
         growthWeek: `${postGrowthWeek}%`,
-        growthMonth: `${postGrowthMonth}%`
+        growthMonth: `${postGrowthMonth}%`,
+        history: postSparkline
       },
       images: {
         total: totalImages

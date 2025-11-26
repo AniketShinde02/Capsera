@@ -63,11 +63,11 @@ const AVAILABLE_RESOURCES = [
 ];
 
 const AVAILABLE_ACTIONS = [
-  { key: 'create', label: 'Create', color: 'bg-green-500/20 text-green-500' },
-  { key: 'read', label: 'Read', color: 'bg-blue-500/20 text-blue-500' },
-  { key: 'update', label: 'Update', color: 'bg-orange-500/20 text-orange-500' },
-  { key: 'delete', label: 'Delete', color: 'bg-red-500/20 text-red-500' },
-  { key: 'manage', label: 'Manage', color: 'bg-purple-500/20 text-purple-500' }
+  { key: 'create', label: 'Create', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
+  { key: 'read', label: 'Read', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
+  { key: 'update', label: 'Update', color: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
+  { key: 'delete', label: 'Delete', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  { key: 'manage', label: 'Manage', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' }
 ];
 
 export default function RolesPage() {
@@ -239,17 +239,14 @@ export default function RolesPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground animate-pulse">Loading secure roles...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-2 sm:p-8 min-h-screen bg-background/50 backdrop-blur-3xl animate-in fade-in duration-500">
+    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-8">
 
       {/* Notification Toast */}
       {notification && (
@@ -263,28 +260,29 @@ export default function RolesPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-            Role Command Center
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage access control and permissions with precision.</p>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">Role Command Center</h1>
+          <p className="text-muted-foreground">Manage access control and permissions with precision.</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-purple-500/20 transition-all hover:scale-105">
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-foreground text-background hover:bg-foreground/90 rounded-xl font-medium shadow-lg shadow-foreground/10 transition-all hover:scale-105"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create New Role
         </Button>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MagicCard
           title="Total Roles"
           value={roles.length.toString()}
           icon={Shield}
           trend="neutral"
           trendValue="Defined"
-          className="bg-purple-500/5 border-purple-500/10"
+          className="bg-card border-none"
         />
         <MagicCard
           title="System Roles"
@@ -292,7 +290,7 @@ export default function RolesPage() {
           icon={Lock}
           trend="neutral"
           trendValue="Protected"
-          className="bg-blue-500/5 border-blue-500/10"
+          className="bg-card border-none"
         />
         <MagicCard
           title="Active Users"
@@ -300,7 +298,7 @@ export default function RolesPage() {
           icon={Users}
           trend="up"
           trendValue="Assigned"
-          className="bg-green-500/5 border-green-500/10"
+          className="bg-card border-none"
         />
         <MagicCard
           title="Custom Roles"
@@ -308,7 +306,7 @@ export default function RolesPage() {
           icon={Settings}
           trend="up"
           trendValue="Flexible"
-          className="bg-orange-500/5 border-orange-500/10"
+          className="bg-card border-none"
         />
       </div>
 
@@ -318,21 +316,21 @@ export default function RolesPage() {
         {/* Left Column: Role Deck (8 cols) */}
         <div className="lg:col-span-8 space-y-6">
           {/* Controls */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+          <div className="flex items-center justify-between">
             <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <Input
                 placeholder="Search roles..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-background/50 border-white/10 focus:ring-purple-500/20"
+                className="pl-10 bg-card border-none h-12 rounded-xl text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-blue-500"
               />
             </div>
-            <div className="flex gap-2 bg-background/50 p-1 rounded-lg border border-white/10">
+            <div className="flex gap-2 bg-[#18181b] p-1 rounded-xl">
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-8 w-8 p-0", viewMode === 'grid' && "bg-white/10")}
+                className={cn("h-10 w-10 p-0 rounded-lg", viewMode === 'grid' && "bg-muted text-foreground")}
                 onClick={() => setViewMode('grid')}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -340,7 +338,7 @@ export default function RolesPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-8 w-8 p-0", viewMode === 'list' && "bg-white/10")}
+                className={cn("h-10 w-10 p-0 rounded-lg", viewMode === 'list' && "bg-muted text-foreground")}
                 onClick={() => setViewMode('list')}
               >
                 <List className="w-4 h-4" />
@@ -356,34 +354,34 @@ export default function RolesPage() {
             {filteredRoles.map((role) => (
               <div
                 key={role._id}
-                className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur-md transition-all duration-300 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1"
+                className="group relative overflow-hidden rounded-[2rem] bg-card p-6 transition-all duration-300 hover:bg-accent hover:-translate-y-1"
               >
                 {/* Role Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className={cn(
-                      "p-2 rounded-lg",
+                      "p-3 rounded-xl",
                       role.isSystem ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"
                     )}>
                       {role.isSystem ? <Lock className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg">{role.displayName}</h3>
+                      <h3 className="font-bold text-lg text-foreground">{role.displayName}</h3>
                       <p className="text-xs text-muted-foreground font-mono">{role.name}</p>
                     </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted">
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-background/95 backdrop-blur-xl border-white/10">
-                      <DropdownMenuItem onClick={() => { setEditingRole(role); setShowEditModal(true); }}>
+                    <DropdownMenuContent align="end" className="bg-card border-border text-foreground">
+                      <DropdownMenuItem onClick={() => { setEditingRole(role); setShowEditModal(true); }} className="focus:bg-muted focus:text-foreground cursor-pointer">
                         <Edit className="w-4 h-4 mr-2" /> Edit Role
                       </DropdownMenuItem>
                       {!role.isSystem && (
-                        <DropdownMenuItem className="text-red-400 focus:text-red-400" onClick={() => handleDeleteRole(role)}>
+                        <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer" onClick={() => handleDeleteRole(role)}>
                           <Trash2 className="w-4 h-4 mr-2" /> Delete Role
                         </DropdownMenuItem>
                       )}
@@ -392,7 +390,7 @@ export default function RolesPage() {
                 </div>
 
                 {/* Role Description */}
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[40px]">
+                <p className="text-sm text-muted-foreground mb-6 line-clamp-2 min-h-[40px]">
                   {role.description || "No description provided."}
                 </p>
 
@@ -412,20 +410,17 @@ export default function RolesPage() {
                 <div className="flex flex-wrap gap-1">
                   {role.permissions.slice(0, 3).map((perm, i) => (
                     perm.actions.length > 0 && (
-                      <Badge key={i} variant="secondary" className="bg-white/5 hover:bg-white/10 text-[10px] border-white/5">
+                      <Badge key={i} variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted/80 text-[10px] border-none">
                         {AVAILABLE_RESOURCES.find(r => r.key === perm.resource)?.label || perm.resource}
                       </Badge>
                     )
                   ))}
                   {role.permissions.filter(p => p.actions.length > 0).length > 3 && (
-                    <Badge variant="secondary" className="bg-white/5 text-[10px] border-white/5">
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground text-[10px] border-none">
                       +{role.permissions.filter(p => p.actions.length > 0).length - 3} more
                     </Badge>
                   )}
                 </div>
-
-                {/* Hover Glow */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </div>
             ))}
           </div>
@@ -435,72 +430,72 @@ export default function RolesPage() {
         <div className="lg:col-span-4 space-y-6">
 
           {/* Quick Create Card */}
-          <Card className="border-white/10 bg-gradient-to-br from-purple-900/20 to-background/50 backdrop-blur-xl overflow-hidden">
+          <div className="bg-gradient-to-br from-purple-900/20 to-card rounded-[2rem] p-6 relative overflow-hidden border border-purple-500/10">
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Zap className="w-5 h-5 text-yellow-400" />
-                Quick Tier Access
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 relative z-10">
-              <div className="space-y-2">
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="p-2 bg-yellow-400/10 rounded-lg">
+                  <Zap className="w-5 h-5 text-yellow-400" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground">Quick Tier Access</h3>
+              </div>
+
+              <div className="space-y-3">
                 <Input
                   placeholder="Email Address"
                   value={quickCreateForm.email}
                   onChange={(e) => setQuickCreateForm({ ...quickCreateForm, email: e.target.value })}
-                  className="bg-background/50 border-white/10"
+                  className="bg-background/50 border-none text-foreground placeholder:text-muted-foreground h-10 rounded-xl"
                 />
                 <Input
                   placeholder="Username"
                   value={quickCreateForm.username}
                   onChange={(e) => setQuickCreateForm({ ...quickCreateForm, username: e.target.value })}
-                  className="bg-background/50 border-white/10"
+                  className="bg-[#09090b]/50 border-none text-white placeholder:text-gray-500 h-10 rounded-xl"
                 />
                 <Select
                   value={quickCreateForm.tier}
                   onValueChange={(val) => setQuickCreateForm({ ...quickCreateForm, tier: val })}
                 >
-                  <SelectTrigger className="bg-background/50 border-white/10">
+                  <SelectTrigger className="bg-background/50 border-none text-foreground h-10 rounded-xl">
                     <SelectValue placeholder="Select Tier" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card border-border text-foreground">
                     <SelectItem value="moderator">Moderator</SelectItem>
                     <SelectItem value="content_editor">Content Editor</SelectItem>
                     <SelectItem value="support_agent">Support Agent</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button onClick={handleQuickCreate} className="w-full bg-purple-600 hover:bg-purple-700">
+                <Button onClick={handleQuickCreate} className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl h-10 font-medium">
                   Grant Access
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* System Status Card */}
-          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
+          <div className="bg-card rounded-[2rem] p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
                 <Server className="w-5 h-5 text-blue-400" />
-                System Roles
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {roles.filter(r => r.isSystem).map(role => (
-                  <div key={role._id} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-2">
-                      <Lock className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-sm font-medium">{role.displayName}</span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-green-500/20 text-green-500">
-                      Protected
-                    </Badge>
-                  </div>
-                ))}
               </div>
-            </CardContent>
-          </Card>
+              <h3 className="text-lg font-bold text-foreground">System Roles</h3>
+            </div>
+
+            <div className="space-y-3">
+              {roles.filter(r => r.isSystem).map(role => (
+                <div key={role._id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <Lock className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-medium text-muted-foreground">{role.displayName}</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-none bg-green-500/10 text-green-500">
+                    Protected
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
 
         </div>
       </div>
@@ -513,12 +508,12 @@ export default function RolesPage() {
           setEditingRole(null);
         }
       }}>
-        <DialogContent className="max-w-4xl bg-background/95 backdrop-blur-2xl border-white/10 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl bg-card border-border text-foreground max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
+            <DialogTitle className="text-2xl font-bold text-foreground">
               {showEditModal ? 'Edit Role Configuration' : 'Create New Role'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Define the access levels and permissions for this role.
             </DialogDescription>
           </DialogHeader>
@@ -527,7 +522,7 @@ export default function RolesPage() {
             {/* Left: Basic Info */}
             <div className="md:col-span-4 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Display Name</label>
+                <label className="text-sm font-medium text-muted-foreground">Display Name</label>
                 <Input
                   value={showEditModal ? editingRole?.displayName : createForm.displayName}
                   onChange={(e) => {
@@ -539,19 +534,20 @@ export default function RolesPage() {
                     }
                   }}
                   placeholder="e.g. Senior Editor"
+                  className="bg-muted border-none text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">System Name (ID)</label>
+                <label className="text-sm font-medium text-muted-foreground">System Name (ID)</label>
                 <Input
                   value={showEditModal ? editingRole?.name : createForm.name}
                   disabled={showEditModal} // Cannot change ID after creation
                   readOnly
-                  className="bg-muted/50 font-mono text-xs"
+                  className="bg-muted/50 font-mono text-xs border-none text-muted-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium text-muted-foreground">Description</label>
                 <Textarea
                   value={showEditModal ? editingRole?.description : createForm.description}
                   onChange={(e) => {
@@ -560,10 +556,11 @@ export default function RolesPage() {
                   }}
                   placeholder="Describe the role's purpose..."
                   rows={4}
+                  className="bg-muted border-none text-foreground resize-none"
                 />
               </div>
-              <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
-                <label className="text-sm font-medium">Active Status</label>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
+                <label className="text-sm font-medium text-muted-foreground">Active Status</label>
                 <Switch
                   checked={showEditModal ? editingRole?.isActive : createForm.isActive}
                   onCheckedChange={(c) => {
@@ -584,12 +581,12 @@ export default function RolesPage() {
                     const resourcePerms = currentPermissions?.find(p => p.resource === resource.key)?.actions || [];
 
                     return (
-                      <div key={resource.key} className="p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+                      <div key={resource.key} className="p-4 rounded-xl bg-muted hover:bg-muted/80 transition-colors">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 rounded-lg bg-background/50">
-                            <resource.icon className="w-4 h-4" />
+                          <div className="p-2 rounded-lg bg-card">
+                            <resource.icon className="w-4 h-4 text-muted-foreground" />
                           </div>
-                          <span className="font-medium">{resource.label}</span>
+                          <span className="font-medium text-foreground">{resource.label}</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {AVAILABLE_ACTIONS.map((action) => {
@@ -623,7 +620,7 @@ export default function RolesPage() {
                                   "px-3 py-1.5 rounded-md text-xs font-medium transition-all border",
                                   isSelected
                                     ? `${action.color} border-current`
-                                    : "bg-background/50 text-muted-foreground border-transparent hover:bg-background hover:text-foreground"
+                                    : "bg-card text-muted-foreground border-transparent hover:bg-background hover:text-foreground"
                                 )}
                               >
                                 {action.label}
@@ -639,13 +636,13 @@ export default function RolesPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-            <Button variant="outline" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }} className="text-muted-foreground hover:text-foreground hover:bg-muted">
               Cancel
             </Button>
             <Button
               onClick={showEditModal ? handleUpdateRole : handleCreateRole}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
               {showEditModal ? 'Save Changes' : 'Create Role'}
             </Button>

@@ -3,44 +3,44 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { MagicCard } from '@/components/admin/dashboard/magic-card';
 import {
+  ShoppingBag,
   Users,
-  Shield,
-  FileText,
-  Settings,
-  Activity,
-  Zap,
-  UserCheck,
-  Clock,
+  ArrowUpRight,
+  MoreHorizontal,
+  Filter,
+  Download,
+  Plus,
   RefreshCw,
   AlertTriangle,
-  Database,
+  Activity,
+  FileText,
   Image as ImageIcon
 } from 'lucide-react';
 
 interface DashboardStats {
   totalUsers: number;
   activeUsers: number;
-  archivedProfiles: { total: number };
   totalCaptions: number;
-  recoveryRequests: number;
-  systemAlerts: number;
-  lastBackup: string;
-  databaseStatus: string;
-  imageStorageStatus: string;
-  aiServicesStatus: string;
   trends: {
     totalUsers: string;
     activeUsers: string;
-    archivedProfiles: string;
     totalCaptions: string;
-    recoveryRequests: string;
-    systemAlerts: string;
   };
   history?: {
     users: { date: string; value: number }[];
@@ -66,16 +66,6 @@ interface DashboardStats {
       hasImage: boolean;
     }>;
   };
-  userRoles: Array<{
-    id: string;
-    name: string;
-    color: string;
-    permissions: Array<{
-      resource: string;
-      actions: string[];
-    }>;
-    userCount: number;
-  }>;
 }
 
 export default function AdminDashboard() {
@@ -84,36 +74,21 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Real API data fetching
   const fetchRealStats = async (): Promise<DashboardStats> => {
     try {
       const response = await fetch(`/api/admin/dashboard-stats?t=${Date.now()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard stats');
-      }
+      if (!response.ok) throw new Error('Failed to fetch stats');
       const data = await response.json();
-      console.log('📊 Dashboard API response:', data);
 
       if (data.success && data.stats) {
-        // Transform API data to match our DashboardStats interface
-        const transformedStats: DashboardStats = {
+        return {
           totalUsers: data.stats.users?.total || 0,
           activeUsers: data.stats.realTimeData?.onlineUsers || 0,
-          archivedProfiles: { total: data.stats.archivedProfiles?.total || 0 },
           totalCaptions: data.stats.posts?.total || 0,
-          recoveryRequests: data.stats.dataRecovery?.total || 0,
-          systemAlerts: 0,
-          lastBackup: new Date().toISOString(),
-          databaseStatus: 'Healthy',
-          imageStorageStatus: 'Online',
-          aiServicesStatus: 'Operational',
           trends: {
             totalUsers: data.stats.users?.growthWeek || '0%',
             activeUsers: '+' + Math.round((data.stats.realTimeData?.onlineUsers || 0) / (data.stats.users?.total || 1) * 100) + '%',
-            archivedProfiles: 'N/A',
             totalCaptions: data.stats.posts?.growthWeek || '0%',
-            recoveryRequests: 'N/A',
-            systemAlerts: 'N/A'
           },
           history: {
             users: data.stats.users?.history || [],
@@ -128,27 +103,23 @@ export default function AdminDashboard() {
           recentActivity: {
             users: data.stats.recentActivity?.users || [],
             posts: data.stats.recentActivity?.posts || []
-          },
-          userRoles: []
+          }
         };
-        return transformedStats;
-      } else {
-        throw new Error('Invalid stats data structure');
       }
+      throw new Error('Invalid data structure');
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error('Error:', error);
       throw error;
     }
   };
 
-  // Manual refresh function
   const handleRefresh = async () => {
     setIsLoading(true);
     try {
       const newStats = await fetchRealStats();
       setStats(newStats);
     } catch (error) {
-      console.error('Failed to refresh dashboard stats:', error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -156,326 +127,265 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (status === 'loading') return;
-
     if (!session) {
       router.push('/');
       return;
     }
-
-    // Load real API data
-    const loadStats = async () => {
-      setIsLoading(true);
-      try {
-        const realStats = await fetchRealStats();
-        setStats(realStats);
-      } catch (error) {
-        console.error('Failed to load dashboard stats:', error);
-        setStats(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadStats();
+    handleRefresh();
   }, [session, status, router]);
 
-
-  if (status === 'loading') {
+  if (status === 'loading' || (isLoading && !stats)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-lg text-muted-foreground">Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return null;
-  }
-
-  if (isLoading && !stats) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <Button disabled>
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            Loading...
-          </Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <MagicCard key={i} title="Loading..." value="0" icon={Activity} loading={true} />
-          ))}
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <Button onClick={handleRefresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Retry
-          </Button>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-muted-foreground">
-              <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-destructive" />
-              <h3 className="text-lg font-semibold mb-2">Failed to load dashboard data</h3>
-              <p className="mb-4">There was an error loading the dashboard statistics.</p>
-              <Button onClick={handleRefresh}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-foreground">
+        <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+        <h3 className="text-xl font-bold mb-2">Failed to load data</h3>
+        <Button onClick={handleRefresh} variant="outline" className="text-background bg-foreground hover:bg-foreground/90">
+          <RefreshCw className="w-4 h-4 mr-2" /> Retry
+        </Button>
       </div>
     );
   }
 
+  // Prepare chart data
+  const revenueData = stats.history?.posts.map(p => ({
+    name: new Date(p.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
+    value: p.value
+  })) || [];
+
+  const categoryData = [
+    { name: 'Text', value: 65, color: '#3b82f6' },
+    { name: 'Image', value: 35, color: '#f97316' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-8">
+
+      {/* Welcome Section */}
+      <div className="mb-8 flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Dashboard</h1>
-          <p className="text-muted-foreground">Real-time system overview and statistics</p>
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+            Hello, {session?.user?.name || 'Admin'}! <span className="text-2xl">👋</span>
+          </h1>
+          <p className="text-muted-foreground">Here's what's happening with your platform today.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button className="border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground" onClick={handleRefresh} disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+        <Button onClick={handleRefresh} variant="ghost" className="text-muted-foreground hover:text-foreground">
+          <RefreshCw className={cn("w-5 h-5", isLoading && "animate-spin")} />
+        </Button>
+      </div>
+
+      {/* Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+        {/* Total Revenue (Captions) Card */}
+        <div className="bg-foreground text-background p-6 rounded-[2rem] relative overflow-hidden group">
+          <div className="flex justify-between items-start mb-4">
+            <span className="font-medium text-muted-foreground/80">Total Captions</span>
+            <button className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white -mr-2 -mt-2 group-hover:scale-110 transition-transform">
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-end gap-2 mb-2">
+            <h2 className="text-4xl font-bold">{stats.totalCaptions.toLocaleString()}</h2>
+            <Badge className="bg-green-100 text-green-700 hover:bg-green-200 mb-1">{stats.trends.totalCaptions}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground/80">All time generated</p>
+        </div>
+
+        {/* Active Users Card */}
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent transition-colors">
+          <div className="flex justify-between items-start mb-4">
+            <span className="font-medium text-muted-foreground">Active Users</span>
+            <button className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors">
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-end gap-2 mb-2">
+            <h2 className="text-4xl font-bold text-foreground">{stats.activeUsers}</h2>
+            <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 mb-1 border-none">{stats.trends.activeUsers}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">Online right now</p>
+        </div>
+
+        {/* Total Users Card */}
+        <div className="bg-[#18181b] p-6 rounded-[2rem] relative overflow-hidden group hover:bg-[#202023] transition-colors">
+          <div className="flex justify-between items-start mb-4">
+            <span className="font-medium text-muted-foreground">Total Users</span>
+            <button className="w-8 h-8 bg-[#27272a] rounded-full flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-end gap-2 mb-2">
+            <h2 className="text-4xl font-bold text-foreground">{stats.totalUsers.toLocaleString()}</h2>
+            <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 mb-1 border-none">{stats.trends.totalUsers}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">Registered accounts</p>
+        </div>
+
+        {/* System Load Card */}
+        <div className="bg-[#18181b] p-6 rounded-[2rem] relative overflow-hidden group hover:bg-[#202023] transition-colors">
+          <div className="flex justify-between items-start mb-4">
+            <span className="font-medium text-muted-foreground">System Load</span>
+            <button className="w-8 h-8 bg-[#27272a] rounded-full flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+              <Activity className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-end gap-2 mb-2">
+            <h2 className="text-4xl font-bold text-foreground">{stats.realTimeData.systemLoad}%</h2>
+            <Badge className={cn(
+              "mb-1 border-none",
+              stats.realTimeData.systemLoad > 80 ? "bg-red-500/10 text-red-500" : "bg-green-500/10 text-green-500"
+            )}>
+              {stats.realTimeData.systemLoad > 80 ? 'High' : 'Normal'}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">Server performance</p>
         </div>
       </div>
 
-      {/* Key Metrics - Magic Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MagicCard
-          title="Total Users"
-          value={stats.totalUsers.toLocaleString()}
-          icon={Users}
-          trend={parseFloat(stats.trends.totalUsers) >= 0 ? 'up' : 'down'}
-          trendValue={stats.trends.totalUsers}
-          data={stats.history?.users}
-          description="Total registered users"
-        />
-        <MagicCard
-          title="Active Users"
-          value={stats.activeUsers.toLocaleString()}
-          icon={UserCheck}
-          trend="up"
-          trendValue={stats.trends.activeUsers}
-          description="Online in last 5 mins"
-        />
-        <MagicCard
-          title="Total Captions"
-          value={stats.totalCaptions.toLocaleString()}
-          icon={FileText}
-          trend={parseFloat(stats.trends.totalCaptions) >= 0 ? 'up' : 'down'}
-          trendValue={stats.trends.totalCaptions}
-          data={stats.history?.posts}
-          description="Total captions generated"
-        />
-        <MagicCard
-          title="System Load"
-          value={`${stats.realTimeData.systemLoad}%`}
-          icon={Activity}
-          trend={stats.realTimeData.systemLoad > 80 ? 'down' : 'neutral'}
-          trendValue={stats.realTimeData.systemLoad > 80 ? 'High Load' : 'Normal'}
-          description="Database connection load"
-        />
-      </div>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
-      {/* Real-time Data */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Real-time Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
-              <span className="text-sm font-medium">Online Users</span>
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                <Badge variant="secondary" className="font-mono">{stats.realTimeData.onlineUsers}</Badge>
+        {/* Activity Chart */}
+        <div className="lg:col-span-2 bg-card p-6 rounded-[2rem]">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-foreground">Generation Activity</h3>
+              <p className="text-sm text-muted-foreground">Captions generated over time</p>
+            </div>
+          </div>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#71717a', fontSize: 12 }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#71717a', fontSize: 12 }}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))' }}
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                />
+                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Pie Chart */}
+        <div className="bg-card p-6 rounded-[2rem]">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-foreground">Content Type</h3>
+              <p className="text-sm text-muted-foreground">Text vs Image captions</p>
+            </div>
+          </div>
+          <div className="h-[200px] w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <span className="block text-2xl font-bold text-foreground">Total</span>
               </div>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
-              <span className="text-sm font-medium">Active Sessions</span>
-              <Badge variant="secondary" className="font-mono">{stats.realTimeData.activeSessions}</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
-              <span className="text-sm font-medium">Pending Actions</span>
-              <Badge variant="secondary" className="font-mono">{stats.realTimeData.pendingActions}</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
-              <span className="text-sm font-medium">Database</span>
-              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
-                {stats.databaseStatus}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
-              <span className="text-sm font-medium">Image Storage</span>
-              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
-                {stats.imageStorageStatus}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 hover:bg-accent/10 transition-colors">
-              <span className="text-sm font-medium">AI Services</span>
-              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
-                {stats.aiServicesStatus}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="mt-6 space-y-3">
+            {categoryData.map((item) => (
+              <div key={item.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm text-muted-foreground">{item.name}</span>
+                </div>
+                <span className="text-sm font-medium text-foreground">{item.value}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Recent Activity */}
-      <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            Recent Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Users */}
-            <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wider">
-                <Users className="w-4 h-4" />
-                New Users
-              </h4>
-              <div className="space-y-3">
-                {stats.recentActivity.users.slice(0, 5).map((user) => (
-                  <div key={user.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50 hover:bg-accent/5 transition-colors">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                      {user.name.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{user.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(user.joined).toLocaleDateString()}
-                    </div>
-                  </div>
-                ))}
-                {stats.recentActivity.users.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No recent user activity
-                  </p>
-                )}
-              </div>
-            </div>
+      {/* Recent Activity List */}
+      <div className="bg-card rounded-[2rem] p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <h3 className="text-xl font-bold text-foreground">Recent Captions</h3>
+          <div className="flex gap-2">
+            <Button variant="outline" className="border-none bg-muted text-foreground hover:bg-muted/80 rounded-xl">
+              <Filter className="w-4 h-4 mr-2" /> Filter
+            </Button>
+            <Button variant="outline" className="border-none bg-[#27272a] text-white hover:bg-[#3f3f46] rounded-xl">
+              <Download className="w-4 h-4 mr-2" /> Export
+            </Button>
+          </div>
+        </div>
 
-            {/* Recent Posts */}
-            <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wider">
-                <FileText className="w-4 h-4" />
-                Latest Captions
-              </h4>
-              <div className="space-y-3">
-                {stats.recentActivity.posts.slice(0, 5).map((post) => (
-                  <div key={post.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50 hover:bg-accent/5 transition-colors">
-                    <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
-                      {post.hasImage ? (
-                        <ImageIcon className="w-4 h-4 text-secondary-foreground" />
-                      ) : (
-                        <FileText className="w-4 h-4 text-secondary-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{post.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{new Date(post.created).toLocaleString()}</p>
-                    </div>
-                    <Badge variant={post.hasImage ? "default" : "secondary"} className="text-[10px]">
-                      {post.hasImage ? "Image" : "Text"}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-4 px-4 text-muted-foreground font-medium">ID</th>
+                <th className="text-left py-4 px-4 text-muted-foreground font-medium">Title</th>
+                <th className="text-left py-4 px-4 text-muted-foreground font-medium">Type</th>
+                <th className="text-left py-4 px-4 text-muted-foreground font-medium">Date</th>
+                <th className="text-right py-4 px-4 text-muted-foreground font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.recentActivity.posts.map((post) => (
+                <tr key={post.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                  <td className="py-4 px-4 text-foreground font-medium text-sm">#{post.id.substring(0, 6)}</td>
+                  <td className="py-4 px-4 text-muted-foreground">{post.title}</td>
+                  <td className="py-4 px-4">
+                    <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+                      {post.hasImage ? 'Image' : 'Text'}
                     </Badge>
-                  </div>
-                ))}
-                {stats.recentActivity.posts.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No recent posts
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  </td>
+                  <td className="py-4 px-4 text-muted-foreground">{new Date(post.created).toLocaleDateString()}</td>
+                  <td className="py-4 px-4 text-right">
+                    <button className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {stats.recentActivity.posts.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-muted-foreground">No recent activity found</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      {/* Quick Actions */}
-      <Card className="border border-border/50 bg-background/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-card-foreground">
-            <Zap className="w-5 h-5 text-yellow-500" />
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
-              onClick={() => router.push('/admin/users')}
-            >
-              <Users className="w-6 h-6" />
-              <span className="text-sm font-medium">Manage Users</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
-              onClick={() => router.push('/admin/roles')}
-            >
-              <Shield className="w-6 h-6" />
-              <span className="text-sm font-medium">Roles & Permissions</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
-              onClick={() => router.push('/admin/database')}
-            >
-              <Database className="w-6 h-6" />
-              <span className="text-sm font-medium">Database</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2 border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all duration-300"
-              onClick={() => router.push('/admin/settings')}
-            >
-              <Settings className="w-6 h-6" />
-              <span className="text-sm font-medium">Settings</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

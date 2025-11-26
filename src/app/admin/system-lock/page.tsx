@@ -101,7 +101,7 @@ export default function SystemLockPage() {
 
   if (loading && !systemLockStatus) {
     return (
-      <div className="flex h-[80vh] items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
         <div className="flex flex-col items-center gap-4">
           <div className="h-16 w-16 rounded-full border-4 border-yellow-500 border-t-transparent animate-spin" />
           <p className="text-yellow-500 font-mono animate-pulse">ACCESSING VAULT...</p>
@@ -113,16 +113,16 @@ export default function SystemLockPage() {
   const isLocked = systemLockStatus?.isLocked;
 
   return (
-    <div className="min-h-screen bg-black text-yellow-500 font-mono p-4 sm:p-8 animate-in fade-in duration-500 selection:bg-yellow-500/30 selection:text-yellow-200">
+    <div className="min-h-screen bg-background text-yellow-700 dark:text-yellow-500 font-mono p-4 lg:p-8 selection:bg-yellow-500/30 selection:text-yellow-200">
 
       {/* Header */}
       <div className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tighter flex items-center gap-3 text-yellow-400">
+          <h1 className="text-3xl font-bold tracking-tighter flex items-center gap-3 text-yellow-800 dark:text-yellow-400">
             <ShieldCheck className="w-10 h-10" />
             SECURITY_VAULT
           </h1>
-          <p className="text-yellow-500/60 mt-2">Level 5 Security Clearance Required</p>
+          <p className="text-yellow-700/60 dark:text-yellow-500/60 mt-2">Level 5 Security Clearance Required</p>
         </div>
         <div className="flex items-center gap-4">
           <div className={cn(
@@ -153,11 +153,11 @@ export default function SystemLockPage() {
         {/* Vault Visual */}
         <div className="relative flex items-center justify-center min-h-[400px]">
           <div className={cn(
-            "absolute inset-0 border-4 border-yellow-900/30 rounded-full animate-[spin_10s_linear_infinite]",
+            "absolute inset-0 border-4 border-yellow-200 dark:border-yellow-900/30 rounded-full animate-[spin_10s_linear_infinite]",
             isLocked ? "border-green-900/30" : "border-red-900/30"
           )} />
           <div className={cn(
-            "absolute inset-8 border-2 border-dashed border-yellow-900/30 rounded-full animate-[spin_15s_linear_infinite_reverse]",
+            "absolute inset-8 border-2 border-dashed border-yellow-200 dark:border-yellow-900/30 rounded-full animate-[spin_15s_linear_infinite_reverse]",
             isLocked ? "border-green-900/30" : "border-red-900/30"
           )} />
 
@@ -174,7 +174,7 @@ export default function SystemLockPage() {
                 {isLocked ? "ACCESS RESTRICTED" : "ACCESS GRANTED"}
               </h2>
               {systemLockStatus?.setBy && (
-                <p className="text-sm text-yellow-500/50">
+                <p className="text-sm text-yellow-700/50 dark:text-yellow-500/50">
                   Last Protocol: {systemLockStatus.setBy} <br />
                   Timestamp: {new Date(systemLockStatus.setAt!).toLocaleString()}
                 </p>
@@ -185,9 +185,9 @@ export default function SystemLockPage() {
 
         {/* Control Panel */}
         <div className="flex flex-col justify-center space-y-8">
-          <Card className="bg-black border border-yellow-500/30 shadow-[0_0_30px_rgba(234,179,8,0.1)]">
-            <CardHeader className="border-b border-yellow-500/20 bg-yellow-500/5">
-              <CardTitle className="text-yellow-400 flex items-center gap-2">
+          <Card className="bg-card border border-yellow-500/30 shadow-[0_0_30px_rgba(234,179,8,0.1)]">
+            <CardHeader className="border-b border-yellow-500/20 bg-yellow-100 dark:bg-yellow-500/5">
+              <CardTitle className="text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
                 <Fingerprint className="w-5 h-5" />
                 SECURITY PROTOCOLS
               </CardTitle>
@@ -216,7 +216,7 @@ export default function SystemLockPage() {
                       <Button
                         onClick={() => setMode('change')}
                         variant="outline"
-                        className="h-12 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10"
+                        className="h-12 border-yellow-500/50 text-yellow-700 dark:text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-500/10 bg-background"
                       >
                         <Key className="w-4 h-4 mr-2" />
                         UPDATE CREDENTIALS
@@ -227,22 +227,22 @@ export default function SystemLockPage() {
               ) : (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-yellow-400">
+                    <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-400">
                       {mode === 'set' ? 'ESTABLISH NEW PIN' : mode === 'unlock' ? 'AUTHORIZATION REQUIRED' : 'UPDATE PIN'}
                     </h3>
-                    <Button variant="ghost" size="sm" onClick={() => setMode('view')} className="text-yellow-500/50 hover:text-yellow-500">
+                    <Button variant="ghost" size="sm" onClick={() => setMode('view')} className="text-yellow-700/50 dark:text-yellow-500/50 hover:text-yellow-900 dark:hover:text-yellow-500">
                       CANCEL
                     </Button>
                   </div>
 
                   {mode === 'change' && (
                     <div className="space-y-2">
-                      <Label className="text-yellow-500/70">CURRENT PIN</Label>
+                      <Label className="text-yellow-700/70 dark:text-yellow-500/70">CURRENT PIN</Label>
                       <Input
                         type="password"
                         value={currentPin}
                         onChange={(e) => setCurrentPin(e.target.value)}
-                        className="bg-black border-yellow-500/30 text-yellow-400 h-12 text-center text-xl tracking-[0.5em] focus:border-yellow-500"
+                        className="bg-background border-yellow-500/30 text-yellow-800 dark:text-yellow-400 h-12 text-center text-xl tracking-[0.5em] focus:border-yellow-500"
                         maxLength={6}
                       />
                     </div>
@@ -250,12 +250,12 @@ export default function SystemLockPage() {
 
                   {(mode === 'set' || mode === 'change') && (
                     <div className="space-y-2">
-                      <Label className="text-yellow-500/70">{mode === 'change' ? 'NEW PIN' : 'ENTER PIN'}</Label>
+                      <Label className="text-yellow-700/70 dark:text-yellow-500/70">{mode === 'change' ? 'NEW PIN' : 'ENTER PIN'}</Label>
                       <Input
                         type="password"
                         value={pin}
                         onChange={(e) => setPin(e.target.value)}
-                        className="bg-black border-yellow-500/30 text-yellow-400 h-12 text-center text-xl tracking-[0.5em] focus:border-yellow-500"
+                        className="bg-background border-yellow-500/30 text-yellow-800 dark:text-yellow-400 h-12 text-center text-xl tracking-[0.5em] focus:border-yellow-500"
                         maxLength={6}
                       />
                     </div>
@@ -263,12 +263,12 @@ export default function SystemLockPage() {
 
                   {mode === 'set' && (
                     <div className="space-y-2">
-                      <Label className="text-yellow-500/70">CONFIRM PIN</Label>
+                      <Label className="text-yellow-700/70 dark:text-yellow-500/70">CONFIRM PIN</Label>
                       <Input
                         type="password"
                         value={confirmPin}
                         onChange={(e) => setConfirmPin(e.target.value)}
-                        className="bg-black border-yellow-500/30 text-yellow-400 h-12 text-center text-xl tracking-[0.5em] focus:border-yellow-500"
+                        className="bg-background border-yellow-500/30 text-yellow-800 dark:text-yellow-400 h-12 text-center text-xl tracking-[0.5em] focus:border-yellow-500"
                         maxLength={6}
                       />
                     </div>
@@ -289,21 +289,21 @@ export default function SystemLockPage() {
           </Card>
 
           <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-black border border-yellow-500/20">
+            <Card className="bg-card border border-yellow-500/20">
               <CardContent className="p-4 flex items-center gap-3">
-                <Shield className="w-8 h-8 text-yellow-500/50" />
+                <Shield className="w-8 h-8 text-yellow-700/50 dark:text-yellow-500/50" />
                 <div>
-                  <p className="text-xs text-yellow-500/50">ENCRYPTION</p>
-                  <p className="font-bold text-yellow-400">AES-256</p>
+                  <p className="text-xs text-yellow-700/50 dark:text-yellow-500/50">ENCRYPTION</p>
+                  <p className="font-bold text-yellow-800 dark:text-yellow-400">AES-256</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-black border border-yellow-500/20">
+            <Card className="bg-card border border-yellow-500/20">
               <CardContent className="p-4 flex items-center gap-3">
-                <Key className="w-8 h-8 text-yellow-500/50" />
+                <Key className="w-8 h-8 text-yellow-700/50 dark:text-yellow-500/50" />
                 <div>
-                  <p className="text-xs text-yellow-500/50">HASHING</p>
-                  <p className="font-bold text-yellow-400">BCRYPT</p>
+                  <p className="text-xs text-yellow-700/50 dark:text-yellow-500/50">HASHING</p>
+                  <p className="font-bold text-yellow-800 dark:text-yellow-400">BCRYPT</p>
                 </div>
               </CardContent>
             </Card>

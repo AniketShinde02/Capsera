@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { canManageAdmins } from '@/lib/init-admin';
 import { ObjectId } from 'mongodb';
+import { deleteCloudinaryImage, extractCloudinaryPublicId } from '@/lib/cloudinary';
 
 export async function DELETE(
   request: NextRequest,
@@ -48,13 +49,47 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 });
     }
 
+    // --- CASCADING DELETE LOGIC ---
+    console.log(`🗑️ Starting cascading delete for user: ${userId}`);
+
+    // 1. Find all images associated with the user
+    const userImages = await db.collection('images').find({ userId: userId }).toArray();
+    console.log(`📸 Found ${userImages.length} images to delete.`);
+
+    // 2. Delete images from Cloudinary and Database
+    let deletedImagesCount = 0;
+    let failedImagesCount = 0;
+
+    for (const image of userImages) {
+      try {
+        // Extract public ID if not stored directly (assuming url is stored)
+        const publicId = image.publicId || extractCloudinaryPublicId(image.url);
+
+        if (publicId) {
+          await deleteCloudinaryImage(publicId);
+          console.log(`✅ Deleted Cloudinary image: ${publicId}`);
+        }
+
+        // Delete from database
+        await db.collection('images').deleteOne({ _id: image._id });
+        deletedImagesCount++;
+      } catch (error) {
+        console.error(`❌ Failed to delete image ${image._id}:`, error);
+        failedImagesCount++;
+      }
+    }
+
+    console.log(`🏁 Image deletion complete. Success: ${deletedImagesCount}, Failed: ${failedImagesCount}`);
+
     // Soft delete - move to deletedprofiles collection
     const deletedProfile = {
       ...user,
       deletedAt: new Date(),
       deletedBy: session.user.email,
       originalId: user._id,
-      userType: isAdminUser ? 'admin' : 'user'
+      userType: isAdminUser ? 'admin' : 'user',
+      deletedImagesCount,
+      failedImagesCount
     };
 
     // Insert into deletedprofiles collection
@@ -75,11 +110,19 @@ export async function DELETE(
         {
           deletedBy: session.user.email,
           userEmail: user.email,
-          userRole: user.role
+          userRole: user.role,
+          cascadedImagesDeleted: deletedImagesCount
         }
       );
 
-      return NextResponse.json({ success: true, message: 'User deleted successfully' });
+      return NextResponse.json({
+        success: true,
+        message: 'User and associated data deleted successfully',
+        details: {
+          imagesDeleted: deletedImagesCount,
+          imagesFailed: failedImagesCount
+        }
+      });
     } else {
       return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
     }

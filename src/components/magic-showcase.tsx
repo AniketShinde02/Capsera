@@ -75,8 +75,7 @@ export function MagicShowcase() {
                                 </div>
                             ))}
 
-                            {/* Grid Overlay */}
-                            <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-20 pointer-events-none" />
+                            {/* Removed grid overlay - file not found */}
                         </div>
 
                         {/* Right: AI Output */}

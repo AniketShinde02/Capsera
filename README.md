@@ -1,6 +1,6 @@
 # 🎨 Capsera: AI-Powered Social Media Caption Generator
 
-> **Transform your social media presence with intelligent, image-aware caption generation powered by Google Gemini AI**
+> **Transform your social media presence with intelligent, image-aware caption generation powered by Groq Vision AI & Google Gemini**
 
 <div align="center">
 
@@ -24,7 +24,9 @@
 Capsera isn't just another caption generator – it's your **AI-powered creative partner** that actually *sees* and *understands* your images to create contextually perfect captions with maximum variety.
 
 ### 🎯 **Key Differentiators:**
-- **🔍 Advanced Image Analysis**: AI analyzes colors, objects, people, and scenes
+- **🤖 Dual-AI Provider System**: Groq Vision (14,400/day) + Gemini (1,500/day) for 99.9% uptime
+- **🔍 Advanced Image Analysis**: Both AI providers analyze colors, objects, people, and scenes
+- **📋 Paste-to-Upload**: Copy & paste images directly (Ctrl+V) - no file browser needed!
 - **🎭 Mood-Driven Generation**: 41 different moods for perfect tone matching
 - **🔄 Maximum Caption Variety**: 3 completely different caption styles every time
 - **🛡️ Smart Rate Limiting**: 3 free generations, 25 for registered users, **UNLIMITED for admins**

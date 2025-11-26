@@ -168,7 +168,7 @@ export class UnifiedRateLimiter {
       // Check adminusers collection
       const adminUsersCollection = db.collection('adminusers');
       const adminUser = await adminUsersCollection.findOne({
-        _id: (userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)) ? new ObjectId(userId) : userId
+        _id: ((userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)) ? new ObjectId(userId) : userId) as any
       });
 
       if (adminUser?.isAdmin) {

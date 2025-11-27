@@ -104,7 +104,7 @@ export default function AdminSidebar() {
       {/* Mobile Menu Button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
-          className="p-2 bg-[#09090b] border border-white/10 rounded-xl shadow-lg text-white"
+          className="p-2 bg-card border border-border rounded-xl shadow-lg text-foreground"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
         >
           {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -114,14 +114,14 @@ export default function AdminSidebar() {
       {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={cn(
-        "bg-[#09090b] border-r border-white/5 transition-transform duration-300 ease-in-out flex flex-col justify-between py-6",
+        "bg-card border-r border-border transition-transform duration-300 ease-in-out flex flex-col justify-between py-6",
         "lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:translate-x-0",
         isMobileOpen
           ? "fixed inset-y-0 left-0 z-50 w-72 translate-x-0"
@@ -130,12 +130,12 @@ export default function AdminSidebar() {
         <div className="flex flex-col h-full px-4 lg:px-6">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10 px-2">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-white/5">
-              <Zap className="w-6 h-6 text-black fill-current" />
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shadow-sm">
+              <Zap className="w-6 h-6 text-primary fill-current" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">Capsera</h1>
-              <p className="text-xs text-gray-500 font-medium">Admin Panel</p>
+              <h1 className="text-lg font-bold text-foreground tracking-tight">Capsera</h1>
+              <p className="text-xs text-muted-foreground font-medium">Admin Panel</p>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ export default function AdminSidebar() {
           <nav className="flex-1 space-y-8 overflow-y-auto no-scrollbar">
             {adminNavCategories.map((category) => (
               <div key={category.title} className="space-y-2">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-3">
                   {category.title}
                 </h3>
                 <div className="space-y-1">
@@ -157,13 +157,13 @@ export default function AdminSidebar() {
                         className={cn(
                           "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
                           isActive
-                            ? "bg-white text-black shadow-lg shadow-white/10 font-medium"
-                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 font-medium"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         )}
                       >
                         <item.icon className={cn(
                           "w-5 h-5 transition-colors",
-                          isActive ? "text-black" : "text-gray-400 group-hover:text-white"
+                          isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
                         )} />
                         <span>{item.title}</span>
                       </Link>
@@ -175,7 +175,7 @@ export default function AdminSidebar() {
           </nav>
 
           {/* Bottom Actions */}
-          <div className="mt-6 pt-6 border-t border-white/5 space-y-2">
+          <div className="mt-6 pt-6 border-t border-border space-y-2">
             <button
               onClick={() => {
                 window.location.href = '/admin/dashboard';
@@ -184,7 +184,7 @@ export default function AdminSidebar() {
                 }, 500);
                 setIsMobileOpen(false);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
             >
               <BarChart3 className="w-5 h-5" />
               <span>Generate Report</span>

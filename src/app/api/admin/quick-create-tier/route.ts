@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import BrevoEmailService from '@/lib/brevo-email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,8 +29,8 @@ export async function POST(request: NextRequest) {
     const { db } = await connectToDatabase();
 
     // Check if user already exists
-    const existingUser = await db.collection('users').findOne({ 
-      $or: [{ email }, { username }] 
+    const existingUser = await db.collection('users').findOne({
+      $or: [{ email }, { username }]
     });
 
     if (existingUser) {
@@ -59,9 +60,22 @@ export async function POST(request: NextRequest) {
     const result = await db.collection('users').insertOne(newUser);
 
     if (result.insertedId) {
-      // Send welcome email with credentials (optional)
-      // You can integrate with your email service here
-      
+      // Send welcome email with credentials
+      try {
+        const emailService = new BrevoEmailService();
+        await emailService.sendUserAccountCreationEmail({
+          email,
+          username,
+          password, // Sending the plain password
+          roleName: tier,
+          loginUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/signin`
+        });
+        console.log('✅ Welcome email sent to:', email);
+      } catch (emailError) {
+        console.error('❌ Failed to send welcome email:', emailError);
+        // We don't fail the request if email fails, just log it
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Tier account created successfully',

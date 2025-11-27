@@ -185,22 +185,22 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
         {/* Total Revenue (Captions) Card */}
-        <div className="bg-foreground text-background p-6 rounded-[2rem] relative overflow-hidden group">
+        <div className="bg-primary text-primary-foreground p-6 rounded-[2rem] relative overflow-hidden group shadow-lg shadow-primary/20">
           <div className="flex justify-between items-start mb-4">
-            <span className="font-medium text-muted-foreground/80">Total Captions</span>
-            <button className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white -mr-2 -mt-2 group-hover:scale-110 transition-transform">
+            <span className="font-medium text-primary-foreground/80">Total Captions</span>
+            <button className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white -mr-2 -mt-2 group-hover:scale-110 transition-transform backdrop-blur-sm">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
           <div className="flex items-end gap-2 mb-2">
             <h2 className="text-4xl font-bold">{stats.totalCaptions.toLocaleString()}</h2>
-            <Badge className="bg-green-100 text-green-700 hover:bg-green-200 mb-1">{stats.trends.totalCaptions}</Badge>
+            <Badge className="bg-white/20 text-white hover:bg-white/30 mb-1 border-none backdrop-blur-sm">{stats.trends.totalCaptions}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground/80">All time generated</p>
+          <p className="text-sm text-primary-foreground/80">All time generated</p>
         </div>
 
         {/* Active Users Card */}
-        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent transition-colors">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-muted/50 transition-colors border border-border shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">Active Users</span>
             <button className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors">
@@ -215,10 +215,10 @@ export default function AdminDashboard() {
         </div>
 
         {/* Total Users Card */}
-        <div className="bg-[#18181b] p-6 rounded-[2rem] relative overflow-hidden group hover:bg-[#202023] transition-colors">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-muted/50 transition-colors border border-border shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">Total Users</span>
-            <button className="w-8 h-8 bg-[#27272a] rounded-full flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+            <button className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
@@ -230,10 +230,10 @@ export default function AdminDashboard() {
         </div>
 
         {/* System Load Card */}
-        <div className="bg-[#18181b] p-6 rounded-[2rem] relative overflow-hidden group hover:bg-[#202023] transition-colors">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-muted/50 transition-colors border border-border shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">System Load</span>
-            <button className="w-8 h-8 bg-[#27272a] rounded-full flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+            <button className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors">
               <Activity className="w-4 h-4" />
             </button>
           </div>
@@ -341,7 +341,7 @@ export default function AdminDashboard() {
             <Button variant="outline" className="border-none bg-muted text-foreground hover:bg-muted/80 rounded-xl">
               <Filter className="w-4 h-4 mr-2" /> Filter
             </Button>
-            <Button variant="outline" className="border-none bg-[#27272a] text-white hover:bg-[#3f3f46] rounded-xl">
+            <Button variant="outline" className="border-none bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-xl">
               <Download className="w-4 h-4 mr-2" /> Export
             </Button>
           </div>

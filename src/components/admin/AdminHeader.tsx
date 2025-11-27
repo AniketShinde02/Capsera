@@ -61,28 +61,28 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
   });
 
   return (
-    <header className="bg-[#09090b] border-b border-white/5 p-4 lg:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <header className="bg-card border-b border-border p-3 lg:p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-0 z-20">
       {/* Search Bar */}
-      <div className="relative w-full md:w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="relative w-full md:w-96 pl-12 lg:pl-0">
+        <Search className="absolute left-14 lg:left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Search..."
-          className="bg-[#18181b] border-none pl-10 h-12 rounded-2xl text-gray-300 placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-blue-500"
+          className="bg-muted/50 border-none pl-10 h-10 rounded-xl text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary"
         />
       </div>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-4 w-full md:w-auto justify-end">
+      <div className="flex items-center gap-3 w-full md:w-auto justify-end">
         {/* Date Display */}
-        <div className="hidden md:flex items-center gap-2 text-sm text-gray-400 bg-[#18181b] px-4 py-2 rounded-xl">
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
           <Calendar className="w-4 h-4" />
           <span>Today, {currentDate}</span>
         </div>
 
         {/* Notifications */}
-        <button className="p-3 bg-[#18181b] rounded-full hover:bg-white/10 transition-colors relative">
-          <Bell className="w-5 h-5 text-gray-300" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#18181b]" />
+        <button className="p-2.5 bg-muted/50 rounded-full hover:bg-muted transition-colors relative">
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
         </button>
 
         {/* Browse Site Button */}
@@ -90,10 +90,10 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
           variant="outline"
           size="icon"
           onClick={() => window.open('/', '_blank')}
-          className="hidden sm:flex bg-[#18181b] border-none rounded-full hover:bg-white/10 w-12 h-12"
+          className="hidden sm:flex bg-muted/50 border-none rounded-full hover:bg-muted w-10 h-10"
           title="Browse Site"
         >
-          <Globe className="w-5 h-5 text-gray-300" />
+          <Globe className="w-5 h-5 text-muted-foreground" />
         </Button>
 
         {/* User Profile */}
@@ -101,10 +101,10 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-12 w-12 rounded-full p-0 border-2 border-[#18181b] hover:bg-transparent"
+              className="relative h-10 w-10 rounded-full p-0 border-2 border-muted hover:bg-transparent"
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             >
-              <Avatar className="h-12 w-12">
+              <Avatar className="h-9 w-9">
                 <AvatarImage src={session?.user?.image || ''} alt={getUserDisplayName(user.email, user.username)} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {getUserInitials(user.email, user.username)}
@@ -113,26 +113,26 @@ export default function AdminHeader({ user }: AdminHeaderProps) {
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent className="w-56 bg-[#18181b] border-white/10 text-white" align="end" forceMount>
+          <DropdownMenuContent className="w-56 bg-card border-border text-foreground" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none text-white">
+                <p className="text-sm font-medium leading-none text-foreground">
                   {getUserDisplayName(user.email, user.username)}
                 </p>
-                <p className="text-xs leading-none text-gray-400">
+                <p className="text-xs leading-none text-muted-foreground">
                   {user.email}
                 </p>
               </div>
             </DropdownMenuLabel>
 
-            <DropdownMenuSeparator className="bg-white/10" />
+            <DropdownMenuSeparator className="bg-border" />
 
-            <DropdownMenuItem onClick={() => router.push('/profile')} className="focus:bg-white/10 focus:text-white cursor-pointer">
+            <DropdownMenuItem onClick={() => router.push('/profile')} className="focus:bg-muted focus:text-foreground cursor-pointer">
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="bg-white/10" />
+            <DropdownMenuSeparator className="bg-border" />
 
             <DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:bg-red-500/10 focus:text-red-500 cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />

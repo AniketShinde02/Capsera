@@ -10,7 +10,9 @@ import {
     Bell,
     Globe,
     Lock,
-    Palette
+    Palette,
+    Shield,
+    Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -41,28 +43,29 @@ const menuItems = [
     }
 ];
 
-export function ProfileSidebar() {
+interface ProfileSidebarProps {
+    className?: string;
+    onNavigate?: () => void;
+}
+
+export function ProfileSidebar({ className, onNavigate }: ProfileSidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const { data: session } = useSession();
 
+    const handleNavigation = (href: string) => {
+        router.push(href);
+        onNavigate?.();
+    };
+
     const handleLogout = async () => {
         await signOut({ redirect: false });
         router.push('/');
+        onNavigate?.();
     };
 
     return (
-        <div className="w-64 h-screen bg-card border-r border-border flex flex-col">
-            {/* Logo/Brand */}
-            <div className="p-6 border-b border-border">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">C</span>
-                    </div>
-                    <span className="font-bold text-lg">Capsera</span>
-                </div>
-            </div>
-
+        <div className={cn("w-64 h-screen bg-card border-r border-border flex flex-col", className)}>
             {/* User Info */}
             <div className="p-6 border-b border-border">
                 <div className="flex items-center gap-3">
@@ -85,6 +88,30 @@ export function ProfileSidebar() {
 
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto p-4">
+                {/* Back to Home Link */}
+                <div className="mb-2">
+                    <button
+                        onClick={() => handleNavigation('/')}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                        <Home className="h-4 w-4" />
+                        Back to Home
+                    </button>
+                </div>
+
+                {/* Admin Dashboard Link - Only for Admins */}
+                {(session?.user as any)?.isAdmin && (
+                    <div className="mb-6">
+                        <button
+                            onClick={() => handleNavigation('/admin')}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:from-yellow-500/20 hover:to-orange-500/20 hover:border-yellow-500/30"
+                        >
+                            <Shield className="h-4 w-4" />
+                            Admin Dashboard
+                        </button>
+                    </div>
+                )}
+
                 {menuItems.map((section) => (
                     <div key={section.title} className="mb-6">
                         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
@@ -98,7 +125,7 @@ export function ProfileSidebar() {
                                 return (
                                     <button
                                         key={item.href}
-                                        onClick={() => router.push(item.href)}
+                                        onClick={() => handleNavigation(item.href)}
                                         className={cn(
                                             "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                                             isActive

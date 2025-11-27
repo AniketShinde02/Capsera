@@ -12,25 +12,25 @@ const nextConfig: NextConfig = {
   env: {
     PORT: '3000',
   },
-  
+
   // Performance optimizations
   // Note: removed experimental.optimizePackageImports which caused runtime chunk issues in dev
   experimental: {
     // optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
-  
+
   // Server external packages for better stability
   serverExternalPackages: ['@genkit-ai/core', 'genkit'],
-  
+
   // Disable development indicators for testing
   devIndicators: {
     position: 'bottom-left',
   },
-  
+
   // Compression and optimization
   compress: true,
   poweredByHeader: false,
-  
+
   // Add error handling and bypass configurations
   onDemandEntries: {
     // Period (in ms) where the server will keep pages in the buffer
@@ -38,19 +38,19 @@ const nextConfig: NextConfig = {
     // Number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
   },
-  
+
   // Add cache busting and better asset handling
   generateBuildId: async () => {
     return `build-${Date.now()}`;
   },
-  
+
   // Improve static asset handling
   assetPrefix: process.env.NODE_ENV === 'production' ? undefined : '',
-  
+
   // Add error handling for development
   ...(process.env.NODE_ENV === 'development' && {
     // Bypass certain errors in development
-    webpack: (config, { dev, isServer, webpack }) => {
+    webpack: (config, { dev, isServer, webpack, nextRuntime }) => {
       // Add better module resolution
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -72,7 +72,9 @@ const nextConfig: NextConfig = {
         allowCollectingMemory: true,
         memoryCacheUnaffected: true,
         // Use stable cache names to avoid rename conflicts
-        name: isServer ? 'webpack-cache-server' : 'webpack-cache-client',
+        name: isServer
+          ? `webpack-cache-server-${nextRuntime || 'nodejs'}`
+          : 'webpack-cache-client',
         version: '1.0.0',
       };
 
@@ -86,12 +88,12 @@ const nextConfig: NextConfig = {
         ];
 
         // MIME type handling is now done via headers configuration
-        
+
         // Improve HMR stability
         config.plugins.push(
           new webpack.HotModuleReplacementPlugin()
         );
-        
+
         // Add error handling plugin for development
         config.plugins.push(
           new webpack.DefinePlugin({
@@ -99,13 +101,13 @@ const nextConfig: NextConfig = {
           })
         );
       }
-      
+
       // Fix webpack cache strategy issues
       config.infrastructureLogging = {
         level: 'warn',
         debug: false,
       };
-      
+
       // Optimize bundle splitting with better cache handling
       if (!isServer) {
         config.optimization.splitChunks = {
@@ -135,17 +137,17 @@ const nextConfig: NextConfig = {
             },
           },
         };
-        
+
         // Improve runtime chunk handling
         config.optimization.runtimeChunk = {
           name: 'runtime',
         };
       }
-      
+
       return config;
     },
   }),
-  
+
   images: {
     domains: [
       'res.cloudinary.com',
@@ -177,7 +179,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  
+
   // Headers for performance and MIME type fixes
   async headers() {
     return [

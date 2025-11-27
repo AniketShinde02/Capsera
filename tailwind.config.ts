@@ -14,6 +14,7 @@ export default {
         body: ['var(--font-inter)', 'sans-serif'],
         headline: ['var(--font-inter)', 'sans-serif'],
         code: ['monospace'],
+        'space-grotesk': ['var(--font-space-grotesk)', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',

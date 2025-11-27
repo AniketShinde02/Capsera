@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import crypto from 'crypto';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
+import AdminUser from '@/models/AdminUser';
 import { sendPasswordResetEmail } from '@/lib/mail';
 import { getClientIP, checkRateLimit, blockCredentials, isBlocked } from '@/lib/unified-rate-limiter';
 
@@ -29,8 +30,8 @@ export async function POST(req: NextRequest) {
     const ipBlocked = await isBlocked(`ip:${clientIP}`);
     if (ipBlocked) {
       console.log(`🚫 IP ${clientIP} is blocked from password reset requests`);
-      return NextResponse.json({ 
-        message: 'Too many password reset attempts from this location. Please try again later.' 
+      return NextResponse.json({
+        message: 'Too many password reset attempts from this location. Please try again later.'
       }, { status: 429 });
     }
 
@@ -38,28 +39,38 @@ export async function POST(req: NextRequest) {
     const emailBlocked = await isBlocked(email);
     if (emailBlocked) {
       console.log(`🚫 Email ${email} is blocked from password reset requests`);
-      return NextResponse.json({ 
-        message: 'Too many password reset attempts for this email. Please try again later.' 
+      return NextResponse.json({
+        message: 'Too many password reset attempts for this email. Please try again later.'
       }, { status: 429 });
     }
 
     // Rate limit check for IP-based requests
     const ipRateLimitKey = `reset:ip:${clientIP}`;
     const ipRateLimit = await checkRateLimit(ipRateLimitKey, RESET_RATE_LIMITS.MAX_IP_RESETS, RESET_RATE_LIMITS.WINDOW_HOURS);
-    
+
     if (!ipRateLimit.allowed) {
       console.log(`🚫 IP rate limit exceeded for ${clientIP}: ${RESET_RATE_LIMITS.MAX_IP_RESETS - ipRateLimit.remaining}/${RESET_RATE_LIMITS.MAX_IP_RESETS} requests`);
-      
+
       // Block this IP if it's making too many requests
       await blockCredentials(`ip:${clientIP}`, 'password_reset_abuse', clientIP, userAgent);
-      
-      return NextResponse.json({ 
-        message: 'Too many password reset requests from this location. Please try again later.' 
+
+      return NextResponse.json({
+        message: 'Too many password reset requests from this location. Please try again later.'
       }, { status: 429 });
     }
 
     await dbConnect();
-    const user = await (User as any).findOne({ email }).select('+resetPasswordRequests +dailyResetCount +lastResetRequestDate');
+
+    // Check regular users first
+    let user = await (User as any).findOne({ email }).select('+resetPasswordRequests +dailyResetCount +lastResetRequestDate');
+
+    // If not found, check admin users
+    if (!user) {
+      user = await (AdminUser as any).findOne({ email }).select('+resetPasswordRequests +dailyResetCount +lastResetRequestDate');
+      if (user) {
+        console.log(`✅ Found admin user for password reset: ${email}`);
+      }
+    }
 
     // Always return success to avoid revealing whether the email exists
     if (!user) {
@@ -70,8 +81,8 @@ export async function POST(req: NextRequest) {
     // Check if user has exceeded daily reset limit
     if (!user.canRequestPasswordReset()) {
       console.log(`🚫 Daily reset limit exceeded for user: ${email} (${user.dailyResetCount}/3 requests)`);
-      return NextResponse.json({ 
-        message: 'You have reached the maximum number of password reset requests for today. Please try again tomorrow.' 
+      return NextResponse.json({
+        message: 'You have reached the maximum number of password reset requests for today. Please try again tomorrow.'
       }, { status: 429 });
     }
 
@@ -85,14 +96,14 @@ export async function POST(req: NextRequest) {
     user.incrementResetCounter();
     user.addResetRequest(token, clientIP, userAgent);
     user.cleanupOldResetRequests();
-    
+
     await user.save();
 
     // Dynamically determine the base URL from the request
     const url = new URL(req.url);
-    const baseUrl = process.env.NEXTAUTH_URL || 
-                   process.env.NEXT_PUBLIC_APP_URL || 
-                   `${url.protocol}//${url.host}`;
+    const baseUrl = process.env.NEXTAUTH_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      `${url.protocol}//${url.host}`;
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
     // Send password reset email

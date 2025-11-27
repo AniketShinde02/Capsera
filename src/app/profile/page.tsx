@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Camera, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
-    const { data: session, update } = useSession();
+    const { data: session, status, update } = useSession();
+    const router = useRouter();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -24,6 +26,13 @@ export default function ProfilePage() {
         email: '',
     });
 
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (status === 'unauthenticated') {
+            router.push('/');
+        }
+    }, [status, router]);
+
     useEffect(() => {
         if (session?.user) {
             setFormData({
@@ -34,6 +43,20 @@ export default function ProfilePage() {
             });
         }
     }, [session]);
+
+    // Show loading state while checking authentication
+    if (status === 'loading') {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    // Don't render anything if not authenticated (will redirect)
+    if (!session) {
+        return null;
+    }
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

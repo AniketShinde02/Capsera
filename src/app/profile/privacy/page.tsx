@@ -1,16 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Shield } from 'lucide-react';
+import { MagicCard } from '@/components/admin/dashboard/magic-card';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function PrivacyPage() {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [deleteMessage, setDeleteMessage] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [privacy, setPrivacy] = useState({
         profilePublic: true,
         showEmail: false,
@@ -18,6 +32,8 @@ export default function PrivacyPage() {
         allowIndexing: true,
         dataCollection: true,
     });
+
+    const router = useRouter();
 
     const handleSave = async () => {
         setLoading(true);
@@ -38,6 +54,44 @@ export default function PrivacyPage() {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('/api/user/delete', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: 'User requested deletion via privacy settings' }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                toast({
+                    title: 'Account Deleted',
+                    description: 'Your account has been successfully deleted.',
+                });
+                // Sign out and redirect
+                await signOut({ redirect: false });
+                router.push('/');
+            } else {
+                toast({
+                    title: 'Error',
+                    description: data.message || 'Failed to delete account',
+                    variant: 'destructive',
+                });
+            }
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'An error occurred while deleting your account',
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+            setShowDeleteConfirm(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div>
@@ -47,14 +101,12 @@ export default function PrivacyPage() {
                 </p>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Privacy Settings</CardTitle>
-                    <CardDescription>
-                        Manage who can see your information and activity.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+            <MagicCard
+                title="Privacy Settings"
+                description="Manage who can see your information and activity."
+                className="w-full"
+            >
+                <div className="space-y-6 mt-4">
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label htmlFor="profile-public">Public Profile</Label>
@@ -140,8 +192,58 @@ export default function PrivacyPage() {
                             )}
                         </Button>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </MagicCard>
+
+            {/* Danger Zone */}
+            <MagicCard
+                title="Danger Zone"
+                description="Irreversible actions for your account."
+                className="w-full border-destructive/50"
+            >
+                <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-destructive">Delete Account</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Permanently delete your account and all associated data
+                            </p>
+                        </div>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={loading}
+                        >
+                            Delete Account
+                        </Button>
+                    </div>
+                </div>
+            </MagicCard>
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete your account
+                            and remove your data from our servers.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleDeleteAccount();
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={loading}
+                        >
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete Account"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

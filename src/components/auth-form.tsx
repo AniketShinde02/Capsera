@@ -1099,7 +1099,37 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
                       <FormLabel className="text-muted-foreground">Password</FormLabel>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("forgot-password")}
+                        onClick={async () => {
+                          const email = signInForm.getValues('email');
+                          if (!email || !email.trim()) {
+                            setSignInError('Please enter your email address first');
+                            return;
+                          }
+
+                          setIsLoading(true);
+                          setSignInError('');
+
+                          try {
+                            const response = await fetch('/api/auth/forgot-password', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email })
+                            });
+
+                            if (response.ok) {
+                              setSignInError(''); // Clear any errors
+                              setForgotPasswordSuccess(`Password reset link sent to ${email}`);
+                              setTimeout(() => setForgotPasswordSuccess(''), 5000);
+                            } else {
+                              const data = await response.json();
+                              setSignInError(data.message || 'Failed to send reset link');
+                            }
+                          } catch (error) {
+                            setSignInError('Failed to send reset link');
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        }}
                         className="text-xs text-primary hover:text-primary/80 font-medium"
                       >
                         Forgot password?
@@ -1139,6 +1169,12 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
               {signInError && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
                   {signInError}
+                </div>
+              )}
+
+              {forgotPasswordSuccess && (
+                <div className="p-3 rounded-lg bg-green-500/10 text-green-500 text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
+                  {forgotPasswordSuccess}
                 </div>
               )}
 

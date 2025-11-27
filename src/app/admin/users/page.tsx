@@ -315,7 +315,7 @@ export default function UsersPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Users */}
-        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/50 transition-colors border border-border">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/10 border border-border hover:border-accent/20 transition-all duration-300">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">Total Users</span>
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
@@ -329,7 +329,7 @@ export default function UsersPage() {
         </div>
 
         {/* Active Now */}
-        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/50 transition-colors border border-border">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/10 border border-border hover:border-accent/20 transition-all duration-300">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">Active Now</span>
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
@@ -343,7 +343,7 @@ export default function UsersPage() {
         </div>
 
         {/* New Today */}
-        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/50 transition-colors border border-border">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/10 border border-border hover:border-accent/20 transition-all duration-300">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">New Today</span>
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
@@ -359,7 +359,7 @@ export default function UsersPage() {
         </div>
 
         {/* Admins */}
-        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/50 transition-colors border border-border">
+        <div className="bg-card p-6 rounded-[2rem] relative overflow-hidden group hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/10 border border-border hover:border-accent/20 transition-all duration-300">
           <div className="flex justify-between items-start mb-4">
             <span className="font-medium text-muted-foreground">Admins</span>
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
@@ -430,7 +430,7 @@ export default function UsersPage() {
                   {currentUsers.map((user) => (
                     <tr
                       key={user._id}
-                      className="group hover:bg-accent/50 transition-colors duration-200"
+                      className="group hover:bg-accent/5 transition-colors duration-200"
                     >
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">

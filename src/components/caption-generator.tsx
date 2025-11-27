@@ -102,7 +102,7 @@ const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }:
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.log('✅ Image loaded successfully in ImageRenderer component');
+    // console.log('✅ URL upload successful:', uploadData);
     setHasError(false);
     setRetryCount(0);
     onLoad?.();
@@ -138,7 +138,7 @@ const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }:
   return (
     <>
       {/* Always show the image if we have a source, even during loading */}
-      {optimizedSrc && <img {...commonProps} />}
+      {optimizedSrc && <img {...commonProps} style={{ opacity: imageLoading ? 0.5 : 1 }} />}
 
       {/* Removed spinner overlay so image preview is not visually blocked while loading */}
     </>
@@ -230,7 +230,7 @@ export function CaptionGenerator() {
 
   // Helper function to get quota display text with X/Y format (remaining/total)
   const getQuotaDisplayText = (remaining: number, total: number, planType: string) => {
-    console.log(`📊 Quota display: ${planType} - remaining: ${remaining}, total: ${total}`);
+    // console.log('✅ URL upload successful:', uploadData);
     // Show remaining images out of total (e.g., 19/20 means 19 remaining out of 20 total)
     return `${planType} • ${remaining}/${total} images today`;
   };
@@ -306,12 +306,12 @@ export function CaptionGenerator() {
             remainingWeekly: data.usage.remainingWeekly ?? 0
           };
 
-          console.log('📊 Fresh usage data:', {
+          /* console.log('📊 Fresh usage data:', {
             remainingDaily: newUsage.remainingDaily,
             dailyLimit: newUsage.dailyLimit,
             tier: newUsage.tier,
             totalUsed: newUsage.dailyLimit - newUsage.remainingDaily
-          });
+          }); */
 
           setFreemiumUsage(newUsage);
           setShowUpgradePrompt(newUsage.remainingDaily <= 1 || newUsage.upgradePrompt);
@@ -703,7 +703,7 @@ export function CaptionGenerator() {
       }
 
       const uploadData = await response.json();
-      console.log('✅ URL upload successful:', uploadData);
+      // console.log('✅ URL upload successful:', uploadData);
 
       setCurrentImageData({
         url: uploadData.secure_url,
@@ -1224,7 +1224,7 @@ export function CaptionGenerator() {
 
       // Ensure image remains visible after successful generation for all users
       if (uploadData.url) {
-        console.log('🖼️ Setting image display after successful generation:', uploadData.url.substring(0, 50) + '...');
+        // console.log('🖼️ Setting image display after successful generation:', uploadData.url.substring(0, 50) + '...');
 
         // Store Cloudinary URL in local storage for instant access
         if (uploadedFile) {
@@ -1234,7 +1234,7 @@ export function CaptionGenerator() {
             publicId: uploadData.public_id,
             timestamp: Date.now()
           }));
-          console.log('💾 Image cached in localStorage:', cacheKey);
+          // console.log('💾 Image cached in localStorage:', cacheKey);
         }
 
         // Keep the local blob URL for instant display, but store Cloudinary data
@@ -1251,7 +1251,7 @@ export function CaptionGenerator() {
           console.warn('Failed to preload image:', err);
         });
 
-        console.log('✅ Image display state updated successfully - keeping local blob for instant display');
+        // console.log('✅ Image display state updated successfully - keeping local blob for instant display');
       } else {
         console.warn('⚠️ No upload data URL available for image display');
       }
@@ -1354,8 +1354,8 @@ export function CaptionGenerator() {
     }
   };
 
-  // Enhanced debug logging for image state
-  useEffect(() => {
+  // Enhanced debug logging for image state (commented out to reduce console noise)
+  /* useEffect(() => {
     console.log('🔍 Image State Debug:', {
       imagePreview: imagePreview ? imagePreview.substring(0, 50) + '...' : null,
       currentImageData: currentImageData ? {
@@ -1372,7 +1372,7 @@ export function CaptionGenerator() {
       showTrashAnimation,
       isDeletingImage
     });
-  }, [imagePreview, currentImageData, hasExplicitlyReset, uploadStage, buttonState, uploadedFile, objectUrl, imageLoading, showAutoDeleteMessage, showTrashAnimation, isDeletingImage]);
+  }, [imagePreview, currentImageData, hasExplicitlyReset, uploadStage, buttonState, uploadedFile, objectUrl, imageLoading, showAutoDeleteMessage, showTrashAnimation, isDeletingImage]); */
 
   // Fetch quota info on component mount, session changes, and refresh triggers
   // FIXED: Added debouncing to prevent flash bug
@@ -1399,8 +1399,8 @@ export function CaptionGenerator() {
               prevInfo.total !== newInfo.total ||
               prevInfo.isAuthenticated !== newInfo.isAuthenticated ||
               prevInfo.isAdmin !== newInfo.isAdmin) {
-              console.log('📊 Quota info updated:', data.remaining, '/', data.maxGenerations);
-              console.log('📊 Full quota data:', data);
+              // console.log('📊 Quota info updated:', data.remaining, '/', data.maxGenerations);
+              // console.log('📊 Full quota data:', data);
               return newInfo;
             }
 
@@ -1629,7 +1629,7 @@ export function CaptionGenerator() {
                             imageSrc={imagePreview || (currentImageData?.publicId ? getCachedImage(currentImageData.publicId) : null) || currentImageData?.url}
                             onLoadStart={() => {
                               setImageLoading(true);
-                              console.log('🔄 Image loading started:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
+                              // console.log('🔄 Image loading started:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
                             }}
                             onLoad={() => {
                               setImageLoading(false);
@@ -1637,7 +1637,7 @@ export function CaptionGenerator() {
                               if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset') && !error.includes('free images')) {
                                 setError('');
                               }
-                              console.log('✅ Image loaded successfully:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
+                              // console.log('✅ Image loaded successfully:', (currentImageData?.url || imagePreview)?.substring(0, 50) + '...');
                             }}
                             onError={() => {
                               setImageLoading(false);

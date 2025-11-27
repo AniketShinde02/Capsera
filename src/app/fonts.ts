@@ -1,5 +1,5 @@
 import localFont from 'next/font/local';
-import { Inter, Poppins } from 'next/font/google';
+import { Inter, Poppins, Space_Grotesk } from 'next/font/google';
 
 // Load Inter font from Google Fonts
 export const inter = Inter({
@@ -14,6 +14,14 @@ export const poppins = Poppins({
   subsets: ['latin'],
   variable: '--font-poppins',
   weight: ['300', '400', '500', '600', '700', '800', '900'],
+  display: 'swap',
+  preload: true,
+});
+
+// Load Space Grotesk font from Google Fonts for Logo
+export const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
   display: 'swap',
   preload: true,
 });

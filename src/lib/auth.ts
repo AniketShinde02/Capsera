@@ -49,27 +49,56 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Missing email or password.');
         }
 
-        // Try regular users first
-        let user = await (User as any).findOne({ email: credentials.email }).select('+password');
-        let isAdminUser = false;
+        const { db } = await connectToDatabase();
+        const adminUsersCollection = db.collection('adminusers');
 
-        // If not found, check adminusers collection
-        if (!user) {
-          const { db } = await connectToDatabase();
-          const adminUsersCollection = db.collection('adminusers');
-          const adminUser = await adminUsersCollection.findOne({
-            email: credentials.email.toLowerCase()
-          });
+        // 1. Check Admin Users Collection FIRST
+        const adminUser = await adminUsersCollection.findOne({
+          email: credentials.email.toLowerCase()
+        });
 
-          if (adminUser) {
-            user = adminUser;
-            isAdminUser = true;
+        if (adminUser) {
+          // Verify password against admin record
+          const isAdminPasswordMatch = await bcrypt.compare(
+            credentials.password,
+            adminUser.password
+          );
+
+          if (isAdminPasswordMatch) {
+            console.log('✅ Unified Login: Logged in as Admin via standard form:', adminUser.email);
+
+            // Update admin stats
+            await adminUsersCollection.updateOne(
+              { _id: adminUser._id },
+              {
+                $set: {
+                  lastLoginAt: new Date(),
+                  status: 'active',
+                  failedLoginAttempts: 0
+                }
+              }
+            );
+
+            return {
+              id: adminUser._id.toString(),
+              email: adminUser.email,
+              username: adminUser.username || adminUser.name,
+              role: adminUser.role,
+              isAdmin: true,
+              isVerified: adminUser.isVerified || false,
+              image: adminUser.image || null,
+              // Add dual-mode flags if they exist
+              hasRegularUserAccount: adminUser.hasRegularUserAccount,
+              regularUserId: adminUser.regularUserId,
+              canBrowseAsUser: adminUser.canBrowseAsUser ?? true
+            };
           }
         }
 
+        // 2. If not admin or invalid admin password, try Regular Users
+        const user = await (User as any).findOne({ email: credentials.email }).select('+password');
+
         if (!user) {
-          // Security best practice: use a generic error message
-          // to prevent user enumeration attacks.
           throw new Error('Invalid credentials.');
         }
 
@@ -82,34 +111,18 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid credentials.');
         }
 
-        // Update user's last login time and status
-        if (isAdminUser) {
-          const { db } = await connectToDatabase();
-          const adminUsersCollection = db.collection('adminusers');
-          await adminUsersCollection.updateOne(
-            { _id: user._id },
-            {
-              $set: {
-                lastLoginAt: new Date(),
-                status: 'active',
-                failedLoginAttempts: 0
-              }
-            }
-          );
-        } else {
-          await (User as any).findByIdAndUpdate(user._id, {
-            lastLoginAt: new Date(),
-            status: 'active'
-          });
-        }
+        // Update regular user stats
+        await (User as any).findByIdAndUpdate(user._id, {
+          lastLoginAt: new Date(),
+          status: 'active'
+        });
 
-        // Return a plain, serializable object. This is the critical fix.
         return {
           id: user._id.toString(),
           email: user.email,
           username: user.username || user.name,
           role: user.role,
-          isAdmin: isAdminUser || user.isAdmin || false,
+          isAdmin: user.isAdmin || false, // Some regular users might have isAdmin flag
           isVerified: user.isVerified || false,
           image: user.image || null
         };

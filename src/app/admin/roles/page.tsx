@@ -213,22 +213,37 @@ export default function RolesPage() {
     }
   };
 
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string, password: string } | null>(null);
+
   const handleQuickCreate = async () => {
-    if (!quickCreateForm.email || !quickCreateForm.tier) return;
+    if (!quickCreateForm.email || !quickCreateForm.tier) {
+      showNotification("Email and Tier are required", "error");
+      return;
+    }
+
     try {
       const res = await fetch('/api/admin/quick-create-tier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(quickCreateForm)
       });
+
+      const data = await res.json();
+
       if (res.ok) {
-        showNotification("Tier account created", "success");
+        setCreatedCredentials({
+          email: data.user.email,
+          password: data.user.password
+        });
+        showNotification("Tier account created successfully", "success");
         setQuickCreateForm({ email: '', username: '', tier: '' });
         fetchRoles();
       } else {
-        showNotification("Failed to create tier account", "error");
+        showNotification(data.error || "Failed to create tier account", "error");
       }
-    } catch (e) { showNotification("Network error", "error"); }
+    } catch (e) {
+      showNotification("Network error", "error");
+    }
   };
 
   // Filtered Roles
@@ -354,7 +369,7 @@ export default function RolesPage() {
             {filteredRoles.map((role) => (
               <div
                 key={role._id}
-                className="group relative overflow-hidden rounded-[2rem] bg-card p-6 transition-all duration-300 hover:bg-accent hover:-translate-y-1"
+                className="group relative overflow-hidden rounded-[2rem] bg-card p-6 transition-all duration-300 hover:bg-accent/5 hover:shadow-2xl hover:shadow-accent/10 border border-transparent hover:border-accent/20 hover:-translate-y-1"
               >
                 {/* Role Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -645,6 +660,55 @@ export default function RolesPage() {
               className="bg-foreground text-background hover:bg-foreground/90"
             >
               {showEditModal ? 'Save Changes' : 'Create Role'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Credentials Modal */}
+      <Dialog open={!!createdCredentials} onOpenChange={(open) => !open && setCreatedCredentials(null)}>
+        <DialogContent className="bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-green-500 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" /> Account Created
+            </DialogTitle>
+            <DialogDescription>
+              Share these credentials with the user. They will not be shown again.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-6 bg-muted/50 rounded-xl space-y-4 border border-border">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Email Address</label>
+              <div className="p-3 bg-background rounded-lg border border-border font-mono text-sm select-all">
+                {createdCredentials?.email}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Temporary Password</label>
+              <div className="p-3 bg-background rounded-lg border border-border font-mono text-lg font-bold text-primary select-all">
+                {createdCredentials?.password}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-500 bg-yellow-500/10 p-3 rounded-lg">
+              <AlertTriangle className="w-4 h-4" />
+              <span>User should change this password upon first login.</span>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCreatedCredentials(null)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              if (createdCredentials) {
+                navigator.clipboard.writeText(`Login Credentials:\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`);
+                showNotification("Credentials copied to clipboard", "success");
+              }
+            }}>
+              Copy Details
             </Button>
           </div>
         </DialogContent>

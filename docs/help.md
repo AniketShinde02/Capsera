@@ -135,19 +135,6 @@ CaptionCraft supports multiple ways to upload images for caption generation.
 - GIF
 - WebP
 
-**Upload Limits:**
-- Max file size: 4MB (after compression)
-- Max dimensions: 1920x1920 (auto-resized)
-- Cloudinary storage integration
-
----
-
-## 🔐 Authentication System
-
-CaptionCraft uses **NextAuth.js v5** for secure authentication with the following features:
-
-### Supported Authentication Methods
-
 - **Email/Password Sign-up**: Users can create accounts with email and password
 - **Magic Link Sign-in**: Passwordless authentication via email links
 - **OAuth Providers**: Ready for Google, GitHub, Discord integration

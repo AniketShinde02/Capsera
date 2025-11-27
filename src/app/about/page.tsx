@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Users, Sparkles, Heart, TrendingUp, Zap, Globe } from 'lucide-react';
+import { UserCheck, MessageSquareText, Bot, Clock, Lightbulb, Globe, Target, HandHeart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function AboutPage() {
@@ -28,32 +28,32 @@ export default function AboutPage() {
         {
             name: "Aniket Shinde",
             role: "Founder & Developer",
-            image: "https://i.imgur.com/placeholder.jpg", // You'll need to upload your photo
+            image: "/aniket.png",
             description: "Building AI-powered tools to empower creators worldwide"
-        },
-        {
-            name: "Gemini AI",
-            role: "AI Vision Partner",
-            image: "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg",
-            description: "Powering intelligent caption generation"
         },
         {
             name: "Cursor AI",
             role: "Development Partner",
-            image: "https://www.cursor.com/brand/icon.svg",
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrQ_CU3a6muH84mLfoP6xmM4ZJ9Z6RAXMmdA&s",
             description: "Accelerating development with AI-powered coding"
         },
         {
             name: "Antigravity",
             role: "AI Assistant",
-            image: "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg",
+            image: "https://jecas.cz/files/article/google-antigravity.png",
             description: "Google's advanced agentic coding assistant"
+        },
+        {
+            name: "Firebase",
+            role: "Backend Infrastructure",
+            image: "https://firebase.google.com/static/images/brand-guidelines/logo-vertical.png",
+            description: "Powering our real-time database and authentication"
         }
     ];
 
     const values = [
         {
-            icon: Sparkles,
+            icon: Lightbulb,
             title: "Creativity First",
             description: "We believe everyone has a story to tell. Our tools are designed to help you tell yours better.",
             color: "from-blue-500 to-cyan-500"
@@ -65,13 +65,13 @@ export default function AboutPage() {
             color: "from-purple-500 to-pink-500"
         },
         {
-            icon: Zap,
+            icon: Target,
             title: "User Obsessed",
             description: "We build what you need. Your feedback shapes every feature we release.",
             color: "from-orange-500 to-red-500"
         },
         {
-            icon: Heart,
+            icon: HandHeart,
             title: "Made with Love",
             description: "Crafted with passion and attention to detail for the best possible experience.",
             color: "from-green-500 to-emerald-500"
@@ -86,26 +86,22 @@ export default function AboutPage() {
 
             <div className="container mx-auto px-4 py-24 relative z-10">
                 {/* Hero Section */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center max-w-4xl mx-auto mb-20"
-                >
+                <div className="text-center max-w-4xl mx-auto mb-20">
                     <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6">
                         We are <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">Capsera</span>
                     </h1>
                     <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed">
                         Empowering creators to express themselves with AI-driven magic. We're on a mission to make social media content creation effortless and fun.
                     </p>
-                </motion.div>
+                </div>
 
                 {/* Stats Section */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-24 max-w-5xl mx-auto">
                     {[
-                        { value: `${activeUsers}+`, label: "Active Users", icon: Users },
-                        { value: `${totalCaptions}+`, label: "Captions Generated", icon: Sparkles },
-                        { value: "3", label: "AI Partners", icon: Zap },
-                        { value: "24/7", label: "Availability", icon: TrendingUp }
+                        { value: `${activeUsers}+`, label: "Active Users", icon: UserCheck },
+                        { value: `${totalCaptions}+`, label: "Captions Generated", icon: MessageSquareText },
+                        { value: "3", label: "AI Partners", icon: Bot },
+                        { value: "24/7", label: "Availability", icon: Clock }
                     ].map((stat, i) => (
                         <motion.div
                             key={i}
@@ -174,14 +170,16 @@ export default function AboutPage() {
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-600 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity" />
                                 <div className="relative bg-card/30 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:bg-card/50 transition-all overflow-hidden">
-                                    <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-muted/30 flex items-center justify-center">
-                                        <img
-                                            src={member.image}
-                                            alt={member.name}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                            onError={(e) => {
-                                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&size=400&background=random`;
-                                            }}
+                                    <div className="aspect-square rounded-2xl overflow-hidden mb-4 bg-muted/30 relative">
+                                        {/* Transparent overlay: Blocks direct interaction */}
+                                        <div className="absolute inset-0 z-20" onContextMenu={(e) => e.preventDefault()} />
+
+                                        {/* CSS Background Image: Harder to save/drag than an <img> tag */}
+                                        <div
+                                            className="w-full h-full bg-cover bg-top bg-no-repeat transition-transform duration-500 group-hover:scale-110"
+                                            style={{ backgroundImage: `url(${member.image})` }}
+                                            role="img"
+                                            aria-label={member.name}
                                         />
                                     </div>
                                     <h3 className="text-xl font-bold mb-1">{member.name}</h3>

@@ -10,7 +10,12 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { name, email, category, message } = body;
+    let { name, email, category, message, subject } = body;
+
+    // Map subject to category if category is missing (Frontend sends 'subject')
+    if (!category && subject) {
+      category = subject;
+    }
 
     // Validate required fields
     if (!name || !email || !category || !message) {
@@ -27,8 +32,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Subject validation removed - not part of frontend form
 
     if (message.trim().length < 10) {
       return NextResponse.json(
@@ -51,7 +54,6 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       category: category.trim(),
-      subject: `${category} - ${name}`, // Auto-generate subject from category and name
       message: message.trim(),
       status: 'new'
     });
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
       id: savedContact._id,
       name: savedContact.name,
       email: savedContact.email,
-      subject: savedContact.subject,
+      category: savedContact.category,
       timestamp: savedContact.createdAt
     });
 
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
       await sendContactConfirmationEmail({
         name: savedContact.name,
         email: savedContact.email,
-        subject: savedContact.subject,
+        subject: savedContact.category, // Use category as subject
         message: savedContact.message,
         submissionId: savedContact._id.toString()
       });

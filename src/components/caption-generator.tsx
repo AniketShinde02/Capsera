@@ -1753,16 +1753,16 @@ export function CaptionGenerator() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                              <Crown className="w-5 h-5 text-white" />
+                              <UserPlus className="w-5 h-5 text-white" />
                             </div>
                             <div>
                               <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                                {freemiumUsage?.gracePeriod ? 'Weekly Grace Period' : 'Upgrade for More!'}
+                                {freemiumUsage?.gracePeriod ? 'Weekly Grace Period' : 'Sign up for more generation'}
                               </h3>
                               <p className="text-sm text-blue-700 dark:text-blue-300">
                                 {freemiumUsage?.gracePeriod
                                   ? `You've used your daily limit. ${freemiumUsage.remainingWeekly} images left this week.`
-                                  : `Free Plan • ${typeof freemiumUsage?.remainingDaily === 'number'
+                                  : `Free • ${typeof freemiumUsage?.remainingDaily === 'number'
                                     ? Math.max(0, freemiumUsage.remainingDaily)
                                     : typeof quotaInfo?.remaining === 'number'
                                       ? Math.max(0, quotaInfo.remaining)
@@ -1775,10 +1775,9 @@ export function CaptionGenerator() {
                           <Button
                             size="sm"
                             className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-                            onClick={() => window.open('/pricing', '_blank')}
+                            onClick={() => setAuthModalOpen(true)}
                           >
-                            <Star className="w-4 h-4 mr-1" />
-                            Upgrade
+                            Sign Up
                           </Button>
                         </div>
                       ) : (

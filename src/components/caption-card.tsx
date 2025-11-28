@@ -148,10 +148,10 @@ export function CaptionCard({ caption, index }: CaptionCardProps) {
   }, [copied]);
 
   return (
-    <div className="group bg-[#F2EFE5]/20 dark:bg-muted/20 transition-all duration-300 flex flex-col justify-between min-h-[160px] border border-[#C7C8CC]/80 dark:border-border hover:border-[#B4B4B8]/90 dark:hover:border-border/70 rounded-xl shadow-sm hover:shadow-md overflow-hidden">
-      {/* Caption Content - Compact */}
-      <div className="p-4 flex-grow">
-        <p className="text-foreground/90 text-sm leading-relaxed line-clamp-4">{caption}</p>
+    <div className="group bg-[#F2EFE5]/20 dark:bg-muted/20 transition-all duration-300 flex flex-col justify-between min-h-[180px] border border-[#C7C8CC]/80 dark:border-border hover:border-[#B4B4B8]/90 dark:hover:border-border/70 rounded-xl shadow-sm hover:shadow-md overflow-hidden">
+      {/* Caption Content - Full Display */}
+      <div className="p-4 flex-grow overflow-auto max-h-[300px]">
+        <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap break-words">{caption}</p>
       </div>
 
       {/* Action Buttons - Compact */}

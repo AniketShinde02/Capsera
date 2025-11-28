@@ -148,18 +148,6 @@ GROQ_API_KEY_2=gsk_your_second_key
 
 **Groq:**
 1. Visit [console.groq.com](https://console.groq.com)
-2. Sign up for free account.
-3. Create API key.
-4. Add to `.env`.
-
----
-
-## 📸 Image Upload Features
-
-CaptionCraft supports multiple ways to upload images for caption generation.
-
-### Upload Methods
-
 #### 1. **Click to Upload** (Traditional)
 - Click the upload area
 - Select image from file browser

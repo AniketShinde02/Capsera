@@ -25,11 +25,13 @@ const GenerateCaptionsInputSchema = z.object({
     .describe(
       'A description of the photo or video for which to generate captions.'
     ),
-  imageUrl: z.string().describe('The URL of the uploaded image (required for analysis).'),
+  imageUrl: z.string().optional().describe('The URL of the uploaded image (required if imageBase64 is not provided).'),
+  imageBase64: z.string().optional().describe('Base64 encoded image data (for faster processing).'),
   publicId: z.string().optional().describe('The Cloudinary public ID for image deletion.'),
   userId: z.string().optional().describe("The ID of the user generating the captions."),
   ipAddress: z.string().optional().describe("The IP address of the user (for rate limiting)."),
   skipRateLimit: z.boolean().optional().describe('If true, skip the internal rate limit check (useful when caller already enforced limits).'),
+  skipSafetyCheck: z.boolean().optional().describe('If true, skip the external safety check (rely on AI provider safety).'),
 });
 
 export type GenerateCaptionsInput = z.infer<typeof GenerateCaptionsInputSchema>;
@@ -50,25 +52,30 @@ function generateCacheKey(imageUrl: string, mood: string, description?: string):
 }
 
 export async function generateCaptions(input: GenerateCaptionsInput): Promise<GenerateCaptionsOutput> {
-  // ⚡ SPEED OPTIMIZATION: Check cache first
-  const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
-  const cached = captionCache.get(cacheKey);
+  // ⚡ SPEED OPTIMIZATION: Check cache first (only if we have a URL)
+  if (input.imageUrl) {
+    const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
+    const cached = captionCache.get(cacheKey);
 
-  if (cached) {
-    console.log('🚀 Cache hit - returning cached captions');
-    return cached;
+    if (cached) {
+      console.log('🚀 Cache hit - returning cached captions');
+      return cached;
+    }
   }
 
   // ⚡ SPEED OPTIMIZATION: Direct call to optimized flow
   const result = await generateCaptionsFlow(input);
 
-  // Cache the result
-  captionCache.set(cacheKey, result);
+  // Cache the result if we have a URL
+  if (input.imageUrl) {
+    const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
+    captionCache.set(cacheKey, result);
 
-  // Clean up old cache entries periodically
-  if (captionCache.size > 100) {
-    const oldestKey = captionCache.keys().next().value;
-    captionCache.delete(oldestKey);
+    // Clean up old cache entries periodically
+    if (captionCache.size > 100) {
+      const oldestKey = captionCache.keys().next().value;
+      captionCache.delete(oldestKey);
+    }
   }
 
   return result;
@@ -79,13 +86,15 @@ export async function* generateCaptionsStream(input: GenerateCaptionsInput): Asy
   const startTime = Date.now();
 
   // Check cache first
-  const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
-  const cached = captionCache.get(cacheKey);
+  if (input.imageUrl) {
+    const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
+    const cached = captionCache.get(cacheKey);
 
-  if (cached) {
-    console.log('🚀 Cache hit - streaming cached captions');
-    yield cached;
-    return cached;
+    if (cached) {
+      console.log('🚀 Cache hit - streaming cached captions');
+      yield cached;
+      return cached;
+    }
   }
 
   // Stream progress updates
@@ -95,7 +104,10 @@ export async function* generateCaptionsStream(input: GenerateCaptionsInput): Asy
     const result = await generateCaptionsFlow(input);
 
     // Cache the result
-    captionCache.set(cacheKey, result);
+    if (input.imageUrl) {
+      const cacheKey = generateCacheKey(input.imageUrl, input.mood, input.description);
+      captionCache.set(cacheKey, result);
+    }
 
     const endTime = Date.now();
     console.log(`⚡ Caption generation completed in ${endTime - startTime}ms`);
@@ -174,69 +186,75 @@ const generateCaptionsFlow = ai.defineFlow(
     // Sanitized logging - don't expose full URLs or sensitive data
     console.log('🔍 Caption Generation Input:', {
       mood: input.mood,
-      imageUrl: input.imageUrl ? 'Image uploaded successfully' : 'NO IMAGE URL',
+      imageUrl: input.imageUrl ? 'Image URL provided' : 'No Image URL',
+      imageBase64: input.imageBase64 ? 'Base64 Image provided' : 'No Base64 Image',
       description: input.description || 'No description provided',
       userId: input.userId ? 'Authenticated user' : 'Anonymous user',
       ipAddress: 'IP logged for rate limiting'
     });
 
-    // Validate that we have an image URL
-    if (!input.imageUrl) {
-      throw new Error('Image URL is required for caption generation');
+    // Validate that we have an image (either URL or Base64)
+    if (!input.imageUrl && !input.imageBase64) {
+      throw new Error('Image is required for caption generation (URL or Base64)');
     }
 
     // ⚡ SPEED OPTIMIZATION: Fast content safety check with timeout
-    let safetyCheckPromise: Promise<any> | null = null;
-    try {
-      console.log('🔍 Starting fast content safety check...');
+    // Skip safety check if requested (e.g. for Base64 fast mode where we rely on AI provider safety)
+    if (!input.skipSafetyCheck && input.imageUrl) {
+      let safetyCheckPromise: Promise<any> | null = null;
+      try {
+        console.log('🔍 Starting fast content safety check...');
 
-      // Start safety check in parallel but don't wait for it
-      safetyCheckPromise = checkImageContentSafety(input.imageUrl)
-        .then(safetyResult => {
-          if (!safetyResult.isAppropriate) {
-            console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);
+        // Start safety check in parallel but don't wait for it
+        safetyCheckPromise = checkImageContentSafety(input.imageUrl)
+          .then(safetyResult => {
+            if (!safetyResult.isAppropriate) {
+              console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);
 
-            // Report inappropriate content asynchronously
-            reportInappropriateContent({
-              imageUrl: input.imageUrl,
-              userId: input.userId,
-              ipAddress: input.ipAddress || 'unknown',
-              reason: safetyResult.flagged.includes('adult') ? 'sexual' :
-                safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
-              description: `Content flagged during caption generation as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
-              timestamp: new Date()
-            }).catch(err => console.error('Failed to report inappropriate content:', err));
+              // Report inappropriate content asynchronously
+              reportInappropriateContent({
+                imageUrl: input.imageUrl!,
+                userId: input.userId,
+                ipAddress: input.ipAddress || 'unknown',
+                reason: safetyResult.flagged.includes('adult') ? 'sexual' :
+                  safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
+                description: `Content flagged during caption generation as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
+                timestamp: new Date()
+              }).catch(err => console.error('Failed to report inappropriate content:', err));
 
-            return { blocked: true, reason: 'inappropriate content' };
-          }
-          console.log('✅ Content safety check passed');
-          return { blocked: false };
-        })
-        .catch(error => {
-          console.error('❌ Content safety check failed:', error);
-          return { blocked: false }; // Continue on error (fail-safe)
-        });
+              return { blocked: true, reason: 'inappropriate content' };
+            }
+            console.log('✅ Content safety check passed');
+            return { blocked: false };
+          })
+          .catch(error => {
+            console.error('❌ Content safety check failed:', error);
+            return { blocked: false }; // Continue on error (fail-safe)
+          });
 
-      // Wait for safety check with timeout (max 1.5 seconds - optimized for speed)
-      const safetyResult = await Promise.race([
-        safetyCheckPromise,
-        new Promise(resolve => setTimeout(() => resolve({ blocked: false }), 1500))
-      ]);
+        // Wait for safety check with timeout (max 1.5 seconds - optimized for speed)
+        const safetyResult = await Promise.race([
+          safetyCheckPromise,
+          new Promise(resolve => setTimeout(() => resolve({ blocked: false }), 1500))
+        ]);
 
-      if (safetyResult.blocked) {
-        throw new Error('This image contains inappropriate content and cannot be processed. Please upload a family-friendly image.');
+        if (safetyResult.blocked) {
+          throw new Error('This image contains inappropriate content and cannot be processed. Please upload a family-friendly image.');
+        }
+
+        timings.safetyCheck = Date.now() - startTime;
+        console.log(`⚡ Content safety check completed in ${timings.safetyCheck}ms`);
+
+      } catch (safetyError: any) {
+        if (safetyError.message.includes('inappropriate content')) {
+          throw safetyError; // Re-throw content violation errors
+        }
+        console.error('❌ Content safety check failed:', safetyError);
+        // Continue with caption generation if safety check fails (fail-safe approach)
+        timings.safetyCheck = Date.now() - startTime;
       }
-
-      timings.safetyCheck = Date.now() - startTime;
-      console.log(`⚡ Content safety check completed in ${timings.safetyCheck}ms`);
-
-    } catch (safetyError) {
-      if (safetyError.message.includes('inappropriate content')) {
-        throw safetyError; // Re-throw content violation errors
-      }
-      console.error('❌ Content safety check failed:', safetyError);
-      // Continue with caption generation if safety check fails (fail-safe approach)
-      timings.safetyCheck = Date.now() - startTime;
+    } else {
+      console.log('⏩ Skipping external safety check (using AI provider safety or Base64 mode)');
     }
 
     // 🚦 RATE LIMITING CHECK
@@ -299,6 +317,11 @@ const generateCaptionsFlow = ai.defineFlow(
 
     try {
       // ⚡ SPEED OPTIMIZATION: Streamlined AI prompt for faster processing
+      // Use Base64 if available, otherwise URL
+      const mediaPart = input.imageBase64
+        ? { media: { url: input.imageBase64 } }
+        : { media: { url: input.imageUrl! } };
+
       const result = await ai.generate([
         {
           text: `Create 3 viral social media captions for this image.
@@ -314,9 +337,7 @@ STRICT GUIDELINES:
 
 Return as JSON array: ["caption1", "caption2", "caption3"]`
         },
-        {
-          media: { url: input.imageUrl }
-        }
+        mediaPart
       ]);
 
       output = result.output; // Assign to outer scope variable

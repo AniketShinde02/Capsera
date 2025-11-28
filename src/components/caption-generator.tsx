@@ -897,7 +897,6 @@ export function CaptionGenerator() {
     }
 
     // Validate that an image is uploaded
-    // Validate that an image is uploaded (either from file or URL)
     if (!uploadedFile && !currentImageData) {
       setError("Please upload an image to generate captions.");
       return;
@@ -910,87 +909,48 @@ export function CaptionGenerator() {
     }
 
     // 🛡️ CLIENT-SIDE SAFETY CHECK
-    // Proactively warn about words that often trigger AI safety filters
     const unsafeWords = ['seduction', 'seductive', 'nude', 'naked', 'sex', 'porn', 'xxx', 'nsfw', 'undressed', 'erotic'];
     const descriptionLower = (values.description || '').toLowerCase();
     const foundUnsafeWord = unsafeWords.find(word => descriptionLower.includes(word));
 
     if (foundUnsafeWord) {
-      setError(`The word "${foundUnsafeWord}" often triggers AI safety filters. Please try a different word (e.g., "alluring", "captivating") to ensure generation succeeds.`);
-      // Shake effect to draw attention
+      setError(`The word "${foundUnsafeWord}" often triggers AI safety filters. Please try a different word.`);
       setShowLimitShake(true);
       setTimeout(() => setShowLimitShake(false), 600);
       return;
     }
 
-    // Validation passed, checking rate limit first
+    // Validation passed
     setIsLoading(true);
     setCaptions([]);
-    // Don't clear daily limit errors - let them stay visible
-    if (!error.includes('daily limit') && !error.includes('used all') && !error.includes('quota will reset')) {
+    if (!error.includes('daily limit') && !error.includes('used all')) {
       setError('');
     }
     updateButtonState('processing');
-
-    // Update last submission time
     setLastSubmissionTime(startTime);
 
     try {
-      // 🔍 CORRECT FLOW: Check quota FIRST, then upload if allowed
-      // Checking quota before proceeding
-
-      // Step 1: Check quota first (with reasonable timeout)
-      updateButtonState('loading');
-      // Checking rate limits
-
       // ⚡ SPEED OPTIMIZATION: Quick network check
       if (!navigator.onLine) {
-        throw new Error('No internet connection. Please check your network and try again.');
+        throw new Error('No internet connection.');
       }
 
-      let quotaResponse;
-      try {
-        // ⚡ SPEED OPTIMIZATION: Add reasonable timeout for quota check
-        const quotaController = new AbortController();
-        const quotaTimeout = setTimeout(() => quotaController.abort(), 15000); // 15 second timeout - reasonable for quota check
+      // Step 1: Check quota (Fast check)
+      updateButtonState('loading');
 
-        quotaResponse = await fetch('/api/rate-limit-info', {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-          signal: quotaController.signal,
-        });
+      const quotaResponse = await fetch('/api/rate-limit-info', {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' },
+        signal: AbortSignal.timeout(5000) // 5s timeout
+      });
 
-        clearTimeout(quotaTimeout);
-      } catch (fetchError: any) {
-        console.error('❌ Fetch error during quota check:', fetchError);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Quota check is taking too long. Please try again.');
-        }
-        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
-          throw new Error('Network error. Please check your internet connection and try again.');
-        }
-        throw new Error('Failed to check quota. Please try again.');
-      }
-
-      if (!quotaResponse.ok) {
-        throw new Error('Failed to check quota. Please try again.');
-      }
-
-      let quotaData;
-      try {
-        quotaData = await quotaResponse.json();
-      } catch (parseError) {
-        throw new Error('Failed to check quota. Please try again.');
-      }
+      if (!quotaResponse.ok) throw new Error('Failed to check quota.');
+      const quotaData = await quotaResponse.json();
 
       if (quotaData.remaining <= 0 && !quotaData.isAdmin) {
-        // User has no quota left - don't upload image (unless admin)
         const errorMessage = quotaData.isAuthenticated
-          ? "You've hit your daily limit! Your quota will reset tomorrow. Upgrade your plan for unlimited captions!"
-          : "You've used all your free images today! Sign up for a free account to get 20 daily images (60 captions). Your free quota resets tomorrow.";
-
+          ? "You've hit your daily limit! Upgrade for unlimited captions!"
+          : "You've used all your free images today! Sign up for more.";
         setErrorWithTimer(errorMessage, 10000);
         setShowLimitShake(true);
         setTimeout(() => setShowLimitShake(false), 600);
@@ -999,9 +959,6 @@ export function CaptionGenerator() {
         return;
       }
 
-      // Rate limit check passed
-
-      // Update quota info in UI
       setQuotaInfo({
         remaining: quotaData.remaining,
         total: quotaData.maxGenerations,
@@ -1009,346 +966,140 @@ export function CaptionGenerator() {
         isAdmin: quotaData.isAdmin
       });
 
-      // Store current data for regeneration
       setCurrentMood(values.mood);
       setCurrentDescription(values.description || '');
 
-      // Step 2: Ensure image is uploaded (only if not already uploaded during file-select)
-      let uploadData: any = null;
+      // 🚀 "FIRE AND FORGET" STRATEGY:
+      // 1. Convert image to Base64 (Fast)
+      // 2. Send to AI immediately (Don't wait for Cloudinary)
+      // 3. Upload to Cloudinary in background (for history)
 
-      if (currentImageData && currentImageData.url) {
-        // Image was already uploaded during handleImageChange; reuse it and avoid re-uploading
-        uploadData = {
-          url: currentImageData.url,
-          public_id: currentImageData.publicId,
-        };
-        // Move UI to processing without showing the upload animation again
-        updateButtonState('processing');
+      let imageBase64: string | null = null;
+      let imageUrlForAi = currentImageData?.url || '';
 
-        // Ensure image preview shows the uploaded image URL
-        setImagePreview(currentImageData.url);
-      } else {
-        // No existing uploaded image - perform the upload now
-        updateButtonState('uploading');
-
-        // Show upload progress for better user experience
-        setButtonMessage('Uploading image...');
-        setButtonIcon(<UploadCloud className="mr-2 h-4 w-4 animate-pulse" />);
-
-        // Upload the file
-        const formData = new FormData();
-        formData.append('file', uploadedFile as File);
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
+      // If we have a file, convert to Base64 for immediate AI processing
+      if (uploadedFile) {
+        setButtonMessage('Preparing image...');
+        // Convert to Base64
+        imageBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedFile);
         });
-
-        if (!uploadResponse.ok) {
-          let uploadErrorMessage = 'Image upload failed.';
-          try {
-            const uploadErrorData = await uploadResponse.json();
-            uploadErrorMessage = uploadErrorData.message || uploadErrorMessage;
-          } catch (parseError) {
-            console.error('❌ Failed to parse upload error response:', parseError);
-            switch (uploadResponse.status) {
-              case 413:
-                const maxSizeMB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
-                uploadErrorMessage = `Image is too big. Please upload an image smaller than ${maxSizeMB}MB.`;
-                break;
-              case 400:
-                uploadErrorMessage = 'Invalid image file. Please check the file format and try again.';
-                break;
-              case 500:
-                uploadErrorMessage = 'Server error during upload. Please try again later.';
-                break;
-              default:
-                uploadErrorMessage = `Upload failed (${uploadResponse.status}). Please try again.`;
-            }
-          }
-          throw new Error(uploadErrorMessage);
-        }
-
-        try {
-          uploadData = await uploadResponse.json();
-        } catch (parseError) {
-          console.error('❌ Failed to parse upload response:', parseError);
-          throw new Error('Failed to process upload response. Please try again.');
-        }
-
-        if (!uploadData.success) {
-          throw new Error(uploadData.message || 'Image upload failed. Please try again.');
-        }
-
-        // Store the uploaded image data for future use
-        setCurrentImageData(uploadData);
-
-        // Update image preview to show the uploaded image URL
-        setImagePreview(uploadData.url);
-
       }
 
-      // Send to AI for analysis
+      // ⚡ START BACKGROUND UPLOAD (Don't await!)
+      let backgroundUploadPromise: Promise<any> | null = null;
 
-      updateButtonState('processing');
+      if (uploadedFile && !currentImageData) {
+        setButtonMessage('Uploading in background...');
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
 
-      // Step 3: Generate captions (with realistic timeout for AI processing)
+        // Start upload but don't block AI
+        backgroundUploadPromise = fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        }).then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setCurrentImageData(data);
+              // Cache in local storage
+              const cacheKey = `image_${data.public_id}`;
+              localStorage.setItem(cacheKey, JSON.stringify({
+                url: data.url,
+                publicId: data.public_id,
+                timestamp: Date.now()
+              }));
+              return data;
+            }
+            console.warn('Background upload failed:', data);
+            return null;
+          }).catch(err => {
+            console.error('Background upload error:', err);
+            return null;
+          });
+      }
+
+      // Step 3: Generate captions IMMEDIATELY with Base64
       updateButtonState('generating');
-      // Starting AI caption generation
-
-      // ⚡ SPEED OPTIMIZATION: Show immediate feedback
       setButtonMessage('AI is analyzing your image...');
       setButtonIcon(<Brain className="mr-2 h-4 w-4 animate-pulse" />);
 
-      // ⚡ SPEED OPTIMIZATION: Realistic timeout for AI processing
       const captionController = new AbortController();
-      const captionTimeout = setTimeout(() => {
-        // Caption generation timeout triggered - aborting AI request
-        captionController.abort();
-      }, 90000); // 90 second timeout - realistic for AI processing, large images, and complex prompts
+      const captionTimeout = setTimeout(() => captionController.abort(), 60000);
 
-      // ⚡ USER EXPERIENCE: Show timeout warning at 60 seconds
-      const captionWarningTimeout = setTimeout(() => {
-        setButtonMessage('AI is taking longer than usual...');
-        setButtonIcon(<Clock className="mr-2 h-4 w-4 animate-pulse text-yellow-500" />);
-      }, 60000);
-
-      let captionResponse;
-      try {
-        captionResponse = await fetch('/api/generate-captions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            mood: values.mood,
-            description: values.description,
-            imageUrl: uploadData.url,
-            publicId: uploadData.public_id, // Store Cloudinary public ID for deletion
-          }),
-          signal: captionController.signal,
-        });
-      } catch (fetchError: any) {
-        console.error('❌ Fetch error during caption generation:', fetchError);
-
-        // Handle different error types properly
-        if (fetchError.name === 'AbortError') {
-          clearTimeout(captionTimeout);
-          throw new Error('AI is taking too long to generate captions. Please try with a simpler image or try again later.');
-        }
-
-        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
-          clearTimeout(captionTimeout);
-          throw new Error('Network error during caption generation. Please check your internet connection and try again.');
-        }
-
-        clearTimeout(captionTimeout);
-        throw new Error('Caption generation failed. Please try again.');
-      }
+      // Call API with Base64 (Priority) or URL
+      const captionResponse = await fetch('/api/generate-captions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mood: values.mood,
+          description: values.description,
+          imageUrl: imageUrlForAi, // Fallback if Base64 fails
+          imageBase64: imageBase64, // 🚀 SEND BASE64 DIRECTLY!
+          publicId: currentImageData?.publicId,
+        }),
+        signal: captionController.signal,
+      });
 
       clearTimeout(captionTimeout);
-      clearTimeout(captionWarningTimeout); // Clear the warning timeout
 
-      // Check if caption response is valid
       if (!captionResponse.ok) {
-        let captionErrorMessage = 'Failed to generate captions.';
-
-        try {
-          const captionErrorData = await captionResponse.json();
-          captionErrorMessage = captionErrorData.message || captionErrorMessage;
-
-          // Handle specific error types - IMPORTANT: Throw error immediately to preserve server message
-          if (captionResponse.status === 429) {
-            // Always preserve the server message for 429 errors
-            throw new Error(captionErrorData.message || 'You have used all your free requests. Please try again later or upgrade your plan.');
-          }
-
-          if (captionResponse.status === 503) {
-            if (captionErrorData.type === 'ai_config_error') {
-              throw new Error('AI service is not configured. Please contact support.');
-            } else if (captionErrorData.type === 'ai_service_error') {
-              throw new Error('AI service is temporarily unavailable. Please try again later.');
-            }
-          }
-
-          // If we reach here, throw the error with the server message
-          throw new Error(captionErrorMessage);
-        } catch (parseError) {
-          console.error('❌ Failed to parse caption error response:', parseError);
-
-          // Only use fallback messages if we couldn't parse the server response
-          if (parseError instanceof Error && parseError.message !== captionErrorMessage) {
-            // This means the server message was successfully parsed and thrown
-            throw parseError; // Re-throw the server message
-          }
-
-          // Fallback to generic messages only if parsing failed
-          switch (captionResponse.status) {
-            case 400:
-              captionErrorMessage = 'Invalid request. Please check your input and try again.';
-              break;
-            case 429:
-              captionErrorMessage = 'You have used all your free requests. Please try again later or upgrade your plan.';
-              break;
-            case 500:
-              captionErrorMessage = 'Server error during caption generation. Please try again later.';
-              break;
-            case 503:
-              captionErrorMessage = 'AI service is temporarily unavailable. Please try again later.';
-              break;
-            default:
-              captionErrorMessage = `Caption generation failed (${captionResponse.status}). Please try again.`;
-          }
-
-          throw new Error(captionErrorMessage);
-        }
+        const errorData = await captionResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to generate captions.');
       }
 
-      let captionData;
-      try {
-        captionData = await captionResponse.json();
-        // Caption response data received
-      } catch (parseError) {
-        console.error('❌ Failed to parse caption response:', parseError);
-        throw new Error('Failed to process caption response. Please try again.');
-      }
-
-      if (captionData && captionData.captions) {
+      const captionData = await captionResponse.json();
+      if (captionData.captions) {
         setCaptions(captionData.captions);
       }
 
-      // Immediately change button state after successful generation
+      // Success!
       setButtonState('generate-another');
       setButtonMessage('Upload New Image');
       setButtonIcon(<Upload className="mr-2 h-4 w-4" />);
       setUploadStage('idle');
 
-      // Ensure image remains visible after successful generation for all users
-      if (uploadData.url) {
-        // console.log('🖼️ Setting image display after successful generation:', uploadData.url.substring(0, 50) + '...');
-
-        // Store Cloudinary URL in local storage for instant access
-        if (uploadedFile) {
-          const cacheKey = `image_${uploadData.public_id}`;
-          localStorage.setItem(cacheKey, JSON.stringify({
-            url: uploadData.url,
-            publicId: uploadData.public_id,
-            timestamp: Date.now()
-          }));
-          // console.log('💾 Image cached in localStorage:', cacheKey);
+      // Wait for background upload to finish (just to ensure we have the URL for history)
+      if (backgroundUploadPromise) {
+        const uploadResult = await backgroundUploadPromise;
+        if (uploadResult && uploadResult.url) {
+          // Ensure image preview uses the permanent URL
+          setImagePreview(uploadResult.url);
         }
-
-        // Keep the local blob URL for instant display, but store Cloudinary data
-        setCurrentImageData({
-          url: uploadData.url,
-          publicId: uploadData.public_id
-        });
-        setHasExplicitlyReset(false);
-        // Don't clean up the object URL - keep it for instant display
-        // The image will show instantly from blob URL while Cloudinary loads in background
-
-        // Preload the Cloudinary image for better performance (background)
-        preloadImage(uploadData.url).catch(err => {
-          console.warn('Failed to preload image:', err);
-        });
-
-        // console.log('✅ Image display state updated successfully - keeping local blob for instant display');
-      } else {
-        console.warn('⚠️ No upload data URL available for image display');
       }
 
-      // Track analytics if consent given
+      // Analytics & Cleanup
       if (hasConsent('analytics')) {
-        const processingTime = typeof startTime === 'number' ? Date.now() - startTime : 0;
         trackCaptionGeneration({
           mood: currentMood,
           imageSize: uploadedFile?.size || 0,
-          processingTime,
+          processingTime: Date.now() - startTime,
           success: true
         });
       }
 
-      // Save mood preference if personalization consent given
-      if (hasConsent('functional')) {
-        saveFavoriteMood(currentMood);
-      }
-
-      // Refresh quota info after successful generation
       setRefreshTrigger(prev => prev + 1);
-
-      // Also manually refresh freemium usage to ensure it updates
-      setTimeout(() => {
-        fetchFreemiumUsage();
-      }, 500);
-
-      // 🗑️ AUTO-ARCHIVE IMAGE FOR ANONYMOUS USERS (Privacy Protection)
-      if (!quotaData.isAuthenticated && uploadData.public_id) {
-        setShowAutoDeleteMessage(true);
-        setTimeout(() => setShowAutoDeleteMessage(false), 5000);
-
-        setTimeout(() => {
-          handleAnimatedImageDeletion();
-        }, 1000);
-
-        fetch('/api/delete-image', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageUrl: uploadData.url,
-            publicId: uploadData.public_id,
-          }),
-        }).catch(() => { });
-      }
+      setTimeout(() => fetchFreemiumUsage(), 500);
 
     } catch (error: any) {
       console.error('❌ Caption generation error:', error);
-
       setUploadStage('idle');
-      setImageLoading(false);
+      setIsLoading(false);
       updateButtonState('idle');
 
-      if (hasConsent('analytics')) {
-        const processingTime = Date.now() - startTime;
-        trackCaptionGeneration({
-          mood: currentMood,
-          imageSize: uploadedFile?.size || 0,
-          processingTime,
-          success: false,
-          error: error.message
-        });
+      let errorMessage = error.message || 'An unexpected error occurred.';
+      if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
+        errorMessage = 'You have reached your daily limit!';
+        setShowLimitShake(true);
       }
 
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-
-      if (error.message) {
-        errorMessage = error.message;
-
-        if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('limit') || errorMessage.includes('free images')) {
-          errorMessage = 'You have reached your daily limit! Please try again tomorrow or sign in for more.';
-          setRefreshTrigger(prev => prev + 1);
-          setShowLimitShake(true);
-          setTimeout(() => setShowLimitShake(false), 500);
-        } else if (errorMessage.includes('500') || errorMessage.includes('Server error')) {
-          errorMessage = 'Our AI servers are currently busy. Please try again in a moment.';
-        } else if (errorMessage.includes('503') || errorMessage.includes('unavailable')) {
-          errorMessage = 'AI service is temporarily unavailable. We are working on it!';
-        } else if (errorMessage.includes('safety') || errorMessage.includes('violation') || errorMessage.includes('flagged')) {
-          // Use the specific message if available, otherwise fallback
-          if (!errorMessage.includes('flagged by safety filters')) {
-            errorMessage = 'This content could not be processed due to safety guidelines. Please check your image and description.';
-          }
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('AbortError')) {
-          errorMessage = 'Network error. Please check your internet connection.';
-        }
-      }
-
-      // Show safety errors for longer (15s) so user can read them
-      const errorDuration = errorMessage.includes('safety') || errorMessage.includes('flagged') || errorMessage.includes('guidelines') ? 15000 : 8000;
-      setErrorWithTimer(errorMessage, errorDuration);
-
+      setErrorWithTimer(errorMessage, 8000);
     } finally {
       setIsLoading(false);
-      if (uploadStage === 'generating' || uploadStage === 'processing' || uploadStage === 'uploading' || uploadStage === 'loading') {
+      if (uploadStage !== 'idle') {
         setUploadStage('idle');
         updateButtonState('idle');
       }

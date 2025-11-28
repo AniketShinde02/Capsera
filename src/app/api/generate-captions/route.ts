@@ -9,7 +9,7 @@ import { geminiManager } from '@/lib/smart-gemini-manager';
 import { smartErrorHandler } from '@/lib/smart-error-handler';
 
 // Groq Vision caption generation function - NOW WITH IMAGE ANALYSIS! 🎯
-async function generateGroqCaptions(mood: string, description: string, imageUrl: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
+async function generateGroqCaptions(mood: string, description: string, imageUrl: string, imageBase64?: string): Promise<{ success: boolean; captions?: string[]; error?: string; processingTime: number }> {
   const startTime = Date.now();
 
   try {
@@ -27,7 +27,7 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
     });
 
     if (!groqKey) {
-      console.log('❌ No Groq API keys found in environment');
+      console.log('❌ No Groq API keys configured');
       return {
         success: false,
         error: 'No Groq API keys configured',
@@ -60,6 +60,11 @@ Generate exactly 3 captions formatted as a numbered list:`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+    // Prepare image content - use Base64 if available (faster), otherwise URL
+    const imageContent = imageBase64
+      ? { url: imageBase64 }
+      : { url: imageUrl };
+
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -83,9 +88,7 @@ Generate exactly 3 captions formatted as a numbered list:`;
                 },
                 {
                   type: 'image_url',
-                  image_url: {
-                    url: imageUrl
-                  }
+                  image_url: imageContent
                 }
               ]
             }
@@ -203,10 +206,10 @@ export async function POST(req: NextRequest) {
   try {
     // Parse request body first to avoid unnecessary rate limit checks
     const body = await req.json();
-    const { mood, description, imageUrl, publicId } = body;
+    const { mood, description, imageUrl, imageBase64, publicId } = body;
 
-    // Validate required fields
-    if (!mood || !imageUrl) {
+    // Validate required fields (imageUrl OR imageBase64 is required)
+    if (!mood || (!imageUrl && !imageBase64)) {
       return NextResponse.json({
         success: false,
         message: 'Mood and image are required'
@@ -214,49 +217,53 @@ export async function POST(req: NextRequest) {
     }
 
     // ⚡ SPEED OPTIMIZATION: Quick cache check with optimized query
-    console.log(`🔍 Checking cache for existing captions...`);
-    console.log(`📊 Cache key components:`, {
-      imageUrl: imageUrl.substring(0, 100) + '...',
-      description: description || 'default',
-      mood: mood
-    });
-
-    const cacheResult = await CaptionCacheService.checkCache(
-      imageUrl,
-      description || 'default',
-      mood
-    );
-
-    console.log(`🔍 Cache check result: found=${cacheResult.found}`);
-
-    if (cacheResult.found && cacheResult.captions) {
-      console.log(`🎯 Cache HIT! Serving ${cacheResult.captions.length} captions from cache`);
-      console.log(`💰 API quota saved: ${cacheResult.savedQuota ? 'YES' : 'NO'}`);
-
-      const processingTime = Date.now() - startTime;
-
-      // Get rate limit info for display without incrementing usage
-      const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
-
-      return NextResponse.json({
-        success: true,
-        captions: cacheResult.captions,
-        processingTime,
-        fromCache: true,
-        cacheHit: true,
-        note: 'Served from cache - no API call needed! 🚀',
-        rateLimit: {
-          userTier: rateLimitInfo.userTier,
-          isAdmin: rateLimitInfo.isAdmin,
-          maxGenerations: rateLimitInfo.maxGenerations,
-          remaining: rateLimitInfo.remaining,
-          resetTime: rateLimitInfo.resetTime,
-          resetMessage: rateLimitInfo.resetMessage
-        }
+    // Only check cache if we have a URL (Base64 is unique/new usually)
+    if (imageUrl) {
+      console.log(`🔍 Checking cache for existing captions...`);
+      console.log(`📊 Cache key components:`, {
+        imageUrl: imageUrl.substring(0, 100) + '...',
+        description: description || 'default',
+        mood: mood
       });
-    }
 
-    console.log(`❌ Cache MISS - generating new captions with AI`);
+      const cacheResult = await CaptionCacheService.checkCache(
+        imageUrl,
+        description || 'default',
+        mood
+      );
+
+      console.log(`🔍 Cache check result: found=${cacheResult.found}`);
+
+      if (cacheResult.found && cacheResult.captions) {
+        console.log(`🎯 Cache HIT! Serving ${cacheResult.captions.length} captions from cache`);
+        console.log(`💰 API quota saved: ${cacheResult.savedQuota ? 'YES' : 'NO'}`);
+
+        const processingTime = Date.now() - startTime;
+
+        // Get rate limit info for display without incrementing usage
+        const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
+
+        return NextResponse.json({
+          success: true,
+          captions: cacheResult.captions,
+          processingTime,
+          fromCache: true,
+          cacheHit: true,
+          note: 'Served from cache - no API call needed! 🚀',
+          rateLimit: {
+            userTier: rateLimitInfo.userTier,
+            isAdmin: rateLimitInfo.isAdmin,
+            maxGenerations: rateLimitInfo.maxGenerations,
+            remaining: rateLimitInfo.remaining,
+            resetTime: rateLimitInfo.resetTime,
+            resetMessage: rateLimitInfo.resetMessage
+          }
+        });
+      }
+      console.log(`❌ Cache MISS - generating new captions with AI`);
+    } else {
+      console.log(`⏩ Skipping cache check (Base64 image provided)`);
+    }
 
     // 🎯 CONSOLIDATED RATE LIMITER: Check usage limits with primary + secondary systems
     // Only check rate limit if we need to generate new captions
@@ -316,10 +323,12 @@ export async function POST(req: NextRequest) {
           mood,
           description,
           imageUrl,
+          imageBase64, // 🚀 Pass Base64 for faster processing
           publicId,
           userId: session?.user?.id,
           ipAddress: clientIP,
           skipRateLimit: true,
+          skipSafetyCheck: !!imageBase64, // 🚀 Skip external safety check if using Base64 (rely on Gemini safety)
         });
         console.log('✅ Gemini generation successful! (Primary provider)');
       } catch (geminiError: any) {
@@ -340,7 +349,8 @@ export async function POST(req: NextRequest) {
     // If Gemini failed or no keys, try Groq Vision
     if (!result) {
       console.log('🔄 FALLBACK: Attempting Groq Vision...');
-      const groqResult = await generateGroqCaptions(mood, description || '', imageUrl);
+      // Pass Base64 to Groq if available
+      const groqResult = await generateGroqCaptions(mood, description || '', imageUrl || '', imageBase64);
 
       if (groqResult.success && groqResult.captions) {
         console.log('✅ Groq Vision fallback successful!');
@@ -357,7 +367,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
-    if (result.captions && result.captions.length > 0) {
+    if (result.captions && result.captions.length > 0 && imageUrl) {
       console.log(`💾 Storing new captions in cache (async)...`);
       // Don't await this - let it run in background
       CaptionCacheService.storeCache(

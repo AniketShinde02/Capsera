@@ -18,21 +18,23 @@ import { PerformanceOptimizer } from '@/components/PerformanceOptimizer';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Capsera - Free AI Caption Generator for Instagram & TikTok (2025)',
+    default: 'Best AI Caption Generator 2025 (Free & Viral) - Capsera',
     template: '%s | Capsera AI'
   },
-  description: 'Generate viral Instagram & TikTok captions instantly with Capsera\'s advanced AI. Free, no signup required. Analyze images, choose moods, and get engagement-boosting captions in seconds.',
+  description: 'The #1 Free AI Caption Generator for Instagram, TikTok & LinkedIn. Upload any image, and our advanced AI (Gemini Vision) will analyze it to generate viral, aesthetic, and engaging captions instantly. No signup required.',
   keywords: [
+    'best ai caption generator',
     'free caption generator',
-    'AI caption generator',
-    'Instagram caption generator',
-    'TikTok caption generator',
-    'image to caption AI',
-    'viral caption maker',
+    'image to caption generator',
+    'instagram caption generator free',
+    'viral caption generator',
+    'aesthetic caption generator',
+    'tiktok caption generator',
+    'linkedin caption generator',
     'social media caption tool',
-    'best AI caption generator 2025',
     'auto caption generator',
-    'photo analyzer for captions'
+    'photo analyzer for captions',
+    'capsera ai'
   ],
   authors: [{ name: 'Capsera Team', url: 'https://capsera.online' }],
   creator: 'Capsera',
@@ -53,8 +55,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://capsera.online',
-    title: 'Capsera - Free AI Caption Generator for Instagram & TikTok',
-    description: 'Generate viral captions instantly with Capsera AI. Analyze images, choose moods, and boost engagement. Free & no signup required.',
+    title: 'Best AI Caption Generator 2025 (Free & Viral) - Capsera',
+    description: 'The #1 Free AI Caption Generator. Upload an image and get viral, aesthetic captions instantly using advanced AI analysis.',
     siteName: 'Capsera AI',
     images: [
       {
@@ -67,8 +69,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Capsera - Free AI Caption Generator',
-    description: 'Generate viral captions instantly with Capsera AI. Free & no signup required.',
+    title: 'Best AI Caption Generator 2025 (Free & Viral) - Capsera',
+    description: 'The #1 Free AI Caption Generator. Upload an image and get viral, aesthetic captions instantly.',
     images: ['/og-image.png'],
     creator: '@capsera_ai',
   },
@@ -104,10 +106,11 @@ const structuredData = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "Capsera",
-  "alternateName": "Capsera AI Caption Generator",
-  "description": "A free, advanced AI-powered tool that generates viral captions for Instagram, TikTok, and other social media platforms by analyzing uploaded images.",
+  "alternateName": "Best AI Caption Generator 2025",
+  "description": "The best free AI caption generator that analyzes images to create viral, aesthetic captions for Instagram, TikTok, and LinkedIn.",
   "url": "https://capsera.online",
   "applicationCategory": "SocialNetworkingApplication",
+  "applicationSubCategory": "AI Tool",
   "operatingSystem": "Any",
   "offers": {
     "@type": "Offer",
@@ -123,12 +126,12 @@ const structuredData = {
     "worstRating": "1"
   },
   "featureList": [
-    "AI Image Analysis",
-    "Mood-based Caption Generation",
+    "AI Image Analysis (Gemini Vision)",
+    "Viral Caption Generation",
     "Instagram & TikTok Optimization",
     "Hashtag Generation",
     "Multi-language Support",
-    "No Signup Required for Basic Use"
+    "No Signup Required"
   ],
   "screenshot": "https://capsera.online/screenshot.png", // Placeholder
   "softwareHelp": {
@@ -145,34 +148,34 @@ const structuredData = {
     "mainEntity": [
       {
         "@type": "Question",
-        "name": "Is Capsera AI caption generator free?",
+        "name": "What is the best AI caption generator for images?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes, Capsera offers a completely free tier that allows you to generate viral captions for Instagram, TikTok, and LinkedIn without any cost or credit card requirement."
+          "text": "Capsera is widely considered the best AI caption generator because it uses advanced computer vision (Gemini 1.5 Flash) to actually 'see' your image and generate context-aware, viral captions, unlike other tools that just use generic text prompts."
         }
       },
       {
         "@type": "Question",
-        "name": "How does the AI image analysis work?",
+        "name": "Is there a free AI caption generator?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Capsera uses advanced computer vision models (like Google Gemini Vision) to analyze your photo's objects, lighting, and mood, ensuring the generated captions are highly relevant and engaging."
+          "text": "Yes! Capsera is a 100% free AI caption generator. You can upload images and generate unlimited captions without a credit card or subscription."
         }
       },
       {
         "@type": "Question",
-        "name": "Can I generate captions for business use?",
+        "name": "How do I generate captions from an image?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Absolutely. Capsera is optimized for professional use, helping social media managers and business owners create engagement-boosting captions for their brand accounts."
+          "text": "Simply upload your photo to Capsera, select a mood (e.g., Funny, Aesthetic, Professional), and our AI will instantly analyze the image to write 3 unique, engaging captions for you."
         }
       },
       {
         "@type": "Question",
-        "name": "Does Capsera support multiple languages?",
+        "name": "Can AI write Instagram captions?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes, Capsera can generate captions in multiple languages including English, Spanish, French, German, and more, helping you reach a global audience."
+          "text": "Yes, AI tools like Capsera are specifically trained to write high-engagement Instagram captions, complete with relevant emojis and hashtags to boost your reach."
         }
       }
     ]

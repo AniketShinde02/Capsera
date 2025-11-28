@@ -35,7 +35,7 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
       };
     }
 
-    console.log('🚀 Generating captions with Groq Vision (llama-3.2-11b-vision-preview)...');
+    console.log('🚀 Generating captions with Groq Vision (llama-3.2-90b-vision-preview)...');
 
     // Optimized prompt for vision model
     // Optimized prompt for "Human-like" captions - Pallyy Style
@@ -73,7 +73,7 @@ Generate exactly 3 captions formatted as a numbered list:`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.2-11b-vision-preview', // 🎯 VISION MODEL - Can see images!
+          model: 'llama-3.2-90b-vision-preview', // 🎯 VISION MODEL - Can see images!
           messages: [
             {
               role: 'system',
@@ -154,13 +154,69 @@ Generate exactly 3 captions formatted as a numbered list:`;
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         console.error('⏱️ Groq Vision timed out after 8s');
-        return {
-          success: false,
-          error: 'Groq Vision request timed out',
-          processingTime: Date.now() - startTime
-        };
+      } else {
+        console.error('❌ Groq Vision error:', error);
       }
-      throw error;
+
+      // 🔄 FALLBACK: Try Text-Only Model if Vision fails
+      console.log('🔄 Vision failed, falling back to Groq Text-Only (llama-3.1-70b-versatile)...');
+
+      try {
+        const textPrompt = `Generate 3 viral Instagram captions for a post.
+MOOD: ${mood}
+CONTEXT: ${description || 'A photo'}
+
+STRICT RULES:
+1. Length: 30-50 words.
+2. Tone: Gen Z, authentic, high energy.
+3. Structure: Hook + Vibe + Question.
+4. No robotic words.
+
+Format: Numbered list.`;
+
+        const textResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-70b-versatile', // ⚡ Fast Text Model
+            messages: [
+              { role: 'system', content: 'You are a viral caption generator.' },
+              { role: 'user', content: textPrompt }
+            ],
+            max_tokens: 300,
+            temperature: 0.7
+          })
+        });
+
+        if (textResponse.ok) {
+          const data = await textResponse.json();
+          const content = data.choices[0]?.message?.content || '';
+          const lines = content.split('\n').filter((line: string) => line.trim()); // Explicit type
+          const captions = lines
+            .filter((line: string) => /^\d+[\.\)]/.test(line))
+            .map((line: string) => line.replace(/^\d+[\.\)]\s*/, '').trim());
+
+          if (captions.length > 0) {
+            console.log('✅ Groq Text-Only fallback successful!');
+            return {
+              success: true,
+              captions: captions.slice(0, 3),
+              processingTime: Date.now() - startTime
+            };
+          }
+        }
+      } catch (textError) {
+        console.error('❌ Groq Text-Only fallback failed:', textError);
+      }
+
+      return {
+        success: false,
+        error: 'Groq Vision and Text fallback failed',
+        processingTime: Date.now() - startTime
+      };
     }
 
   } catch (error: any) {

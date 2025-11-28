@@ -970,7 +970,7 @@ export function CaptionGenerator() {
       setCurrentDescription(values.description || '');
 
       // 🚀 "FIRE AND FORGET" STRATEGY:
-      // 1. Convert image to Base64 (Fast)
+      // 1. Convert image to Base64 (Fast & Compressed)
       // 2. Send to AI immediately (Don't wait for Cloudinary)
       // 3. Upload to Cloudinary in background (for history)
 
@@ -978,15 +978,67 @@ export function CaptionGenerator() {
       let imageUrlForAi = currentImageData?.url || '';
 
       // If we have a file, convert to Base64 for immediate AI processing
+      // ⚡ FIX: 413 Payload Too Large - Compress image specifically for AI analysis
       if (uploadedFile) {
         setButtonMessage('Preparing image...');
-        // Convert to Base64
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(uploadedFile);
-        });
+
+        // Helper to resize and compress image for AI (Max 1024px, 0.7 quality)
+        // This ensures the payload is small (<1MB) to avoid 413 errors
+        const resizeForAI = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new window.Image();
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Aggressive resizing for AI (it doesn't need 4K)
+                const maxDim = 1024;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                  if (width > maxDim) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                  }
+                } else {
+                  if (height > maxDim) {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                  }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                // Compress to JPEG at 0.7 quality
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(dataUrl);
+              };
+              img.onerror = reject;
+              img.src = e.target?.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+
+        try {
+          imageBase64 = await resizeForAI(uploadedFile);
+          console.log('📉 Image compressed for AI. Length:', imageBase64.length);
+        } catch (err) {
+          console.error('Compression failed, falling back to raw file:', err);
+          // Fallback to raw file if canvas fails (unlikely)
+          imageBase64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(uploadedFile);
+          });
+        }
       }
 
       // ⚡ START BACKGROUND UPLOAD (Don't await!)

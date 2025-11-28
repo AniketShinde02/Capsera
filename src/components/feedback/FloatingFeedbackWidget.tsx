@@ -46,7 +46,7 @@ export function FloatingFeedbackWidget() {
       else if (generationCount >= 3 && lastShown) {
         const lastShownTime = parseInt(lastShown);
         const timeSinceLastShown = now - lastShownTime;
-        
+
         // Show again after 2-5 minutes randomly
         if (timeSinceLastShown > 120000) { // 2 minutes minimum
           const randomDelay = Math.random() * 180000; // 0-3 minutes
@@ -76,7 +76,7 @@ export function FloatingFeedbackWidget() {
 
     // Listen for custom generation events
     window.addEventListener('captionGenerated', handleGeneration);
-    
+
     // Check periodically for random showing
     const interval = setInterval(checkAndShowWidget, 30000); // Check every 30 seconds
 
@@ -99,10 +99,10 @@ export function FloatingFeedbackWidget() {
   const handleFeedbackClick = () => {
     // Open Google Form in new tab
     window.open('https://forms.gle/Crx8voztG1TQZmBg9', '_blank');
-    
+
     // Track feedback click
     localStorage.setItem('feedbackWidgetClicked', 'true');
-    
+
     // Close widget after clicking
     handleClose();
   };
@@ -114,11 +114,10 @@ export function FloatingFeedbackWidget() {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out ${
-        isVisible 
-          ? 'translate-x-0 opacity-100 scale-100' 
+      className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out ${isVisible
+          ? 'translate-x-0 opacity-100 scale-100'
           : 'translate-x-full opacity-0 scale-95'
-      } ${isAnimating ? 'pointer-events-none' : ''}`}
+        } ${isAnimating ? 'pointer-events-none' : ''}`}
     >
       {/* Main Feedback Card */}
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-gray-800 dark:to-gray-900 border border-blue-500/30 rounded-2xl shadow-2xl p-4 max-w-sm backdrop-blur-sm">
@@ -143,19 +142,19 @@ export function FloatingFeedbackWidget() {
           {/* Text Content */}
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-white mb-1">
-              Help us improve! ✨
+              Want a specific feature? 💡
             </h3>
             <p className="text-xs text-gray-300 mb-3 leading-relaxed">
-              Your feedback helps us make Capsera better for everyone
+              Tell us exactly what you need. We build what YOU ask for.
             </p>
-            
+
             {/* CTA Button */}
             <button
               onClick={handleFeedbackClick}
               className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-all duration-200 flex items-center justify-center space-x-1 group"
             >
               <Star className="w-3 h-3 group-hover:scale-110 transition-transform" />
-              <span>Share Feedback</span>
+              <span>Request Feature</span>
             </button>
           </div>
         </div>

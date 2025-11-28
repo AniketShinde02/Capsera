@@ -135,6 +135,14 @@ export default function ServerHeader() {
                 <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
               )}
             </Link>
+            <Link href="/blog" className="relative group">
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-white transition-colors duration-200">
+                Blog
+              </span>
+              {pathname === '/blog' && (
+                <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+              )}
+            </Link>
           </nav>
 
           {/* Right: Theme Toggle / Profile / SignUp */}
@@ -261,6 +269,7 @@ export default function ServerHeader() {
                 {[
                   { href: '/features', icon: Star, label: 'Features', color: 'text-yellow-500' },
                   { href: '/about', icon: Info, label: 'About', color: 'text-blue-500' },
+                  { href: '/blog', icon: Sparkles, label: 'Blog', color: 'text-pink-500' },
                   { href: '/contact', icon: Mail, label: 'Contact', color: 'text-purple-500' },
                   { href: '/pricing', icon: null, label: 'Pricing', color: 'text-green-500', customIcon: <span className="text-lg font-bold">₹</span> },
                 ].map((item) => (

@@ -3,6 +3,27 @@
   - **20+ Keys Support**: System now dynamically loads `GEMINI_API_KEY_1` through `GEMINI_API_KEY_20`.
   - **Capacity**: Supports 30,000+ daily requests (with 20 keys) while avoiding rate limits.
 
+## [2025-11-28] - API Stability & Feedback UI
+
+### 🔧 Critical API Fixes
+- **Groq Vision Fallback**: Implemented a robust "Double Fallback" system.
+  - **Primary**: Gemini 1.5 Flash (Google) - Best Quality.
+  - **Secondary**: Groq Vision (`llama-3.2-90b-vision-preview`) - Replaced decommissioned `11b` model.
+  - **Tertiary**: Groq Text (`llama-3.1-70b-versatile`) - **New Failsafe**. If vision fails, captions are generated from description/mood.
+- **Error Handling**: Fixed `503 Service Unavailable` errors by catching vision model failures and routing to text model.
+
+### 🎨 UI/UX Enhancements
+- **Feedback Mechanism**:
+  - **Homepage Banner**: Replaced simple text with a premium, glassmorphism-style "Shape the Future" banner.
+  - **Floating Widget**: Updated copy to be more persuasive ("Want a specific feature?" vs "Help us improve").
+  - **Visuals**: Removed excessive glow effects for a cleaner, more professional look.
+
+### 📝 Documentation
+- **API Docs**: Fully updated `docs/API_DOCUMENTATION.md` with:
+  - `curl` examples for all endpoints.
+  - Correct JSON payloads for testing.
+  - Clear authentication flows.
+
 ### ⚡ Performance & Safety
 - **Safety Check Optimization**:
   - **Primary**: Sightengine (High Accuracy).

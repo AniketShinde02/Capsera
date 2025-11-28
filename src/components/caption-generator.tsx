@@ -1118,8 +1118,11 @@ export function CaptionGenerator() {
       if (backgroundUploadPromise) {
         const uploadResult = await backgroundUploadPromise;
         if (uploadResult && uploadResult.url) {
-          // Ensure image preview uses the permanent URL
-          setImagePreview(uploadResult.url);
+          // 🔒 PRIVACY UPDATE: Do NOT update the preview with the Cloudinary URL.
+          // The Cloudinary URL is now 'private' and cannot be viewed directly.
+          // We keep using the local blob preview which is faster and works perfectly.
+          // setImagePreview(uploadResult.url); <--- REMOVED
+          console.log('✅ Background upload complete (Private URL stored)');
         }
       }
 

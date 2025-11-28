@@ -143,6 +143,7 @@ export async function POST(req: Request) {
     const uploadParams = {
       file: `data:${file.type};base64,${buffer.toString('base64')}`,
       fileName: uniqueFileName,
+      type: 'private', // 🔒 Make image private (not accessible via public URL)
     };
 
     // Use retry logic for Cloudinary upload
@@ -151,7 +152,17 @@ export async function POST(req: Request) {
     // Content safety check after successful upload
     try {
       console.log(`🔍 Performing content safety check for: ${uniqueFileName}`);
-      const safetyResult = await checkImageContentSafety(response.secure_url);
+
+      // 🔐 Generate a temporary SIGNED URL for the safety check service
+      // This allows Sightengine to access the private image for analysis
+      const signedSafetyUrl = cloudinary.url(response.public_id, {
+        type: 'private',
+        sign_url: true,
+        secure: true,
+        expires_at: Math.floor(Date.now() / 1000) + 3600 // Valid for 1 hour
+      });
+
+      const safetyResult = await checkImageContentSafety(signedSafetyUrl, undefined, response.public_id);
 
       if (!safetyResult.isAppropriate) {
         console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);

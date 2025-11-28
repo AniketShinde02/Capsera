@@ -31,7 +31,8 @@ export interface ContentReport {
  */
 export async function checkImageContentSafety(
   imageUrl: string,
-  apiKey?: string // Kept for backward compatibility but not used
+  apiKey?: string, // Kept for backward compatibility
+  publicId?: string // New: Optional publicId for private/signed images
 ): Promise<ContentSafetyResult> {
   try {
     // Try Sightengine first (best accuracy)
@@ -43,7 +44,7 @@ export async function checkImageContentSafety(
 
     // Fallback to Cloudinary if Sightengine fails or quota exhausted
     console.log('⚠️ Sightengine unavailable, falling back to Cloudinary...');
-    const cloudinaryResult = await checkWithCloudinary(imageUrl);
+    const cloudinaryResult = await checkWithCloudinary(imageUrl, publicId);
     if (cloudinaryResult) {
       console.log('✅ Using Cloudinary moderation (fallback provider)');
       return cloudinaryResult;
@@ -171,13 +172,13 @@ async function checkWithSightengine(imageUrl: string): Promise<ContentSafetyResu
  * Uses AWS Rekognition via Cloudinary
  * Free tier: 25,000 requests/month
  */
-async function checkWithCloudinary(imageUrl: string): Promise<ContentSafetyResult | null> {
+async function checkWithCloudinary(imageUrl: string, providedPublicId?: string): Promise<ContentSafetyResult | null> {
   try {
-    // Extract Cloudinary public ID from URL
-    const publicId = extractCloudinaryPublicId(imageUrl);
+    // Extract Cloudinary public ID from URL or use provided ID
+    const publicId = providedPublicId || extractCloudinaryPublicId(imageUrl);
 
     if (!publicId) {
-      console.warn('⚠️ Not a Cloudinary URL');
+      console.warn('⚠️ Not a Cloudinary URL and no publicId provided');
       return null;
     }
 

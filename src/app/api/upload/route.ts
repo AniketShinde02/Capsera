@@ -30,6 +30,7 @@ async function uploadWithRetry(uploadParams: any, maxRetries = 3): Promise<any> 
         use_filename: true,
         unique_filename: true,
         overwrite: false,
+        type: uploadParams.type || 'upload', // 🔒 Support private uploads
       });
       console.log(`✅ Cloudinary upload successful on attempt ${attempt}`);
       return response;

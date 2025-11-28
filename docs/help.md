@@ -19,6 +19,74 @@ Welcome to CaptionCraft! This guide covers authentication, email configuration, 
 
 ---
 
+## 🧠 System Architecture Deep Dive
+
+This section provides a technical breakdown of how Capsera works under the hood, designed for developers and curious users.
+
+### 1. Dual-Layer Safety System 🛡️
+We use a sophisticated "Swiss Cheese" model for content safety to ensure high accuracy and redundancy.
+
+- **Layer 1: Sightengine (Primary)**
+  - **Accuracy**: ~95%
+  - **Checks**: Nudity, Weapons, Alcohol, Drugs, Offensive, Gore.
+  - **Tech**: specialized AI models for content moderation.
+  - **Cost Efficiency**: Used first due to higher accuracy.
+
+- **Layer 2: Cloudinary + AWS Rekognition (Fallback)**
+  - **Trigger**: Activates if Sightengine fails or quota is exhausted.
+  - **Checks**: AWS Rekognition labels (Moderation API).
+  - **Redundancy**: Ensures safety checks never fail even if one provider is down.
+
+- **Layer 3: Basic Heuristics (Last Resort)**
+  - **Checks**: Keyword analysis of filenames and URLs.
+  - **Fail-safe**: Prevents obvious bad content if all AI fails.
+
+### 2. Authentication & Dual-Mode Admin 🔐
+Authentication is handled by **NextAuth.js** using a stateless JWT strategy.
+
+- **Unified Login**: One login form handles both Admins and Regular Users.
+- **Dual-Mode for Admins**:
+  - Admin users have a special "Shadow Account" (Regular User) linked to them.
+  - **Why?** Allows admins to browse the site exactly like a normal user without logging out.
+  - **Implementation**: Session token contains flags `isAdmin` AND `canBrowseAsUser`.
+
+### 3. Smart Image Handling 🖼️
+- **Upload Flow**:
+  1. **Client-Side Compression**: Images > 5MB are compressed in the browser (using Web Workers) *before* upload to save bandwidth.
+  2. **Storage**: Images are uploaded to **ImageKit** or **Cloudinary**.
+  3. **Caching**: Generated image URLs are cached in `localStorage` to prevent re-uploading the same image.
+
+### 4. Local Storage Strategy 💾
+We use the browser's Local Storage for performance and persistence:
+- `captionGenerationCount`: Tracks usage for freemium limits.
+- `image_[id]`: Caches image URLs to reduce API calls.
+- `user-preferences`: Stores theme and UI settings.
+- `unauthorized_attempts`: Tracks failed login attempts for security.
+
+---
+
+## 👶 ELI5: How Capsera Works (Explain Like I'm 5)
+
+**1. The "Eyes" (Vision AI)**
+Imagine Capsera has two pairs of magic glasses.
+- **Groq Vision** is the big, strong pair. It looks at your photo and says "I see a happy dog on a beach at sunset."
+- If Groq is tired, **Gemini** puts on its glasses and does the same thing.
+- This helps them write captions that actually *know* what's in your photo!
+
+**2. The "Bouncer" (Safety Check)**
+Before anyone sees a photo, it goes through a security checkpoint.
+- **Sightengine** is the main security guard. He's very strict.
+- **Cloudinary** is the backup guard.
+- If the photo is safe, they let it in. If not, they stop it.
+
+**3. The "Memory" (Local Storage)**
+Your browser (Chrome/Safari) has a little backpack called Local Storage.
+- Capsera puts small notes in there like "You've made 3 captions today" or "You like Dark Mode".
+- This means Capsera remembers you even if you close the tab!
+
+---
+
+
 ## 🤖 AI Provider System
 
 CaptionCraft uses a **dual-vision AI strategy** for maximum reliability and capacity.
@@ -444,6 +512,30 @@ Need help? Here are your options:
 - [ ] Deploy to Vercel/preferred platform
 
 ---
+
+## 🆕 Recent Changes (Last 3 Days)
+
+### 1. **Groq Vision Integration** 🚀
+- **What**: Switched from text-only Groq to **Groq Vision** (Llama 3.2 11B).
+- **Why**: The old system just guessed captions based on your description. The new system *sees* the image!
+- **Impact**: 10x better caption relevance.
+
+### 2. **Admin UI Overhaul** ✨
+- **What**: Applied "Magic UI" design to Admin pages.
+- **Features**: Glassmorphism cards, animated statistics, and real-time data.
+- **Fix**: Removed fake mock data; everything is now real live data from the database.
+
+### 3. **Consolidated Rate Limiter** ⏱️
+- **What**: Combined multiple rate limiters into one smart system.
+- **Why**: To prevent users from bypassing limits by switching devices or browsers.
+- **Tech**: Tracks usage by User ID (if logged in) AND IP address.
+
+### 4. **Analytics Fixes** 📈
+- **What**: Fixed the Analytics API that was crashing builds.
+- **Fix**: Corrected Mongoose query typing for accurate data fetching.
+
+---
+
 
 *Last updated: August 2024*
 *CaptionCraft v1.0 - AI-Powered Caption Generation*

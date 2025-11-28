@@ -38,23 +38,22 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
     console.log('🚀 Generating captions with Groq Vision (llama-3.2-11b-vision-preview)...');
 
     // Optimized prompt for vision model
-    const prompt = `Analyze this image and generate 3 unique, engaging social media captions.
+    // Optimized prompt for "Human-like" captions
+    const prompt = `Analyze this image and generate 3 unique social media captions.
 
 MOOD: ${mood}
 ${description ? `CONTEXT: ${description}` : ''}
 
-REQUIREMENTS:
-- Analyze the ACTUAL image content (colors, objects, people, setting, lighting, composition)
-- Each caption should be 10-25 words
-- Include 2-3 relevant hashtags per caption
-- Match the ${mood} mood perfectly
-- Reference specific visual elements you see in the image
-- Be engaging and shareable for Instagram/TikTok
-- Format as numbered list (1., 2., 3.)
+STRICT GUIDELINES FOR "HUMAN" CAPTIONS:
+1. 🚫 **NO ROBOTIC LANGUAGE**: Strictly AVOID words like "unleash", "elevate", "symphony", "tapestry", "testament", "realm", "embrace", "breathtaking".
+2. 🗣️ **BE AUTHENTIC**: Write like a real Gen Z/Millennial user. Use natural phrasing, lowercase if it fits the vibe, and casual tone.
+3. 📏 **VARY THE LENGTHS**:
+   - **Option 1 (Short & Aesthetic)**: 5-10 words. Minimalist and punchy.
+   - **Option 2 (Relatable/Witty)**: 10-20 words. A mood, a joke, or a vibe.
+   - **Option 3 (Storytelling)**: 20-35 words. detailed and engaging.
+4. 👁️ **VISUAL PROOF**: You MUST mention specific details from the image (colors, lighting, objects) to prove you saw it.
 
-IMPORTANT: Your captions MUST prove you analyzed the image by mentioning specific visual details!
-
-Generate exactly 3 captions:`;
+Generate exactly 3 captions formatted as a numbered list:`;
 
     // Make Groq Vision API call with image
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -382,6 +381,17 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
+
+    // Enhanced error logging for debugging
+    console.error('❌ CRITICAL ERROR in /api/generate-captions:', {
+      errorMessage: error.message,
+      errorStack: error.stack?.substring(0, 500),
+      errorName: error.name,
+      clientIP,
+      userEmail: session?.user?.email || 'anonymous',
+      processingTime,
+      timestamp: new Date().toISOString()
+    });
 
     // SMART: Use intelligent error handling
     const categorized = smartErrorHandler.categorizeError(error, {

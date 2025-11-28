@@ -111,59 +111,43 @@ const generateCaptionsPrompt = ai.definePrompt({
   name: 'generateCaptionsPrompt',
   input: { schema: GenerateCaptionsInputSchema },
   output: { schema: GenerateCaptionsOutputSchema },
-  prompt: `You are an expert social media content creator and image analyst specializing in viral captions for Gen Z audiences.
+  prompt: `You are a viral social media expert. Your goal is to write captions that sound 100% HUMAN and 0% AI.
 
   STEP 1: ANALYZE THE IMAGE
-  You have been provided with an image. Analyze its visual content carefully.
-  
-  IMPORTANT: You MUST analyze the actual image content you see. Do not generate generic captions.
-  
-  Describe what you actually see:
-  - What is the main subject? (person, animal, object, landscape, etc.)
-  - What are they doing or what's happening?
-  - What's the setting/location/background?
-  - What colors dominate the image?
-  - What's the lighting like? (bright, dark, golden hour, etc.)
-  - What's the composition and style?
-  - What emotions or mood does the image convey?
-  - Are there any text, brands, or notable details?
-  - What's the overall aesthetic and vibe?
+  Look closely at the image. Identify specific details: lighting, colors, objects, expressions, background.
 
   STEP 2: MATCH THE MOOD
   Target mood: {{{mood}}}
-  
-  {{#if description}}
-  Additional context provided: {{{description}}}
-  {{/if}}
+  {{#if description}}Context: {{{description}}}{{/if}}
 
-  STEP 3: CREATE CAPTIONS
-  Generate exactly 3 unique, viral-worthy captions that:
+  STEP 3: WRITE 3 "HUMAN" CAPTIONS
   
-  ✅ MUST directly reference what you see in the image (colors, objects, people, setting, etc.)
-  ✅ MUST match the specified mood/tone perfectly
-  ✅ MUST be engaging and shareable for TikTok, Instagram, and Snapchat
-  ✅ MUST include relevant emojis (2-4 per caption)
-  ✅ MUST include trending hashtags (3-5 per caption)
-  ✅ MUST be concise (under 150 characters each)
-  ✅ MUST feel authentic and relatable to Gen Z
+  🚫 **FORBIDDEN WORDS (DO NOT USE)**:
+  "Unleash", "Elevate", "Symphony", "Tapestry", "Testament", "Realm", "Embrace", "Breathtaking", "Immerse", "Captivate".
   
-  Each caption should have a different approach:
-  - Caption 1: Direct and descriptive about what's in the image
-  - Caption 2: Emotional/relatable angle based on the image content
-  - Caption 3: Trendy/playful with popular phrases/slang
+  ✅ **REQUIREMENTS**:
+  - Write like a real person (Gen Z/Millennial).
+  - Use natural slang/lingo where appropriate.
+  - Include 2-3 relevant emojis per caption.
+  - Include 3-5 mix of niche and popular hashtags.
+
+  📝 **CAPTION STYLES (Generate one of each)**:
   
-  CRITICAL REQUIREMENTS:
-  - Your captions MUST prove you analyzed the image by mentioning specific visual elements
-  - Reference actual colors, objects, people, actions, or settings you see
-  - DO NOT use generic captions that could apply to any image
-  - Each caption should feel like it was written by someone who actually saw this specific image
+  1. **The "Aesthetic" (Short & Punchy)**
+     - Length: 5-10 words
+     - Style: Minimalist, cool, "pinterest" vibe.
+     - Example: "Sunset state of mind. 🌅"
   
-  EXAMPLES of what to reference:
-  - "That golden sunset hitting different 🌅" (if you see a sunset)
-  - "Coffee shop vibes with that cozy lighting ☕" (if you see a coffee shop)
-  - "This blue dress is everything 💙" (if you see someone in a blue dress)
-  - "Beach waves and good vibes 🌊" (if you see a beach scene)
+  2. **The "Relatable" (Medium & Witty)**
+     - Length: 10-20 words
+     - Style: Conversational, maybe a question or a relatable thought.
+     - Example: "Thinking about pizza while looking this cute. 🍕✨"
   
+  3. **The "Storyteller" (Long & Detailed)**
+     - Length: 20-35 words
+     - Style: Descriptive, sets the scene, mentions specific visual details from the image.
+     - Example: "That golden hour light hitting the waves was just magic today. 🌊✨ Sometimes you just need to pause and breathe."
+
   Return exactly 3 captions in an array format.
   `,
 });
@@ -322,17 +306,13 @@ const generateCaptionsFlow = ai.defineFlow(
 MOOD: ${input.mood}
 ${input.description ? `CONTEXT: ${input.description}` : ''}
 
-REQUIREMENTS:
-- Analyze the actual image content (colors, objects, people, setting)
-- Match the mood perfectly
-- Include 2-4 emojis and 3-5 hashtags per caption
-- Keep under 150 characters each
-- Make each caption completely different in style
-
-CAPTION STYLES:
-1. Direct & descriptive (what you see)
-2. Emotional & relatable (how it feels) 
-3. Trendy & creative (current slang/viral phrases)
+STRICT GUIDELINES:
+1. 🚫 NO AI WORDS: Avoid "unleash", "elevate", "tapestry", "symphony".
+2. 🗣️ BE HUMAN: Write like a real person.
+3. 📏 VARY LENGTHS:
+   - Caption 1: Short (5-10 words)
+   - Caption 2: Medium (10-20 words)
+   - Caption 3: Long (20-35 words)
 
 Return as JSON array: ["caption1", "caption2", "caption3"]`
         },

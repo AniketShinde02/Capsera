@@ -55,15 +55,19 @@ export class CaptionCacheService {
       // Normalize prompt to ensure consistency
       const normalizedPrompt = prompt || 'default';
 
-      console.log(`🔑 Generated cache key: ${cacheKey.substring(0, 16)}...`);
+      // CRITICAL FIX: Include mood in the cache key to prevent collision
+      // This ensures different moods generate different captions
+      const moodSafeKey = `${cacheKey}_mood_${mood.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+      console.log(`🔑 Generated cache key: ${moodSafeKey.substring(0, 32)}...`);
       console.log(`🔍 Looking for cache entry with:`, {
-        imageHash: cacheKey.substring(0, 8) + '...',
+        imageHash: moodSafeKey.substring(0, 16) + '...',
         prompt: normalizedPrompt,
         mood: mood
       });
 
       const cacheEntry = await (CaptionCache as any).findOne({
-        imageHash: cacheKey,
+        imageHash: moodSafeKey,
         prompt: normalizedPrompt,
         mood
       });
@@ -75,7 +79,7 @@ export class CaptionCacheService {
           $set: { lastUsed: new Date() }
         });
 
-        console.log(`🎯 Cache HIT: Found existing captions for image hash ${cacheKey.substring(0, 8)}...`);
+        console.log(`🎯 Cache HIT: Found existing captions for key ${moodSafeKey.substring(0, 16)}...`);
 
         return {
           found: true,
@@ -85,7 +89,7 @@ export class CaptionCacheService {
         };
       }
 
-      console.log(`❌ Cache MISS: No existing captions for image hash ${cacheKey.substring(0, 8)}...`);
+      console.log(`❌ Cache MISS: No existing captions for key ${moodSafeKey.substring(0, 16)}...`);
 
       return {
         found: false,
@@ -146,10 +150,14 @@ export class CaptionCacheService {
       // Normalize prompt to ensure consistency
       const normalizedPrompt = prompt || 'default';
 
+      // CRITICAL FIX: Include mood in the cache key to prevent collision
+      // Must match the logic in checkCache
+      const moodSafeKey = `${cacheKey}_mood_${mood.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
       // Use upsert to avoid duplicate key errors
       let cacheEntry = await (CaptionCache as any).findOneAndUpdate(
         {
-          imageHash: cacheKey,
+          imageHash: moodSafeKey,
           prompt: normalizedPrompt,
           mood
         },
@@ -172,7 +180,7 @@ export class CaptionCacheService {
       );
 
       if (cacheEntry) {
-        console.log(`💾 Cache ${cacheEntry.usageCount > 1 ? 'UPDATED' : 'STORED'}: Entry for image hash ${cacheKey.substring(0, 8)}... (usage: ${cacheEntry.usageCount})`);
+        console.log(`💾 Cache ${cacheEntry.usageCount > 1 ? 'UPDATED' : 'STORED'}: Entry for key ${moodSafeKey.substring(0, 16)}... (usage: ${cacheEntry.usageCount})`);
       }
 
       return cacheEntry;

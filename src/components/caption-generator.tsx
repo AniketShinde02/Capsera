@@ -897,7 +897,8 @@ export function CaptionGenerator() {
     }
 
     // Validate that an image is uploaded
-    if (!uploadedFile) {
+    // Validate that an image is uploaded (either from file or URL)
+    if (!uploadedFile && !currentImageData) {
       setError("Please upload an image to generate captions.");
       return;
     }

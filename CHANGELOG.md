@@ -3,6 +3,27 @@
   - **20+ Keys Support**: System now dynamically loads `GEMINI_API_KEY_1` through `GEMINI_API_KEY_20`.
   - **Capacity**: Supports 30,000+ daily requests (with 20 keys) while avoiding rate limits.
 
+## [2025-11-28] - Image Vault & Moderation System Overhaul
+
+### 🛡️ Admin Image Vault
+- **Cloudinary Integration**: 
+  - Updated search logic to include all subfolders (`capsera_uploads*`, `capsera_archives*`).
+  - Fixed visibility of "orphan" images (files in Cloudinary but missing from DB).
+  - Implemented smart URL generation for private/upload resource types.
+- **Moderation Logic**:
+  - **Auto-Sync**: Moderating an orphan image now automatically creates its database record (`upsert: true`).
+  - **Persistence**: Resolved issues where status changes were not saving correctly.
+  - **Bulk Actions**: Fixed 404 errors by properly encoding `public_id`s with slashes.
+
+### ⚡ UI/UX Performance
+- **Optimistic UI**: 
+  - Implemented **Instant Reshuffling**: Grid updates immediately upon moderation action.
+  - **Smart Sorting**: "Pending" items are now forcibly sorted to the top.
+  - **Rollback System**: UI reverts automatically if the background API call fails.
+- **Ergonomics**:
+  - **Bulk Bar Relocation**: Moved bulk action controls from floating bottom bar to the top filter bar (next to "Select All") for faster access.
+  - **Instant Feedback**: Dialogs close immediately, and success toasts are non-blocking.
+
 ## [2025-11-28] - API Stability & Feedback UI
 
 ### 🔧 Critical API Fixes

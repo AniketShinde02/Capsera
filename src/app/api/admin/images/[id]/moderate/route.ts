@@ -23,53 +23,74 @@ export async function POST(
     }
 
     const { db } = await connectToDatabase();
-    const imageId = new ObjectId((await params).id);
+
+    // Decode the ID (it might be encoded if it contains slashes)
+    const rawId = (await params).id;
+    const decodedId = decodeURIComponent(rawId);
+
     const { action, notes, status } = await request.json();
 
-    console.log('🔄 Moderating image:', imageId, 'with action:', action);
+    console.log('🔄 Moderating image:', decodedId, 'with action:', action);
 
-    // Find the post (which contains the image) in the posts collection
-    const post = await db.collection('posts').findOne({
-      _id: imageId
-    });
-
-    if (!post) {
-      console.error('❌ Post not found:', imageId);
-      return NextResponse.json(
-        { error: 'Image not found' }, 
-        { status: 404 }
-      );
+    // Determine query: Try ObjectId first, then fallback to public_id
+    let query: any = {};
+    try {
+      query = { _id: new ObjectId(decodedId) };
+    } catch (e) {
+      // If not a valid ObjectId, treat as public_id (for orphan images)
+      query = {
+        $or: [
+          { publicId: decodedId },
+          { public_id: decodedId },
+          { 'image.public_id': decodedId },
+          { 'image.publicId': decodedId }
+        ]
+      };
     }
 
-    console.log('📊 Found post for moderation:', post._id);
-
-    // Update the post moderation status
-    const updateResult = await db.collection('posts').updateOne(
-      { _id: imageId },
-      { 
-        $set: { 
-          moderationStatus: action,
-          moderationNotes: notes,
-          moderationReason: notes,
-          status: status || action,
-          moderatedAt: new Date(),
-          moderatedBy: session.user.email,
-          updatedAt: new Date()
+    // Prepare update data
+    const updateData = {
+      $set: {
+        moderationStatus: action,
+        moderationNotes: notes,
+        moderationReason: notes,
+        status: status || action,
+        // Sync legacy fields for compatibility
+        isApproved: action === 'approve',
+        isFlagged: action === 'flag',
+        moderatedAt: new Date(),
+        moderatedBy: session.user.email,
+        updatedAt: new Date()
+      },
+      // If creating a new document (upsert), set these fields
+      $setOnInsert: {
+        createdAt: new Date(),
+        publicId: decodedId, // Ensure publicId is saved
+        source: 'cloudinary_orphan', // Mark as adopted orphan
+        image: {
+          public_id: decodedId,
         }
       }
+    };
+
+    // Update or Insert (Upsert)
+    const updateResult = await db.collection('posts').updateOne(
+      query,
+      updateData,
+      { upsert: true } // Create if not exists!
     );
 
-    console.log('✅ Post moderation updated:', updateResult.modifiedCount > 0);
+    console.log('✅ Post moderation updated:', updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0);
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Image ${action} successfully` 
+    return NextResponse.json({
+      success: true,
+      message: `Image ${action} successfully`
     });
 
   } catch (error) {
     console.error('Error moderating image:', error);
     return NextResponse.json(
-      { error: 'Failed to moderate image' }, 
+      { error: 'Failed to moderate image' },
       { status: 500 }
     );
   }

@@ -13,10 +13,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image as ImageIcon, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, Database, HardDrive, Clock } from 'lucide-react';
+import { Image as ImageIcon, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, Database, HardDrive, Clock, CheckSquare, Square, X } from 'lucide-react';
 import JSZip from 'jszip';
 import { MagicCard } from '@/components/admin/dashboard/magic-card';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ImageItem {
   id: string;
@@ -82,22 +83,33 @@ export default function ImageManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [formatFilter, setFormatFilter] = useState('all');
+
+  // Selection State
   const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Dialog States
   const [showModerationDialog, setShowModerationDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // Action States
   const [moderationNotes, setModerationNotes] = useState('');
   const [moderationAction, setModerationAction] = useState<'approve' | 'reject' | 'flag'>('approve');
   const [downloadingImage, setDownloadingImage] = useState<string | null>(null);
   const [exportingData, setExportingData] = useState(false);
   const [bulkDownloadProgress, setBulkDownloadProgress] = useState<{ current: number; total: number; zipSize?: string } | null>(null);
 
+  // Inline Feedback State
+  const [inlineMessage, setInlineMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [imagesPerPage] = useState(12);
   const [totalImages, setTotalImages] = useState(0);
 
-  // Plain text notification system
+  // Plain text notification system (Global fallback)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -105,7 +117,33 @@ export default function ImageManagementPage() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Download image functionality
+  // --- Selection Logic ---
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === currentImages.length) {
+      setSelectedIds(new Set());
+    } else {
+      const newSelected = new Set(currentImages.map(img => img.id));
+      setSelectedIds(newSelected);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  // --- Download Logic ---
+
   const downloadImage = async (image: ImageItem) => {
     try {
       setDownloadingImage(image.id);
@@ -157,7 +195,6 @@ export default function ImageManagementPage() {
     }
   };
 
-  // Download all images as ZIP
   const downloadAllImages = async () => {
     try {
       if (images.length === 0) {
@@ -231,7 +268,8 @@ export default function ImageManagementPage() {
     }
   };
 
-  // Export image data as CSV or JSON
+  // --- Export Logic ---
+
   const exportImageData = async (format: 'csv' | 'json') => {
     try {
       if (images.length === 0) {
@@ -323,7 +361,8 @@ export default function ImageManagementPage() {
     }
   };
 
-  // Fetch REAL data from database
+  // --- Data Fetching ---
+
   const fetchImages = async () => {
     try {
       setLoading(true);
@@ -346,7 +385,6 @@ export default function ImageManagementPage() {
     }
   };
 
-  // Silent background refresh function
   const fetchImagesSilently = async () => {
     try {
       const response = await fetch('/api/admin/images');
@@ -369,7 +407,8 @@ export default function ImageManagementPage() {
     }
   }, [session, status]);
 
-  // Filter images based on search and filters
+  // --- Filtering & Pagination ---
+
   const filteredImages = images.filter(image => {
     const matchesSearch = searchTerm === '' ||
       image.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -382,7 +421,6 @@ export default function ImageManagementPage() {
     return matchesSearch && matchesStatus && matchesFormat;
   });
 
-  // Pagination logic
   const indexOfLastImage = currentPage * imagesPerPage;
   const indexOfFirstImage = indexOfLastImage - imagesPerPage;
   const currentImages = filteredImages.slice(indexOfFirstImage, indexOfLastImage);
@@ -392,15 +430,44 @@ export default function ImageManagementPage() {
     setCurrentPage(page);
   };
 
+  // --- Moderation Logic ---
+
+  // Helper to sort images (Pending first, then Newest)
+  const sortImages = (imgs: ImageItem[]) => {
+    const statusPriority = { 'pending': 0, 'flagged': 1, 'approved': 2, 'rejected': 3 };
+    return [...imgs].sort((a, b) => {
+      const priorityA = statusPriority[a.status] ?? 99;
+      const priorityB = statusPriority[b.status] ?? 99;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+    });
+  };
+
   const handleModeration = async () => {
     if (!selectedImage) return;
-    if (!moderationNotes.trim()) {
-      showNotification("Please enter moderation notes", "error");
-      return;
-    }
+
+    setIsProcessing(true);
+    setInlineMessage(null);
+
+    // Optimistic Update (Instant)
+    const previousImages = [...images];
+    setImages(prev => {
+      const updated = prev.map(img =>
+        img.id === selectedImage.id
+          ? { ...img, status: moderationAction === 'approve' ? 'approved' : moderationAction === 'reject' ? 'rejected' : 'flagged' } as ImageItem
+          : img
+      );
+      return sortImages(updated);
+    });
+
+    // Close dialog immediately for speed
+    setShowModerationDialog(false);
+    setSelectedImage(null);
+    setModerationNotes('');
+    setModerationAction('approve');
 
     try {
-      const response = await fetch(`/api/admin/images/${selectedImage.id}/moderate`, {
+      const response = await fetch(`/api/admin/images/${encodeURIComponent(selectedImage.id)}/moderate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -412,28 +479,104 @@ export default function ImageManagementPage() {
       });
 
       if (response.ok) {
-        showNotification(`Image ${moderationAction}d successfully`, "success");
-        setTimeout(() => fetchImages(), 1000);
-        setShowModerationDialog(false);
-        setSelectedImage(null);
-        setModerationNotes('');
-        setModerationAction('approve');
+        setInlineMessage({ type: 'success', text: `Image ${moderationAction}d successfully!` });
+        setInlineMessage(null);
       } else {
+        // Revert on failure
+        setImages(previousImages);
         const errorData = await response.json();
-        showNotification(`Failed to moderate image: ${errorData.error || 'Unknown error'}`, "error");
+        showNotification(`Failed: ${errorData.error || 'Unknown error'}`, 'error');
       }
     } catch (error) {
-      showNotification("Network error", "error");
+      // Revert on network error
+      setImages(previousImages);
+      showNotification("Network error occurred.", 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+    setSelectedIds(new Set()); // Clear selection
+    setIsProcessing(false);
+  };
+
+  const handleBulkModeration = async (action: 'approve' | 'reject' | 'flag' | 'delete') => {
+    if (selectedIds.size === 0) return;
+
+    setIsProcessing(true);
+
+    // Optimistic Update (Instant)
+    const previousImages = [...images];
+
+    if (action === 'delete') {
+      setImages(prev => prev.filter(img => !selectedIds.has(img.id)));
+    } else {
+      const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'flagged';
+      setImages(prev => {
+        const updated = prev.map(img =>
+          selectedIds.has(img.id) ? { ...img, status: newStatus } as ImageItem : img
+        );
+        return sortImages(updated);
+      });
+    }
+
+    // Clear selection immediately
+    const idsToProcess = new Set(selectedIds);
+    setSelectedIds(new Set());
+
+    // Process in background
+    let successCount = 0;
+    let failCount = 0;
+
+    const promises = Array.from(idsToProcess).map(async (id) => {
+      try {
+        let response;
+        if (action === 'delete') {
+          response = await fetch(`/api/admin/images/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        } else {
+          response = await fetch(`/api/admin/images/${encodeURIComponent(id)}/moderate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: action,
+              notes: 'Bulk action applied',
+              status: action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'flagged'
+            })
+          });
+        }
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        failCount++;
+      }
+    });
+
+    try {
+      await Promise.all(promises);
+
+      if (failCount > 0) {
+        showNotification(`Bulk Action: ${successCount} successful, ${failCount} failed. Refreshing...`, 'error');
+        fetchImages(); // Refresh to ensure consistency
+      } else {
+        showNotification(`Bulk Action Complete: ${successCount} processed`, 'success');
+      }
+    } catch (error) {
+      // Major failure
+      setImages(previousImages); // Revert all
+      showNotification("Bulk action failed completely", 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleDeleteImage = async (imageId: string) => {
     try {
-      const response = await fetch(`/api/admin/images/${imageId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/admin/images/${encodeURIComponent(imageId)}`, { method: 'DELETE' });
 
       if (response.ok) {
         setImages(prev => prev.filter(img => img.id !== imageId));
-        setTimeout(() => fetchImages(), 1000);
         setShowDeleteDialog(false);
         setSelectedImage(null);
         showNotification("Image deleted successfully", "success");
@@ -463,9 +606,9 @@ export default function ImageManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-8">
+    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-8 relative">
 
-      {/* Notification Toast */}
+      {/* Notification Toast (Global Fallback) */}
       {notification && (
         <div className={cn(
           "fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-md transition-all duration-300 animate-in slide-in-from-right-10",
@@ -569,41 +712,102 @@ export default function ImageManagementPage() {
 
       {/* Filters & Grid */}
       <div className="space-y-6">
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 p-4 rounded-[2rem] bg-card border border-border">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search images..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-background border-none text-foreground h-10 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+        {/* Filters & Selection Controls */}
+        <div className="flex flex-col md:flex-row gap-4 p-4 rounded-[2rem] bg-card border border-border items-center transition-all duration-300">
+          <div className="flex items-center gap-2 mr-2">
+            <Checkbox
+              checked={selectedIds.size === currentImages.length && currentImages.length > 0}
+              onCheckedChange={selectAll}
+              className="border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Select All</span>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border text-foreground">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="flagged">Flagged</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={formatFilter} onValueChange={setFormatFilter}>
-            <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">
-              <SelectValue placeholder="Format" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border text-foreground">
-              <SelectItem value="all">All Formats</SelectItem>
-              <SelectItem value="JPEG">JPEG</SelectItem>
-              <SelectItem value="PNG">PNG</SelectItem>
-              <SelectItem value="GIF">GIF</SelectItem>
-              <SelectItem value="WEBP">WEBP</SelectItem>
-            </SelectContent>
-          </Select>
+
+          {selectedIds.size > 0 ? (
+            <div className="flex-1 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-left-5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
+                  {selectedIds.size} Selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="h-8 text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleBulkModeration('approve')}
+                  className="bg-green-500 hover:bg-green-600 text-white border-none h-9"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" /> Approve
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleBulkModeration('reject')}
+                  className="bg-red-500 hover:bg-red-600 text-white border-none h-9"
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Reject
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleBulkModeration('flag')}
+                  className="bg-orange-500 hover:bg-orange-600 text-white border-none h-9"
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" /> Flag
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleBulkModeration('delete')}
+                  className="h-9"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="relative flex-1 w-full animate-in fade-in">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search images..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-background border-none text-foreground h-10 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border text-foreground">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="flagged">Flagged</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={formatFilter} onValueChange={setFormatFilter}>
+                <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">
+                  <SelectValue placeholder="Format" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border text-foreground">
+                  <SelectItem value="all">All Formats</SelectItem>
+                  <SelectItem value="JPEG">JPEG</SelectItem>
+                  <SelectItem value="PNG">PNG</SelectItem>
+                  <SelectItem value="GIF">GIF</SelectItem>
+                  <SelectItem value="WEBP">WEBP</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
         </div>
 
         {/* Images Grid */}
@@ -616,8 +820,23 @@ export default function ImageManagementPage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {currentImages.map((image) => (
-              <div key={image.id} className="group relative bg-card rounded-xl overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all border border-border">
+              <div
+                key={image.id}
+                className={cn(
+                  "group relative bg-card rounded-xl overflow-hidden transition-all border",
+                  selectedIds.has(image.id) ? "ring-2 ring-primary border-primary" : "border-border hover:ring-2 hover:ring-primary/50"
+                )}
+              >
                 <div className="aspect-square relative overflow-hidden bg-muted/20">
+                  {/* Selection Checkbox Overlay */}
+                  <div className="absolute top-2 left-2 z-20">
+                    <Checkbox
+                      checked={selectedIds.has(image.id)}
+                      onCheckedChange={() => toggleSelection(image.id)}
+                      className="border-white/80 bg-black/40 data-[state=checked]:bg-primary data-[state=checked]:border-primary h-5 w-5"
+                    />
+                  </div>
+
                   {image.thumbnailUrl && image.thumbnailUrl !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image' ? (
                     <img
                       src={image.thumbnailUrl}
@@ -638,7 +857,7 @@ export default function ImageManagementPage() {
                   </div>
 
                   {/* Overlay Actions */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10">
                     <Button
                       size="icon"
                       variant="ghost"
@@ -665,8 +884,8 @@ export default function ImageManagementPage() {
                     </Button>
                   </div>
 
-                  <div className="absolute top-2 left-2">
-                    <Badge className={cn("text-[10px] border-none", getStatusColor(image.status))}>
+                  <div className="absolute top-2 right-2 z-0">
+                    <Badge className={cn("text-[10px] border-none shadow-sm", getStatusColor(image.status))}>
                       {image.status}
                     </Badge>
                   </div>
@@ -714,6 +933,10 @@ export default function ImageManagementPage() {
         )}
       </div>
 
+
+
+
+
       {/* Moderation Dialog */}
       <Dialog open={showModerationDialog} onOpenChange={setShowModerationDialog}>
         <DialogContent className="max-w-2xl bg-card border-border text-foreground">
@@ -723,6 +946,17 @@ export default function ImageManagementPage() {
           </DialogHeader>
           {selectedImage && (
             <div className="space-y-4">
+              {/* Inline Feedback Message */}
+              {inlineMessage && (
+                <div className={cn(
+                  "p-3 rounded-lg flex items-center gap-2 text-sm font-medium animate-in fade-in slide-in-from-top-2",
+                  inlineMessage.type === 'success' ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-red-600 dark:text-red-400"
+                )}>
+                  {inlineMessage.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                  {inlineMessage.text}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <h4 className="font-medium text-foreground">Details</h4>
@@ -731,9 +965,19 @@ export default function ImageManagementPage() {
                     <span className="text-muted-foreground">Size:</span> <span className="text-foreground">{selectedImage.size}</span>
                     <span className="text-muted-foreground">Uploaded:</span> <span className="text-foreground">{new Date(selectedImage.uploadedAt).toLocaleDateString()}</span>
                     <span className="text-muted-foreground">By:</span> <span className="text-foreground">{selectedImage.uploadedBy}</span>
+                    <span className="text-muted-foreground">Current Status:</span>
+                    <Badge className={cn("w-fit text-[10px] border-none", getStatusColor(selectedImage.status))}>
+                      {selectedImage.status}
+                    </Badge>
                   </div>
                 </div>
-                <div className="aspect-video bg-background rounded-lg overflow-hidden flex items-center justify-center border border-border">
+                <div className="aspect-video bg-background rounded-lg overflow-hidden flex items-center justify-center border border-border relative">
+                  {/* Status Overlay on Image */}
+                  <div className="absolute top-2 right-2">
+                    <Badge className={cn("shadow-md", getStatusColor(selectedImage.status))}>
+                      {selectedImage.status}
+                    </Badge>
+                  </div>
                   {selectedImage.thumbnailUrl ? (
                     <img src={selectedImage.thumbnailUrl} alt="Preview" className="max-h-full max-w-full object-contain" />
                   ) : <ImageIcon className="text-muted-foreground" />}
@@ -744,16 +988,24 @@ export default function ImageManagementPage() {
                 <label className="text-sm font-medium text-foreground">Action</label>
                 <div className="flex gap-4">
                   {['approve', 'reject', 'flag'].map((action) => (
-                    <label key={action} className="flex items-center gap-2 cursor-pointer">
+                    <label key={action} className={cn(
+                      "flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border transition-all",
+                      moderationAction === action
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "border-border hover:bg-accent"
+                    )}>
                       <input
                         type="radio"
                         name="moderation"
                         value={action}
                         checked={moderationAction === action}
                         onChange={(e) => setModerationAction(e.target.value as any)}
-                        className="accent-primary"
+                        className="hidden"
                       />
-                      <span className="capitalize text-foreground">{action}</span>
+                      <span className="capitalize font-medium">{action}</span>
+                      {action === 'approve' && <CheckCircle className="w-4 h-4" />}
+                      {action === 'reject' && <XCircle className="w-4 h-4" />}
+                      {action === 'flag' && <AlertTriangle className="w-4 h-4" />}
                     </label>
                   ))}
                 </div>
@@ -764,7 +1016,7 @@ export default function ImageManagementPage() {
                 <Textarea
                   value={moderationNotes}
                   onChange={(e) => setModerationNotes(e.target.value)}
-                  placeholder="Enter moderation notes..."
+                  placeholder="Enter moderation notes (optional)..."
                   className="bg-background border-border text-foreground resize-none focus-visible:ring-primary"
                   rows={3}
                 />
@@ -772,7 +1024,20 @@ export default function ImageManagementPage() {
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="ghost" onClick={() => setShowModerationDialog(false)} className="text-muted-foreground hover:text-foreground">Cancel</Button>
-                <Button onClick={handleModeration} className="bg-primary hover:bg-primary/90 text-primary-foreground">Apply Action</Button>
+                <Button
+                  onClick={handleModeration}
+                  disabled={isProcessing}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[120px]"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    "Apply Action"
+                  )}
+                </Button>
               </div>
             </div>
           )}
@@ -800,7 +1065,6 @@ export default function ImageManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

@@ -10,7 +10,7 @@ import dbConnect from '@/lib/db';
 import { clientPromise } from '@/lib/db';
 import { checkRateLimit, generateRateLimitKey, DEFAULT_RATE_LIMITS } from '@/lib/unified-rate-limiter';
 // Content safety removed - AI providers handle this automatically
-import { 
+import {
   generateCaptions as multiProviderGenerateCaptions,
   initializeMultiProviderSystem,
   getProviderStatus,
@@ -57,11 +57,11 @@ function getCachedCaptions(key: string): GenerateCaptionsOutput | null {
     console.log(`🎯 Cache HIT for key: ${key.substring(0, 50)}...`);
     return { ...cached, cached: true };
   }
-  
+
   if (cached) {
     captionCache.delete(key); // Remove expired cache
   }
-  
+
   return null;
 }
 
@@ -79,11 +79,11 @@ function setCachedCaptions(key: string, result: GenerateCaptionsOutput): void {
  * Multi-Provider Caption Generation Flow
  * Uses intelligent provider routing for optimal performance
  */
-export const generateCaptionsFlowMulti = 
+export const generateCaptionsFlowMulti =
   async (input: GenerateCaptionsInput): Promise<GenerateCaptionsOutput> => {
     const startTime = Date.now();
     const timings: Record<string, number> = {};
-    
+
     console.log('🚀 Starting Multi-Provider Caption Generation Flow');
     console.log(`📊 Input: mood="${input.mood}", description="${input.description || 'none'}"`);
 
@@ -104,12 +104,12 @@ export const generateCaptionsFlowMulti =
         console.log('🔒 Checking rate limits...');
         const rateLimitKey = generateRateLimitKey(input.userId, input.ipAddress);
         const rateLimitResult = await checkRateLimit(rateLimitKey, 20, 24, input.userId || '', input.ipAddress || '');
-        
+
         if (!rateLimitResult.allowed) {
           const resetTime = new Date(rateLimitResult.resetTime).toLocaleString();
           throw new Error(`Rate limit exceeded. Reset at: ${resetTime}`);
         }
-        
+
         timings.rateLimit = Date.now() - startTime;
         console.log(`✅ Rate limit check passed in ${timings.rateLimit}ms`);
       }
@@ -120,7 +120,7 @@ export const generateCaptionsFlowMulti =
 
       // 🎯 MULTI-PROVIDER GENERATION: Use intelligent provider routing
       console.log('🎯 Generating captions with multi-provider system...');
-      
+
       const providerRequest: AIProviderRequest = {
         imageUrl: input.imageUrl,
         mood: input.mood,
@@ -143,29 +143,32 @@ Examine and describe:
 - Unique details or standout elements
 
 STEP 2: CAPTION CREATION
-Create 3 distinct captions that:
-1. Reference specific visual elements you see in the image
-2. Match the mood: "${input.mood}"
-3. Include 2-3 relevant emojis
-4. Add 2-3 trending hashtags
-5. Keep under 150 characters
+Create 3 distinct captions that sound 100% HUMAN and 0% AI.
 
-Make each caption unique:
-- First: Direct & descriptive about what you see
-- Second: Emotional & relatable based on the image
-- Third: Trendy & creative using current phrases
+🚫 **FORBIDDEN WORDS**:
+"Unleash", "Elevate", "Symphony", "Tapestry", "Testament", "Realm", "Embrace", "Breathtaking".
+
+✅ **REQUIREMENTS**:
+- Write like a real Gen Z/Millennial.
+- Use natural slang/lingo.
+- Include 2-3 relevant emojis.
+- Add 3-5 mix of niche and popular hashtags.
+
+📝 **CAPTION STYLES**:
+1. **Short & Aesthetic** (5-10 words): Minimalist, cool.
+2. **Relatable & Witty** (10-20 words): Conversational, fun.
+3. **Storytelling** (20-35 words): Detailed, sets the scene.
 
 RULES:
 ✓ MUST mention actual things from the image
 ✓ MUST match the requested mood perfectly
 ✓ Make each caption completely different
-✓ Be authentic and engaging for social media
-✓ NO generic captions - prove you analyzed this specific image`
-       
+✓ Be authentic and engaging for social media`
+
       };
 
       const result = await multiProviderGenerateCaptions(providerRequest);
-      
+
       if (!result.success || !result.captions || result.captions.length === 0) {
         throw new Error(`Caption generation failed: ${result.error || 'Unknown error'}`);
       }
@@ -200,7 +203,7 @@ RULES:
     } catch (error: any) {
       const totalTime = Date.now() - startTime;
       console.error(`❌ Multi-Provider Caption Generation failed after ${totalTime}ms:`, error);
-      
+
       // Log provider status for debugging
       const status = getProviderStatus();
       if (status) {
@@ -213,14 +216,14 @@ RULES:
           }))
         });
       }
-      
+
       throw error;
     }
   };
 
 // Save caption to database (async, non-blocking)
 async function saveCaptionToDatabase(
-  input: GenerateCaptionsInput, 
+  input: GenerateCaptionsInput,
   output: GenerateCaptionsOutput,
   provider: string
 ): Promise<void> {

@@ -17,10 +17,10 @@ export class HuggingFaceProvider extends BaseAIProvider {
     this.apiKey = config.apiKey;
     this.model = config.model || 'microsoft/DialoGPT-medium';
     this.endpoint = config.endpoint || 'https://api-inference.huggingface.co/models';
-    
+
     // Your custom model endpoint (replace with your actual space URL)
-    this.customModelEndpoint = process.env.HUGGINGFACE_CUSTOM_MODEL_ENDPOINT || 
-                              'https://your-username-capsera-caption-model.hf.space';
+    this.customModelEndpoint = process.env.HUGGINGFACE_CUSTOM_MODEL_ENDPOINT ||
+      'https://your-username-capsera-caption-model.hf.space';
 
     if (!this.apiKey) {
       throw new Error('Hugging Face API key is required');
@@ -42,10 +42,10 @@ export class HuggingFaceProvider extends BaseAIProvider {
 
       // Try custom model first, fallback to generic model
       const useCustomModel = !this.customModelEndpoint.includes('your-username');
-      
+
       if (useCustomModel) {
         console.log(`🚀 Using custom Capsera model: ${this.customModelEndpoint}`);
-        
+
         const response = await fetch(`${this.customModelEndpoint}/api/predict`, {
           method: 'POST',
           headers: {
@@ -63,7 +63,7 @@ export class HuggingFaceProvider extends BaseAIProvider {
         if (response.ok) {
           const data = await response.json();
           const captions = this.extractCaptionsFromCustomModel(data);
-          
+
           const processingTime = Date.now() - startTime;
           console.log(`✅ Custom model captions generated in ${processingTime}ms`);
 
@@ -213,15 +213,25 @@ export class HuggingFaceProvider extends BaseAIProvider {
 
     const moodDesc = moodDescriptions[mood as keyof typeof moodDescriptions] || mood;
 
-    return `Generate a social media caption for an image with a ${moodDesc} mood.${
-      description ? ` Image description: ${description}` : ''
-    } Make it engaging, 10-25 words, include hashtags. Caption:`;
+    return `Generate 3 unique social media captions for an image with a ${moodDesc} mood.${description ? ` Image description: ${description}` : ''
+      }
+
+STRICT GUIDELINES FOR "HUMAN" CAPTIONS:
+1. 🚫 **NO ROBOTIC LANGUAGE**: Strictly AVOID words like "unleash", "elevate", "symphony", "tapestry", "testament", "realm", "embrace", "breathtaking".
+2. 🗣️ **BE AUTHENTIC**: Write like a real Gen Z/Millennial user. Use natural phrasing, lowercase if it fits the vibe, and casual tone.
+3. 📏 **VARY THE LENGTHS**:
+   - **Option 1 (Short & Aesthetic)**: 5-10 words. Minimalist and punchy.
+   - **Option 2 (Relatable/Witty)**: 10-20 words. A mood, a joke, or a vibe.
+   - **Option 3 (Storytelling)**: 20-35 words. detailed and engaging.
+4. 👁️ **VISUAL PROOF**: You MUST mention specific details from the image (colors, lighting, objects) to prove you saw it.
+
+Generate exactly 3 captions formatted as a numbered list:`;
   }
 
   private extractCaptions(content: string): string[] {
     // Hugging Face typically returns one caption, so we generate variations
     const baseCaption = content.trim();
-    
+
     if (!baseCaption) {
       return [
         'Amazing moment captured! ✨ #photography #life',
@@ -232,7 +242,7 @@ export class HuggingFaceProvider extends BaseAIProvider {
 
     // Create 3 variations of the base caption
     const captions = [baseCaption];
-    
+
     // Variation 1: Add emoji
     const withEmoji = baseCaption + ' ✨';
     if (withEmoji !== baseCaption) {
@@ -264,19 +274,19 @@ export class HuggingFaceProvider extends BaseAIProvider {
           return captions;
         }
       }
-      
+
       // Fallback: try to extract from text response
       if (data.data && typeof data.data === 'string') {
         const text = data.data;
         const lines = text.split('\n').filter(line => line.trim());
         return lines.slice(0, 3);
       }
-      
+
       // If no valid response, return default captions
       console.warn('⚠️ Custom model returned unexpected format, using fallback captions');
       return [
         'Amazing moment captured! ✨ #photography #life',
-        'Perfect shot! 📸 #memories #beautiful', 
+        'Perfect shot! 📸 #memories #beautiful',
         'Incredible view! 🌟 #nature #wonder'
       ];
     } catch (error) {

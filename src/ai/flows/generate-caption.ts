@@ -217,10 +217,10 @@ const generateCaptionsFlow = ai.defineFlow(
           return { blocked: false }; // Continue on error (fail-safe)
         });
 
-      // Wait for safety check with timeout (max 3 seconds)
+      // Wait for safety check with timeout (max 1.5 seconds - optimized for speed)
       const safetyResult = await Promise.race([
         safetyCheckPromise,
-        new Promise(resolve => setTimeout(() => resolve({ blocked: false }), 3000))
+        new Promise(resolve => setTimeout(() => resolve({ blocked: false }), 1500))
       ]);
 
       if (safetyResult.blocked) {

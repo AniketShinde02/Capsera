@@ -60,7 +60,7 @@ export class GroqProvider extends BaseAIProvider {
           messages: [
             {
               role: 'system',
-              content: 'You are a professional social media caption generator. Generate exactly 3 unique, engaging captions for the given image and mood. Each caption should be 10-25 words, include relevant hashtags, and match the specified mood perfectly.'
+              content: 'You are a professional social media caption generator. Generate exactly 3 unique, engaging captions that sound 100% HUMAN. Avoid AI cliches like "unleash" or "elevate". Vary lengths: Short (5-10 words), Medium (10-20 words), Long (20-35 words).'
             },
             {
               role: 'user',
@@ -75,7 +75,7 @@ export class GroqProvider extends BaseAIProvider {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         // Handle content safety responses (400 Bad Request with safety flags)
         if (response.status === 400 && errorData.error?.message?.includes('safety')) {
           console.warn('⚠️ Content flagged by Groq safety filters');
@@ -86,7 +86,7 @@ export class GroqProvider extends BaseAIProvider {
             false // Don't retry safety violations
           );
         }
-        
+
         // Handle content policy violations
         if (response.status === 400 && errorData.error?.message?.includes('policy')) {
           console.warn('⚠️ Content policy violation detected by Groq');
@@ -97,14 +97,14 @@ export class GroqProvider extends BaseAIProvider {
             false // Don't retry policy violations
           );
         }
-        
+
         // Mark key as exhausted if rate limited
         if (response.status === 429) {
           const retryAfter = response.headers.get('retry-after');
           const retrySeconds = retryAfter ? parseInt(retryAfter) : 300;
           groqKeyManager.markKeyExhausted(keyResult.index, retrySeconds);
         }
-        
+
         throw new GroqAPIError(
           `Groq API error: ${response.status} ${response.statusText}`,
           response.status,
@@ -198,18 +198,19 @@ export class GroqProvider extends BaseAIProvider {
 
     const moodDesc = moodDescriptions[mood as keyof typeof moodDescriptions] || mood;
 
-    return `Generate 3 unique social media captions for an image with a ${moodDesc} mood.${
-      description ? ` Image description: ${description}` : ''
-    }
+    return `Generate 3 unique social media captions for an image with a ${moodDesc} mood.${description ? ` Image description: ${description}` : ''
+      }
 
-Requirements:
-- Each caption should be 10-25 words
-- Include 2-3 relevant hashtags per caption
-- Match the ${moodDesc} mood perfectly
-- Be engaging and shareable
-- Format as numbered list (1., 2., 3.)
+STRICT GUIDELINES FOR "HUMAN" CAPTIONS:
+1. 🚫 **NO ROBOTIC LANGUAGE**: Strictly AVOID words like "unleash", "elevate", "symphony", "tapestry", "testament", "realm", "embrace", "breathtaking".
+2. 🗣️ **BE AUTHENTIC**: Write like a real Gen Z/Millennial user. Use natural phrasing, lowercase if it fits the vibe, and casual tone.
+3. 📏 **VARY THE LENGTHS**:
+   - **Option 1 (Short & Aesthetic)**: 5-10 words. Minimalist and punchy.
+   - **Option 2 (Relatable/Witty)**: 10-20 words. A mood, a joke, or a vibe.
+   - **Option 3 (Storytelling)**: 20-35 words. detailed and engaging.
+4. 👁️ **VISUAL PROOF**: You MUST mention specific details from the image (colors, lighting, objects) to prove you saw it.
 
-Generate exactly 3 captions:`;
+Generate exactly 3 captions formatted as a numbered list:`;
   }
 
   private extractCaptions(content: string): string[] {
@@ -229,7 +230,7 @@ Generate exactly 3 captions:`;
       const fallbackCaptions = lines
         .filter(line => line.length > 10 && line.length < 200)
         .slice(0, 3);
-      
+
       if (fallbackCaptions.length > 0) {
         return fallbackCaptions;
       }

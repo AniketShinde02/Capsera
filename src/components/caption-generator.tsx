@@ -367,8 +367,8 @@ export function CaptionGenerator() {
   // Enhanced image compression function for large files
   const compressImageForUpload = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
-      // Only compress if file is larger than 5MB
-      const maxSizeMB = 5;
+      // Only compress if file is larger than 2MB (Optimized for speed)
+      const maxSizeMB = 2;
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
       if (file.size <= maxSizeBytes) {
@@ -404,11 +404,11 @@ export function CaptionGenerator() {
           // Draw and compress with quality based on original size
           ctx?.drawImage(img, 0, 0, width, height);
 
-          // Adjust quality based on file size
+          // Adjust quality based on file size for faster uploads
           let quality = 0.8;
-          if (file.size > 10 * 1024 * 1024) { // > 10MB
+          if (file.size > 5 * 1024 * 1024) { // > 5MB
             quality = 0.6;
-          } else if (file.size > 7 * 1024 * 1024) { // > 7MB
+          } else if (file.size > 2 * 1024 * 1024) { // > 2MB
             quality = 0.7;
           }
 
@@ -1763,6 +1763,25 @@ export function CaptionGenerator() {
                         accept="image/png, image/jpeg, image/gif"
                         onChange={handleImageChange}
                       />
+                    </div>
+
+                    {/* Mobile-Friendly URL Upload Button */}
+                    <div className="px-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = prompt('Enter image URL (e.g., https://example.com/image.jpg):');
+                          if (url && url.trim()) {
+                            handleUrlUpload(url.trim());
+                          }
+                        }}
+                        className="w-full text-xs py-2 h-auto border-dashed hover:bg-primary/5"
+                      >
+                        <Upload className="w-3 h-3 mr-2" />
+                        Or paste image URL
+                      </Button>
                     </div>
 
                     {/* Compact Error Display for Non-Monthly Limit Errors - Mobile Responsive */}

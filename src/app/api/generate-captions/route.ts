@@ -55,89 +55,109 @@ STRICT GUIDELINES FOR "HUMAN" CAPTIONS:
 
 Generate exactly 3 captions formatted as a numbered list:`;
 
-    // Make Groq Vision API call with image
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.2-11b-vision-preview', // 🎯 VISION MODEL - Can see images!
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a professional social media caption generator with image analysis capabilities. Analyze the image carefully and generate captions that reference specific visual elements you see.'
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageUrl
+    // Make Groq Vision API call with image (with 8s timeout for fast fallback)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.2-11b-vision-preview', // 🎯 VISION MODEL - Can see images!
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional social media caption generator with image analysis capabilities. Analyze the image carefully and generate captions that reference specific visual elements you see.'
+            },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: prompt
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: imageUrl
+                  }
                 }
-              }
-            ]
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-        stream: false
-      })
-    });
+              ]
+            }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+          stream: false
+        }),
+        signal: controller.signal
+      });
 
-    const processingTime = Date.now() - startTime;
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Groq Vision API error:', response.status, errorData);
+      const processingTime = Date.now() - startTime;
 
-      const errorMessage = errorData.error?.message || `Groq Vision API error: ${response.status}`;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Groq Vision API error:', response.status, errorData);
+
+        const errorMessage = errorData.error?.message || `Groq Vision API error: ${response.status}`;
+
+        return {
+          success: false,
+          error: errorMessage,
+          processingTime
+        };
+      }
+
+      const data = await response.json();
+      const content = data.choices[0]?.message?.content || '';
+
+      // Extract captions
+      const lines = content.split('\n').filter(line => line.trim());
+      const captions = [];
+
+      for (const line of lines) {
+        const match = line.match(/^\d+[\.\)]\s*(.+)$/);
+        if (match && match[1]) {
+          captions.push(match[1].trim());
+        }
+      }
+
+      // Fallback extraction
+      if (captions.length === 0) {
+        captions.push(...lines.filter(line => line.length > 10 && line.length < 200).slice(0, 3));
+      }
+
+      // Ensure 3 captions
+      while (captions.length < 3) {
+        captions.push(captions[captions.length - 1] || 'Great moment captured! 📸 #Life #Beautiful');
+      }
+
+      console.log(`✅ Groq Vision captions generated in ${processingTime}ms`);
+      console.log(`🎯 Vision-based captions (analyzed actual image):`, captions.slice(0, 3));
 
       return {
-        success: false,
-        error: errorMessage,
+        success: true,
+        captions: captions.slice(0, 3),
         processingTime
       };
-    }
 
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content || '';
-
-    // Extract captions
-    const lines = content.split('\n').filter(line => line.trim());
-    const captions = [];
-
-    for (const line of lines) {
-      const match = line.match(/^\d+[\.\)]\s*(.+)$/);
-      if (match && match[1]) {
-        captions.push(match[1].trim());
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        console.error('⏱️ Groq Vision timed out after 8s');
+        return {
+          success: false,
+          error: 'Groq Vision request timed out',
+          processingTime: Date.now() - startTime
+        };
       }
+      throw error;
     }
-
-    // Fallback extraction
-    if (captions.length === 0) {
-      captions.push(...lines.filter(line => line.length > 10 && line.length < 200).slice(0, 3));
-    }
-
-    // Ensure 3 captions
-    while (captions.length < 3) {
-      captions.push(captions[captions.length - 1] || 'Great moment captured! 📸 #Life #Beautiful');
-    }
-
-    console.log(`✅ Groq Vision captions generated in ${processingTime}ms`);
-    console.log(`🎯 Vision-based captions (analyzed actual image):`, captions.slice(0, 3));
-
-    return {
-      success: true,
-      captions: captions.slice(0, 3),
-      processingTime
-    };
 
   } catch (error: any) {
     console.error('❌ Groq Vision generation error:', error);

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 import { canManageAdmins } from '@/lib/init-admin';
+import { cloudinary } from '@/lib/cloudinary';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,195 +21,220 @@ export async function GET(request: NextRequest) {
 
     const { db } = await connectToDatabase();
 
-    // Check total posts in database
-    const totalPosts = await db.collection('posts').countDocuments({});
-    console.log(`📊 Total posts in database: ${totalPosts}`);
-    
-    // Check posts with different image fields
-    const postsWithImage = await db.collection('posts').countDocuments({ image: { $exists: true, $ne: null } });
-    const postsWithImageUrl = await db.collection('posts').countDocuments({ imageUrl: { $exists: true, $ne: null } });
-    const postsWithSecureUrl = await db.collection('posts').countDocuments({ secure_url: { $exists: true, $ne: null } });
-    const postsWithPublicUrl = await db.collection('posts').countDocuments({ publicUrl: { $exists: true, $ne: null } });
-    
-    console.log(`🔍 Posts breakdown:`);
-    console.log(`  - With 'image' field: ${postsWithImage}`);
-    console.log(`  - With 'imageUrl' field: ${postsWithImageUrl}`);
-    console.log(`  - With 'secure_url' field: ${postsWithSecureUrl}`);
-    console.log(`  - With 'publicUrl' field: ${postsWithPublicUrl}`);
+    // 1. Fetch ALL images from Cloudinary (capsera_uploads and capsera_archives)
+    console.log('☁️ Fetching images from Cloudinary...');
 
-    // Fetch REAL images from the posts collection where image field exists
+    // Search for all images in both folders including subfolders
+    // Using wildcard to match all resources within these folders
+    const cloudinaryResult = await cloudinary.search
+      .expression('resource_type:image AND (folder:capsera_uploads* OR folder:capsera_archives*)')
+      .sort_by('created_at', 'desc')
+      .max_results(500) // Cloudinary max is 500 per request
+      .with_field('context')
+      .with_field('tags')
+      .execute();
+
+    const cloudResources = cloudinaryResult.resources || [];
+    console.log(`☁️ Cloudinary Search Results:`);
+    console.log(`   - Total found: ${cloudResources.length}`);
+    console.log(`   - Total available: ${cloudinaryResult.total_count}`);
+    console.log(`   - Next cursor: ${cloudinaryResult.next_cursor ? 'Yes (more results available)' : 'No'}`);
+
+    if (cloudResources.length === 0) {
+      console.warn('⚠️ No images found in Cloudinary! Check folder names and upload configuration.');
+    }
+
+    // 2. Fetch ALL posts from MongoDB to map metadata
     const posts = await db.collection('posts')
-      .find({ 
+      .find({
         $or: [
           { image: { $exists: true, $ne: null } },
           { imageUrl: { $exists: true, $ne: null } },
           { secure_url: { $exists: true, $ne: null } },
           { publicUrl: { $exists: true, $ne: null } }
-        ],
-        isDeleted: { $ne: true }
+        ]
       })
-      .sort({ createdAt: -1 })
       .toArray();
 
-    console.log(`📸 Found ${posts.length} images in database`);
-    
-    // Debug: Check first post structure
-    if (posts.length > 0) {
-      console.log('🔍 First post structure:', JSON.stringify(posts[0], null, 2));
-    }
+    // Create a lookup map for fast access by public_id or URL
+    const postMap = new Map();
 
-    // Transform posts to image items with real data
-    const images = await Promise.all(posts.map(async (post, index) => {
-      // Get user info for the post
-      let uploadedBy = 'Unknown User';
-      let userEmail = 'unknown@example.com';
-      
-      if (post.userId) {
-        try {
-          // Try to find user in both collections
-          let user = await db.collection('users').findOne({ _id: post.userId });
-          if (!user) {
-            user = await db.collection('adminusers').findOne({ _id: post.userId });
-          }
-          
-          if (user) {
-            uploadedBy = user.username || user.email || 'Unknown User';
-            userEmail = user.email || 'unknown@example.com';
-          }
-        } catch (error) {
-          console.warn('Could not fetch user info for post:', post.userId);
+    posts.forEach(post => {
+      // Extract public_id from post if available
+      let publicId = post.publicId || post.public_id || post.image?.publicId || post.image?.public_id;
+
+      // If no publicId, try to extract from URL
+      if (!publicId) {
+        const url = post.imageUrl || post.image?.url || post.image?.secure_url || post.secure_url;
+        if (url) {
+          const match = url.match(/\/upload\/(?:v\d+\/)?([^\/]+(?:\/[^\/]+)*?)(?:\.\w+)?$/);
+          if (match) publicId = match[1];
         }
       }
 
-      // Extract image data from post
-      const imageData = post.image;
-      console.log('🔍 Post structure for:', post._id);
-      console.log('  - post.image type:', typeof post.image);
-      console.log('  - post.image value:', JSON.stringify(post.image, null, 2));
-      console.log('  - post.imageUrl:', post.imageUrl);
-      console.log('  - post.secure_url:', post.secure_url);
-      console.log('  - post.publicUrl:', post.publicUrl);
-      
-      // Try multiple possible image URL fields
-      let imageUrl = '';
-      
-      // First try: post.image object fields
-      if (imageData) {
-        imageUrl = imageData.url || imageData.secure_url || imageData.publicUrl || imageData.imageUrl || '';
-        console.log('🔍 URL from imageData:', imageUrl);
+      if (publicId) {
+        postMap.set(publicId, post);
       }
-      
-      // Second try: direct post fields
-      if (!imageUrl) {
-        imageUrl = post.imageUrl || post.image_url || post.secureUrl || post.secure_url || post.publicUrl || post.public_url || '';
-        console.log('🔍 URL from direct post fields:', imageUrl);
+    });
+
+    console.log(`📚 Mapped ${postMap.size} posts from database`);
+
+    // 3. Merge Data: Create Image Items
+    const images = await Promise.all(cloudResources.map(async (resource: any) => {
+      const publicId = resource.public_id;
+      const post = postMap.get(publicId);
+
+      // Default values (if not in DB)
+      let uploadedBy = 'Anonymous / Unlinked';
+      let status = 'pending';
+      let tags = ['cloudinary', 'orphan'];
+      let moderationNotes = '';
+      let flaggedReason = '';
+      let uploadedAt = resource.created_at;
+      let id = publicId; // Use public_id as ID if no DB ID
+
+      // If found in DB, override with DB data
+      if (post) {
+        id = post._id.toString();
+        uploadedAt = post.createdAt || post.created_at || resource.created_at;
+
+        // Status logic (prioritize 'status' field)
+        status = post.status || post.moderationStatus || (
+          post.isApproved === false ? 'rejected' :
+            post.isFlagged ? 'flagged' :
+              post.isApproved === true ? 'approved' : 'pending'
+        );
+
+        tags = post.tags || post.caption?.split(' ').slice(0, 3) || ['caption', 'generated', 'ai'];
+        moderationNotes = post.moderationNotes || '';
+        flaggedReason = post.flaggedReason || '';
+
+        // Fetch user info if available
+        if (post.userId) {
+          try {
+            const user = await db.collection('users').findOne({ _id: post.userId });
+            if (user) {
+              uploadedBy = user.username || user.email || 'Unknown User';
+            }
+          } catch (e) {
+            // Ignore user fetch error
+          }
+        }
       }
-      
-      // Third try: check if post has a direct image field
-      if (!imageUrl && typeof post.image === 'string') {
-        imageUrl = post.image;
-        console.log('🔍 URL from post.image string:', imageUrl);
+
+      // Generate URLs - detect if private or public
+      // Cloudinary resources have a 'type' field: 'upload' (public) or 'private'
+      const resourceType = resource.type || 'upload'; // Default to 'upload' (public)
+      const isPrivate = resourceType === 'private';
+
+      let signedImageUrl = resource.secure_url; // Fallback to direct URL
+      let thumbnailUrl = resource.secure_url;
+
+      try {
+        if (isPrivate) {
+          // Generate signed URLs for private images
+          signedImageUrl = cloudinary.url(publicId, {
+            type: 'private',
+            sign_url: true,
+            secure: true,
+            expires_at: Math.floor(Date.now() / 1000) + 3600
+          });
+
+          thumbnailUrl = cloudinary.url(publicId, {
+            type: 'private',
+            sign_url: true,
+            secure: true,
+            transformation: [
+              { width: 200, height: 200, crop: 'fill' },
+              { quality: 'auto' }
+            ],
+            expires_at: Math.floor(Date.now() / 1000) + 3600
+          });
+        } else {
+          // Generate optimized URLs for public images (no signing needed)
+          signedImageUrl = cloudinary.url(publicId, {
+            secure: true,
+            fetch_format: 'auto',
+            quality: 'auto'
+          });
+
+          thumbnailUrl = cloudinary.url(publicId, {
+            secure: true,
+            transformation: [
+              { width: 200, height: 200, crop: 'fill' },
+              { quality: 'auto' },
+              { fetch_format: 'auto' }
+            ]
+          });
+        }
+      } catch (urlError) {
+        console.error(`❌ Failed to generate URL for ${publicId}:`, urlError);
+        // Keep fallback URLs (resource.secure_url)
       }
-      
-      console.log('🔍 Final image URL found:', imageUrl);
-      
-      // Generate optimized thumbnail URL for Cloudinary
-      let thumbnailUrl = imageUrl;
-      
-      // If it's a Cloudinary URL, optimize it for thumbnails
-      if (imageUrl && imageUrl.includes('res.cloudinary.com')) {
-        // Add Cloudinary transformations for thumbnails: w_200,h_200,c_fill,q_auto
-        thumbnailUrl = imageUrl.replace('/upload/', '/upload/w_200,h_200,c_fill,q_auto/');
-        console.log('🔍 Optimized Cloudinary thumbnail:', thumbnailUrl);
-      } else if (imageUrl && imageUrl.includes('ik.imagekit.io')) {
-        // If it's ImageKit, add optimization
-        thumbnailUrl = imageUrl + '?tr=w-200,h-200';
-        console.log('🔍 Optimized ImageKit thumbnail:', thumbnailUrl);
-      }
-      
-      console.log('🔍 Thumbnail URL set to:', thumbnailUrl);
-      
-      // If still no image URL, provide a fallback placeholder
-      if (!imageUrl) {
-        imageUrl = 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image';
-        console.log('🔍 Using fallback placeholder image');
-      }
-      
-      // Calculate file size (estimate based on URL or use default)
-      const estimatedSize = imageUrl ? '2.5 MB' : '1.8 MB';
-      
-      // Get dimensions from image data if available
-      const dimensions = imageData?.width && imageData?.height 
-        ? `${imageData.width}x${imageData.height}`
-        : '1920x1080';
-      
-      // Get format from URL or use default
-      const format = imageUrl ? imageUrl.split('.').pop()?.toUpperCase() || 'JPEG' : 'JPEG';
-      
-      // Generate status based on post data
-      const status = post.isApproved === false ? 'rejected' : 
-                    post.isFlagged ? 'flagged' : 
-                    post.isApproved === true ? 'approved' : 'pending';
-      
-      // Generate tags from post content or use defaults
-      const tags = post.tags || post.caption?.split(' ').slice(0, 3) || ['caption', 'generated', 'ai'];
-      
-      // Calculate storage metrics (real data only)
-      const totalSizeMB = posts.length * 2.5; // Estimate 2.5MB per image
-      const usedStorage = `${totalSizeMB.toFixed(1)} MB`;
-      const storagePercentage = 0; // We don't know actual storage limits
-      
+
       return {
-        id: post._id.toString(),
-        filename: imageData?.filename || `image_${index + 1}.${format.toLowerCase()}`,
-        originalName: imageData?.originalName || `Image ${index + 1}`,
-        size: estimatedSize,
-        dimensions: dimensions,
-        format: format,
+        id: id,
+        filename: `${publicId.split('/').pop()}.${resource.format}`,
+        originalName: resource.filename || publicId.split('/').pop(),
+        size: `${(resource.bytes / 1024 / 1024).toFixed(2)} MB`,
+        dimensions: `${resource.width}x${resource.height}`,
+        format: resource.format.toUpperCase(),
         uploadedBy: uploadedBy,
-        uploadedAt: post.createdAt || post.created_at || new Date().toISOString(),
+        uploadedAt: uploadedAt,
         status: status,
         tags: tags,
-        url: imageUrl,
+        url: signedImageUrl,
         thumbnailUrl: thumbnailUrl,
-        moderationNotes: post.moderationNotes || '',
-        flaggedReason: post.flaggedReason || '',
-        storageLocation: 'ImageKit',
-        accessCount: Math.floor(Math.random() * 100) + 1, // Simulate access count
-        lastAccessed: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() // Random date within last week
+        moderationNotes: moderationNotes,
+        flaggedReason: flaggedReason,
+        storageLocation: post ? 'Cloudinary (Linked)' : 'Cloudinary (Orphan)',
+        accessCount: 0,
+        lastAccessed: new Date().toISOString()
       };
     }));
 
-    // Calculate real storage metrics
+    // Sort images: Pending first, then by date
+    const statusPriority = { 'pending': 0, 'flagged': 1, 'approved': 2, 'rejected': 3 };
+
+    images.sort((a, b) => {
+      // First, sort by status priority
+      const priorityA = statusPriority[a.status as keyof typeof statusPriority] ?? 99;
+      const priorityB = statusPriority[b.status as keyof typeof statusPriority] ?? 99;
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // If status is same, sort by date (newest first)
+      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+    });
+
+    // Calculate Metrics
     const totalImages = images.length;
-    const totalSizeMB = totalImages * 2.5; // Estimate 2.5MB per image
-    const usedStorage = `${totalSizeMB.toFixed(1)} MB`;
-    const storagePercentage = 0; // We don't know actual storage limits
-    
-    // Calculate time-based metrics
+    const totalSizeBytes = cloudResources.reduce((acc: number, res: any) => acc + res.bytes, 0);
+    const totalSizeMB = totalSizeBytes / 1024 / 1024;
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-    
+
     const imagesToday = images.filter(img => new Date(img.uploadedAt) >= today).length;
     const imagesThisWeek = images.filter(img => new Date(img.uploadedAt) >= weekAgo).length;
     const imagesThisMonth = images.filter(img => new Date(img.uploadedAt) >= monthAgo).length;
-    
-    const averageImageSize = totalImages > 0 ? `${(totalSizeMB / totalImages).toFixed(1)} MB` : '0 MB';
 
     const storageMetrics = {
       totalImages,
       totalSize: `${totalSizeMB.toFixed(1)} MB`,
-      usedStorage,
-      storagePercentage,
+      usedStorage: `${totalSizeMB.toFixed(1)} MB`,
+      availableStorage: '25 GB', // Placeholder
+      storagePercentage: 0,
       imagesToday,
       imagesThisWeek,
       imagesThisMonth,
-      averageImageSize
+      averageImageSize: totalImages > 0 ? `${(totalSizeMB / totalImages).toFixed(1)} MB` : '0 MB'
     };
 
-    // Calculate moderation queue
     const moderationQueue = {
       pending: images.filter(img => img.status === 'pending').length,
       flagged: images.filter(img => img.status === 'flagged').length,
@@ -216,7 +242,7 @@ export async function GET(request: NextRequest) {
       approved: images.filter(img => img.status === 'approved').length
     };
 
-    console.log(`📊 Image stats: ${totalImages} total, ${imagesToday} today, ${storagePercentage.toFixed(1)}% storage used`);
+    console.log(`✅ Returning ${totalImages} images to client`);
 
     return NextResponse.json({
       success: true,
@@ -227,9 +253,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching images:', error);
+    console.error('❌ Error fetching images:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch images' },
+      { error: 'Failed to fetch images', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

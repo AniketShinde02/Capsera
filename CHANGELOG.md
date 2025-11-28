@@ -1,6 +1,62 @@
-# Changelog
+- **Massive Scalability**:
+  - **Round-Robin Load Balancing**: Implemented smart rotation for Gemini API keys.
+  - **20+ Keys Support**: System now dynamically loads `GEMINI_API_KEY_1` through `GEMINI_API_KEY_20`.
+  - **Capacity**: Supports 30,000+ daily requests (with 20 keys) while avoiding rate limits.
 
-All notable changes to the Capsera AI Caption Generator project are documented in this file.
+## [2025-11-28] - Image Vault & Moderation System Overhaul
+
+### 🛡️ Admin Image Vault
+- **Cloudinary Integration**: 
+  - Updated search logic to include all subfolders (`capsera_uploads*`, `capsera_archives*`).
+  - Fixed visibility of "orphan" images (files in Cloudinary but missing from DB).
+  - Implemented smart URL generation for private/upload resource types.
+- **Moderation Logic**:
+  - **Auto-Sync**: Moderating an orphan image now automatically creates its database record (`upsert: true`).
+  - **Persistence**: Resolved issues where status changes were not saving correctly.
+  - **Bulk Actions**: Fixed 404 errors by properly encoding `public_id`s with slashes.
+
+### ⚡ UI/UX Performance
+- **Optimistic UI**: 
+  - Implemented **Instant Reshuffling**: Grid updates immediately upon moderation action.
+  - **Smart Sorting**: "Pending" items are now forcibly sorted to the top.
+  - **Rollback System**: UI reverts automatically if the background API call fails.
+- **Ergonomics**:
+  - **Bulk Bar Relocation**: Moved bulk action controls from floating bottom bar to the top filter bar (next to "Select All") for faster access.
+  - **Instant Feedback**: Dialogs close immediately, and success toasts are non-blocking.
+
+## [2025-11-28] - API Stability & Feedback UI
+
+### 🔧 Critical API Fixes
+- **Groq Vision Fallback**: Implemented a robust "Double Fallback" system.
+  - **Primary**: Gemini 1.5 Flash (Google) - Best Quality.
+  - **Secondary**: Groq Vision (`llama-3.2-90b-vision-preview`) - Replaced decommissioned `11b` model.
+  - **Tertiary**: Groq Text (`llama-3.1-70b-versatile`) - **New Failsafe**. If vision fails, captions are generated from description/mood.
+- **Error Handling**: Fixed `503 Service Unavailable` errors by catching vision model failures and routing to text model.
+
+### 🎨 UI/UX Enhancements
+- **Feedback Mechanism**:
+  - **Homepage Banner**: Replaced simple text with a premium, glassmorphism-style "Shape the Future" banner.
+  - **Floating Widget**: Updated copy to be more persuasive ("Want a specific feature?" vs "Help us improve").
+  - **Visuals**: Removed excessive glow effects for a cleaner, more professional look.
+
+### 📝 Documentation
+- **API Docs**: Fully updated `docs/API_DOCUMENTATION.md` with:
+  - `curl` examples for all endpoints.
+  - Correct JSON payloads for testing.
+  - Clear authentication flows.
+
+### ⚡ Performance & Safety
+- **Safety Check Optimization**:
+  - **Primary**: Sightengine (High Accuracy).
+  - **Fallback**: Cloudinary AWS Rekognition (High Quota).
+  - **Result**: Robust safety without needing extra API keys.
+- **Speed**:
+  - Reduced safety check timeout to 1.5s.
+  - Added 8s timeout to Groq Vision for faster failover.
+
+### 📝 Documentation
+- Updated `docs/MULTI_PROVIDER_AI_SETUP.md` with new strategy and scaling guide.
+- Updated `docs/help.md` with new "Gemini First" explanation.
 
 ## [2025-11-26] - TypeScript Fixes & Hero UI Enhancement
 
@@ -17,6 +73,45 @@ All notable changes to the Capsera AI Caption Generator project are documented i
   - Implemented animated shine effect on hover
   - Enhanced shadow and glow effects for premium feel
   - Increased button size (h-16, px-12) for better prominence
+
+## [2025-11-27] - Premium UI Redesign (Contact, About, Header)
+
+### 🎨 UI/UX Overhaul
+- **Contact Page Redesign**: Implemented a "Single Window" glassmorphism interface.
+  - **Unified Layout**: Replaced card-heavy design with a sleek, single-pane glass container.
+  - **Inline Validation**: Added real-time, auto-clearing error messages below inputs.
+  - **Success Animation**: Replaced standard toasts with an in-place success view transition.
+  - **Backend Integration**: Fixed subject dropdown mapping to match Mongoose enums.
+- **Header & Footer Refinement**:
+  - **Compact Header**: Reduced height (`h-14`) and padding for a cleaner look.
+  - **Centered Navigation**: Absolutely positioned nav links for perfect centering.
+  - **Compact Footer**: Tightened spacing and reduced icon sizes.
+- **About Page Updates**:
+  - **Team Section**: Updated founder image with custom upload.
+  - **Image Protection**: Implemented Level 2 protection (CSS background-image, disabled context menu, transparent overlays) to prevent casual copying.
+
+## [2025-11-27] - Social Sharing, SEO & Brand Refresh
+
+### 🚀 New Features
+- **One-Click Social Sharing**: Added a share button to Caption Cards with support for:
+  - **Twitter/X**: Direct post composition
+  - **WhatsApp**: Direct message sharing
+  - **LinkedIn**: Feed sharing integration
+  - **Instagram**: Smart copy-and-prompt flow
+  - **Native Sharing**: Uses Web Share API on mobile devices when available
+
+### 🔍 SEO & AEO (Answer Engine Optimization)
+- **Crawler-Only Content**: Implemented hidden FAQ & "How it Works" sections for AI/LLM indexing without cluttering the UI.
+- **Structured Data**: Added `SoftwareApplication` and `FAQPage` JSON-LD schemas to boost rich results.
+- **Metadata Optimization**: Updated titles and descriptions to target "viral caption generator" keywords.
+
+### 🎨 UI/UX Enhancements
+- **Brand Identity**: Deployed new modern `logo-v2.png` and implemented "Space Grotesk" font for the "Capsera" brand name.
+- **Mobile Experience**: Disabled pinch-to-zoom for a native app-like feel.
+- **Button Styling**: Optimized "Start Generating" button (removed sparkles, improved responsiveness).
+
+### 🐛 Bug Fixes
+- **Content Safety**: Fixed silent failures when AI flagged content (e.g., "seduction") by adding specific, friendly error messages and client-side validation.
 
 ## [2025-11-26] - Next Level UI Transformation
 

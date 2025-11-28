@@ -120,33 +120,33 @@ const generateCaptionsPrompt = ai.definePrompt({
   Target mood: {{{mood}}}
   {{#if description}}Context: {{{description}}}{{/if}}
 
-  STEP 3: WRITE 3 "HUMAN" CAPTIONS
+  STEP 3: WRITE 3 "VIRAL" CAPTIONS
   
-  🚫 **FORBIDDEN WORDS (DO NOT USE)**:
-  "Unleash", "Elevate", "Symphony", "Tapestry", "Testament", "Realm", "Embrace", "Breathtaking", "Immerse", "Captivate".
+  🚫 **FORBIDDEN WORDS**: "Unleash", "Elevate", "Symphony", "Tapestry", "Testament", "Realm", "Embrace".
   
   ✅ **REQUIREMENTS**:
-  - Write like a real person (Gen Z/Millennial).
-  - Use natural slang/lingo where appropriate.
-  - Include 2-3 relevant emojis per caption.
-  - Include 3-5 mix of niche and popular hashtags.
+  - **Length**: 30-50 words per caption. (No short captions).
+  - **Tone**: High energy, confident, relatable.
+  - **Structure**: Hook -> Visual Detail -> Vibe -> Question/Closing.
+  - **Emojis**: Use 3-5 relevant emojis mixed naturally into the text.
+  - **Hashtags**: 3-5 mix of niche and popular hashtags.
 
-  📝 **CAPTION STYLES (Generate one of each)**:
+  📝 **CAPTION STYLES**:
   
-  1. **The "Aesthetic" (Short & Punchy)**
-     - Length: 5-10 words
-     - Style: Minimalist, cool, "pinterest" vibe.
-     - Example: "Sunset state of mind. 🌅"
+  1. **The "Hype" Caption**:
+     - Focus on confidence and energy.
+     - Mention specific colors or outfit details.
+     - Example: "Obsessed with how this red dress turned out! 💃 The way the light hits this color is just magical. ✨ Feeling absolutely unstoppable today. What's your power color? ❤️"
   
-  2. **The "Relatable" (Medium & Witty)**
-     - Length: 10-20 words
-     - Style: Conversational, maybe a question or a relatable thought.
-     - Example: "Thinking about pizza while looking this cute. 🍕✨"
+  2. **The "Vibe" Caption**:
+     - Focus on the atmosphere and feeling.
+     - Describe the setting or lighting.
+     - Example: "That golden hour glow is hitting different today. 🌅 Soaking up every bit of this peaceful energy. Sometimes you just need to pause and breathe. ✨🍃"
   
-  3. **The "Storyteller" (Long & Detailed)**
-     - Length: 20-35 words
-     - Style: Descriptive, sets the scene, mentions specific visual details from the image.
-     - Example: "That golden hour light hitting the waves was just magic today. 🌊✨ Sometimes you just need to pause and breathe."
+  3. **The "Story" Caption**:
+     - A mini-story or relatable thought about the image.
+     - Make it conversational.
+     - Example: "POV: You finally found the perfect spot for coffee. ☕ The aesthetic here is unmatched and the vibes are immaculate. Who wants to join me next time? 🥐✨"
 
   Return exactly 3 captions in an array format.
   `,
@@ -308,11 +308,9 @@ ${input.description ? `CONTEXT: ${input.description}` : ''}
 
 STRICT GUIDELINES:
 1. 🚫 NO AI WORDS: Avoid "unleash", "elevate", "tapestry", "symphony".
-2. 🗣️ BE HUMAN: Write like a real person.
-3. 📏 VARY LENGTHS:
-   - Caption 1: Short (5-10 words)
-   - Caption 2: Medium (10-20 words)
-   - Caption 3: Long (20-35 words)
+2. 📏 LENGTH: 30-50 words each.
+3. 💎 STRUCTURE: Hook + Visuals + Vibe + Question.
+4. 🗣️ TONE: Enthusiastic and authentic.
 
 Return as JSON array: ["caption1", "caption2", "caption3"]`
         },
@@ -343,10 +341,10 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
         error.message.includes('content policy') ||
         error.message.includes('SAFETY')
       )) {
-        throw new Error(`Content flagged by safety filters. Please adjust your description or try a different image.`);
+        throw new Error(`Content flagged by safety filters.Please adjust your description or try a different image.`);
       }
 
-      throw new Error(`AI generation failed: ${error.message}`);
+      throw new Error(`AI generation failed: ${error.message} `);
     }
 
     // ⚡ SPEED OPTIMIZATION: Fast response parsing
@@ -387,7 +385,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
     }
 
     timings.parsing = Date.now() - startTime - timings.safetyCheck - timings.rateLimit - timings.aiGeneration;
-    console.log(`⚡ Response parsing completed in ${timings.parsing}ms`);
+    console.log(`⚡ Response parsing completed in ${timings.parsing} ms`);
 
     // Validate that we have valid captions
     if (captions.length === 0 || captions.every(caption => !caption || caption.trim() === '')) {
@@ -421,7 +419,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
           return postsCollection.insertOne(postToInsert);
         })
         .then(result => {
-          console.log(`✅ Caption set saved successfully with ID: ${result.insertedId}`);
+          console.log(`✅ Caption set saved successfully with ID: ${result.insertedId} `);
         })
         .catch(error => {
           console.error('⚠️ Failed to save caption set to database (non-blocking):', error);
@@ -433,12 +431,12 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
 
     // ⚡ PERFORMANCE SUMMARY: Log total timing breakdown
     timings.total = Date.now() - startTime;
-    console.log(`⚡ PERFORMANCE SUMMARY:`);
-    console.log(`   Content Safety: ${timings.safetyCheck}ms`);
-    console.log(`   Rate Limiting: ${timings.rateLimit}ms`);
-    console.log(`   AI Generation: ${timings.aiGeneration}ms`);
-    console.log(`   Response Parsing: ${timings.parsing}ms`);
-    console.log(`   TOTAL TIME: ${timings.total}ms`);
+    console.log(`⚡ PERFORMANCE SUMMARY: `);
+    console.log(`   Content Safety: ${timings.safetyCheck} ms`);
+    console.log(`   Rate Limiting: ${timings.rateLimit} ms`);
+    console.log(`   AI Generation: ${timings.aiGeneration} ms`);
+    console.log(`   Response Parsing: ${timings.parsing} ms`);
+    console.log(`   TOTAL TIME: ${timings.total} ms`);
 
     return { captions };
   }

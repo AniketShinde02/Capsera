@@ -2,6 +2,30 @@
 
 All notable changes to the Capsera AI Caption Generator project are documented in this file.
 
+## [2025-11-28] - AI Strategy Update: Gemini First & Scalability
+
+### 🤖 AI Provider Strategy Update
+- **Gemini as Primary**: Switched primary provider from Groq Vision to **Gemini 1.5 Flash**.
+  - **Why?** Gemini generates significantly more creative, "viral", and human-like captions with better understanding of slang and visual nuances.
+  - **Fallback**: Groq Vision (Llama 3.2) is now the ultra-fast fallback provider.
+- **Massive Scalability**:
+  - **Round-Robin Load Balancing**: Implemented smart rotation for Gemini API keys.
+  - **20+ Keys Support**: System now dynamically loads `GEMINI_API_KEY_1` through `GEMINI_API_KEY_20`.
+  - **Capacity**: Supports 30,000+ daily requests (with 20 keys) while avoiding rate limits.
+
+### ⚡ Performance & Safety
+- **Safety Check Optimization**:
+  - **Primary**: Sightengine (High Accuracy).
+  - **Fallback**: Cloudinary AWS Rekognition (High Quota).
+  - **Result**: Robust safety without needing extra API keys.
+- **Speed**:
+  - Reduced safety check timeout to 1.5s.
+  - Added 8s timeout to Groq Vision for faster failover.
+
+### 📝 Documentation
+- Updated `docs/MULTI_PROVIDER_AI_SETUP.md` with new strategy and scaling guide.
+- Updated `docs/help.md` with new "Gemini First" explanation.
+
 ## [2025-11-26] - TypeScript Fixes & Hero UI Enhancement
 
 ### 🐛 Bug Fixes

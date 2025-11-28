@@ -2,15 +2,14 @@
 
 ## 🚀 **Overview**
 
-The Multi-Provider AI System intelligently routes caption generation requests across multiple AI providers (Groq, Gemini, Hugging Face) for optimal performance, reliability, and cost efficiency.
+The Multi-Provider AI System intelligently routes caption generation requests across multiple AI providers (Gemini, Groq, Hugging Face) for optimal quality, performance, and reliability.
 
 ### **Key Benefits:**
-- **🚀 3-5x Faster**: Groq provides ultra-fast inference (2-5 seconds vs 10-15 seconds)
-- **💰 19.2x More Free Requests**: Groq's 28,800/day (2 keys) vs Gemini's 1,500/day
-- **🛡️ 99.9% Uptime**: Automatic failover between providers
-- **🎯 Smart Routing**: Intelligent provider selection based on speed and availability
-- **⚡ Optimized Flow**: Removed redundant content safety checks (saves 2-3 seconds)
-- **🛡️ Built-in Safety**: Uses provider's advanced safety mechanisms
+- **💎 Superior Quality**: **Gemini 1.5 Flash** (Primary) provides significantly more creative, human-like, and "viral" captions than smaller models.
+- **🚀 High Scalability**: Support for **up to 20 Gemini API keys**, allowing for 30,000+ daily requests (1,500 * 20).
+- **🛡️ 99.9% Uptime**: Automatic failover to **Groq Vision** (Llama 3.2) if Google services are down or rate-limited.
+- **⚡ Smart Load Balancing**: Round-robin key rotation for Gemini to maximize throughput (up to 300 requests/minute with 20 keys).
+- **🛡️ Robust Safety**: Dual-layer safety checks (Sightengine -> Cloudinary) protect your API keys.
 
 ---
 
@@ -23,19 +22,21 @@ Add these to your `.env` file:
 # MULTI-PROVIDER AI SYSTEM CONFIGURATION
 # ========================================
 
-# 🔥 GROQ API (Primary Provider - Fastest)
-GROQ_API_KEY_1=your_first_groq_key
-GROQ_API_KEY_2=your_second_groq_key
-# Get your keys from: https://console.groq.com/keys
-
-# 🔮 GEMINI API (Secondary Provider - Reliable)
+# 💎 GEMINI API (Primary Provider - Best Quality)
+# You can add up to 20 keys for massive scale!
 GEMINI_API_KEY_1=your_gemini_key_1
 GEMINI_API_KEY_2=your_gemini_key_2
 GEMINI_API_KEY_3=your_gemini_key_3
 GEMINI_API_KEY_4=your_gemini_key_4
+# ... up to GEMINI_API_KEY_20
 # Get your keys from: https://aistudio.google.com/app/apikey
 
-# 🤗 HUGGING FACE API (Fallback Provider - Free)
+# 🔥 GROQ API (Fallback Provider - Fastest)
+GROQ_API_KEY_1=your_first_groq_key
+GROQ_API_KEY_2=your_second_groq_key
+# Get your keys from: https://console.groq.com/keys
+
+# 🤗 HUGGING FACE API (Emergency Fallback)
 HUGGINGFACE_API_KEY=your_huggingface_token_here
 # Get your token from: https://huggingface.co/settings/tokens
 
@@ -52,27 +53,25 @@ NEXTAUTH_URL=http://localhost:3000
 
 ## 🎯 **Provider Configuration**
 
-### **🔥 Groq (Primary Provider)**
-- **Speed**: 3-5x faster than Gemini (2-5 seconds vs 10-15 seconds)
-- **Free Tier**: 14,400 requests/day per key (28,800 with 2 keys)
-- **Rate Limit**: 30 requests/minute per key (60 with 2 keys)
-- **Models**: `llama-3.1-8b-instant` (optimized for speed), `llama-3.3-70b-versatile`
-- **Cost**: $0.50 per 1M tokens
-- **Safety**: Built-in content filtering and policy enforcement
+### **💎 Gemini (Primary Provider)**
+- **Role**: **Quality & Creativity Leader**
+- **Model**: `gemini-1.5-flash` (High intelligence, multimodal)
+- **Quality**: Excellent at "viral" style, slang, and visual details.
+- **Free Tier**: 1,500 requests/day **per key**.
+- **Scalability**: Supports up to **20 keys** automatically (30,000 requests/day total).
+- **Rate Limit**: 15 requests/minute per key (scales linearly with more keys).
 
-### **🔮 Gemini (Secondary Provider)**
-- **Speed**: 5-10 seconds average
-- **Free Tier**: 1,500 requests/day
-- **Rate Limit**: 60 requests/minute
-- **Models**: `gemini-1.5-flash`, `gemini-1.5-pro`
-- **Cost**: $0.001 per request
+### **🔥 Groq Vision (Fallback Provider)**
+- **Role**: **Speed & Backup**
+- **Model**: `llama-3.2-11b-vision-preview`
+- **Speed**: Ultra-fast (2-5 seconds).
+- **Free Tier**: 14,400 requests/day per key.
+- **Use Case**: Activates instantly if Gemini is busy, rate-limited, or down.
 
-### **🤗 Hugging Face (Fallback Provider)**
-- **Speed**: 8-15 seconds average
-- **Free Tier**: 1,000 requests/month
-- **Rate Limit**: 10 requests/minute
-- **Models**: `microsoft/DialoGPT-medium`, `gpt2`
-- **Cost**: Free (with limitations)
+### **🤗 Hugging Face (Emergency Fallback)**
+- **Role**: **Last Resort**
+- **Model**: `microsoft/DialoGPT-medium`
+- **Use Case**: Text-only fallback if all vision models fail.
 
 ---
 
@@ -80,47 +79,39 @@ NEXTAUTH_URL=http://localhost:3000
 
 ### **1. Get API Keys**
 
+#### **Gemini API Keys (Recommended: 4+):**
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Create a new project for each key (to maximize quotas).
+3. Generate an API key for each project.
+4. Add them as `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, etc.
+
 #### **Groq API Keys:**
 1. Visit [Groq Console](https://console.groq.com/keys)
-2. Sign up/login with Google/GitHub
-3. Create 2 new API keys
-4. Copy the keys to `GROQ_API_KEY_1` and `GROQ_API_KEY_2` in your `.env`
-
-#### **Hugging Face Token:**
-1. Visit [Hugging Face Settings](https://huggingface.co/settings/tokens)
-2. Create a new token with "Read" permissions
-3. Copy the token to `HUGGINGFACE_API_KEY` in your `.env`
+2. Create API keys.
+3. Add to `.env`.
 
 ### **2. Restart Your Application**
 ```bash
 npm run dev
 ```
-
-### **3. Test the System**
-1. Upload an image for caption generation
-2. Check the console logs for provider routing
-3. Verify captions are generated successfully
+The system will automatically detect how many keys you have provided.
 
 ---
 
 ## 📊 **Load Balancing Strategy**
 
-The system uses intelligent routing:
+The system uses a **Priority + Round-Robin** strategy:
 
-```typescript
-const routingStrategy = {
-  groq: 70,        // 70% of requests (fastest, 2 keys)
-  gemini: 25,      // 25% of requests (reliable, 4 keys)
-  huggingface: 5   // 5% of requests (fallback, 1 token)
-};
-```
+1.  **Primary Check (Gemini)**:
+    *   The system checks for available Gemini keys.
+    *   It rotates through keys in a **Round-Robin** fashion (Key 1 -> Key 2 -> Key 3...).
+    *   This distributes load and avoids hitting the 15 RPM limit on a single key.
 
-### **Routing Logic:**
-1. **Primary**: Groq (fastest response)
-2. **Secondary**: Gemini (if Groq unavailable)
-3. **Fallback**: Hugging Face (if both fail)
-4. **Circuit Breaker**: Automatically disables failing providers
-5. **Health Checks**: Continuous monitoring every 30 seconds
+2.  **Fallback (Groq)**:
+    *   If **ALL** Gemini keys are exhausted or failing, the system instantly switches to Groq Vision.
+
+3.  **Emergency (Hugging Face)**:
+    *   If Groq also fails, it falls back to a basic text model.
 
 ---
 

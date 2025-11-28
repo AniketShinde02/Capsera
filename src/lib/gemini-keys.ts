@@ -21,7 +21,7 @@ class GeminiKeyManager {
 
   private initializeKeys() {
     // Initialize all available keys
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 20; i++) {
       const key = process.env[`GEMINI_API_KEY_${i}`];
       if (key) {
         this.keys.push({
@@ -67,22 +67,22 @@ class GeminiKeyManager {
 
     while (attempts < maxAttempts) {
       const key = this.keys[this.currentKeyIndex];
-      
+
       // Check if this key is active and hasn't been used recently
       const now = Date.now();
       const timeSinceLastUse = now - key.lastUsed;
-      
+
       // Rate limit: 15 requests per minute per key
       if (key.isActive && timeSinceLastUse > 4000) { // 4 seconds between requests
         key.lastUsed = now;
         key.requestCount++;
         this.dailyRequestCount++;
-        
+
         console.log(`🔑 Using Gemini Key ${this.currentKeyIndex + 1} (Request ${key.requestCount})`);
-        
+
         // Move to next key for next request
         this.currentKeyIndex = (this.currentKeyIndex + 1) % this.keys.length;
-        
+
         return key.key;
       }
 
@@ -134,7 +134,7 @@ class GeminiKeyManager {
   public getUsageStats() {
     const totalRequests = this.keys.reduce((sum, key) => sum + key.requestCount, 0);
     const activeKeys = this.keys.filter(k => k.isActive).length;
-    
+
     return {
       totalRequests,
       dailyRequests: this.dailyRequestCount,

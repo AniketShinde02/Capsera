@@ -189,17 +189,18 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   private buildPrompt(request: AIProviderRequest): string {
-    return `Generate 3 unique, engaging social media captions for an image with a ${request.mood} mood.${request.description ? ` Image description: ${request.description}` : ''
+    return `Generate 3 unique social media captions for an image with a ${request.mood} mood.${request.description ? ` Image description: ${request.description}` : ''
       }
 
-STRICT GUIDELINES FOR "HUMAN" CAPTIONS:
-1. 🚫 **NO ROBOTIC LANGUAGE**: Strictly AVOID words like "unleash", "elevate", "symphony", "tapestry", "testament", "realm", "embrace", "breathtaking".
-2. 🗣️ **BE AUTHENTIC**: Write like a real Gen Z/Millennial user. Use natural phrasing, lowercase if it fits the vibe, and casual tone.
-3. 📏 **VARY THE LENGTHS**:
-   - **Option 1 (Short & Aesthetic)**: 5-10 words. Minimalist and punchy.
-   - **Option 2 (Relatable/Witty)**: 10-20 words. A mood, a joke, or a vibe.
-   - **Option 3 (Storytelling)**: 20-35 words. detailed and engaging.
-4. 👁️ **VISUAL PROOF**: You MUST mention specific details from the image (colors, lighting, objects) to prove you saw it.
+STRICT GUIDELINES FOR "VIRAL" CAPTIONS:
+1. 📏 **LENGTH**: All captions must be **30-50 words**. No short captions.
+2. 🗣️ **TONE**: Enthusiastic, confident, and authentic. Use natural Gen Z/Millennial slang.
+3. 💎 **STRUCTURE**:
+   - **Hook**: Start with a catchy reaction or statement.
+   - **Visuals**: Weave specific image details (colors, outfit, lighting) into the sentence.
+   - **Vibe**: Express how it feels (confidence, joy, chill).
+   - **Closing**: End with an engaging thought or question.
+4. 🚫 **NO ROBOTIC WORDS**: Ban "unleash", "elevate", "symphony", "tapestry", "testament".
 
 Generate exactly 3 captions formatted as a numbered list:`;
   }

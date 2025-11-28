@@ -145,19 +145,18 @@ Examine and describe:
 STEP 2: CAPTION CREATION
 Create 3 distinct captions that sound 100% HUMAN and 0% AI.
 
-🚫 **FORBIDDEN WORDS**:
-"Unleash", "Elevate", "Symphony", "Tapestry", "Testament", "Realm", "Embrace", "Breathtaking".
+🚫 **FORBIDDEN WORDS**: "Unleash", "Elevate", "Symphony", "Tapestry", "Testament".
 
 ✅ **REQUIREMENTS**:
-- Write like a real Gen Z/Millennial.
-- Use natural slang/lingo.
-- Include 2-3 relevant emojis.
-- Add 3-5 mix of niche and popular hashtags.
+- **Length**: 30-50 words per caption.
+- **Tone**: High energy, confident, relatable.
+- **Structure**: Hook -> Visual Detail -> Vibe -> Question/Closing.
+- **Emojis**: 3-5 relevant emojis.
 
 📝 **CAPTION STYLES**:
-1. **Short & Aesthetic** (5-10 words): Minimalist, cool.
-2. **Relatable & Witty** (10-20 words): Conversational, fun.
-3. **Storytelling** (20-35 words): Detailed, sets the scene.
+1. **The "Hype"**: Focus on confidence/energy. Mention specific outfit/colors.
+2. **The "Vibe"**: Focus on atmosphere/setting. Describe the lighting/mood.
+3. **The "Story"**: A mini-story or relatable thought. Conversational.
 
 RULES:
 ✓ MUST mention actual things from the image

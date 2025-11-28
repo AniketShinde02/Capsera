@@ -89,69 +89,68 @@ Your browser (Chrome/Safari) has a little backpack called Local Storage.
 
 ## 🤖 AI Provider System
 
-CaptionCraft uses a **dual-vision AI strategy** for maximum reliability and capacity.
+CaptionCraft uses a **smart multi-provider strategy** to balance quality, speed, and reliability.
 
 ### Current Provider Architecture
 
-**Primary Provider: Groq Vision** (llama-3.2-11b-vision-preview)
-- ✅ **14,400 requests/day** (10x more than Gemini!)
-- ✅ **Can analyze images** - Sees colors, objects, people, settings, lighting
-- ✅ **Fast responses** - ~500ms average
-- ✅ **Analyzes**: Actual image content + Mood + Description
-- ✅ **Free tier** - No credit card required
+**Primary Provider: Gemini 1.5 Flash** (Best Quality)
+- ✅ **High Intelligence**: Generates "viral", human-like captions with slang and emotion.
+- ✅ **Multimodal Vision**: Understands complex scenes, text in images, and subtle details.
+- ✅ **Scalable**: Supports **up to 20 API keys** for massive throughput (30,000+ requests/day).
+- ✅ **Smart Load Balancing**: Automatically rotates keys to avoid rate limits.
 
-**Fallback Provider: Gemini** (gemini-1.5-flash-latest)
-- ✅ **1,500 requests/day**
-- ✅ **Can analyze images** - Multimodal vision capabilities
-- ✅ **High quality** - Excellent caption generation
-- ✅ **Analyzes**: Actual image content + Mood + Description
-- ✅ **Free tier** - Google AI API
+**Fallback Provider: Groq Vision** (Fastest Backup)
+- ✅ **Ultra-Fast**: Generates captions in 2-4 seconds.
+- ✅ **High Capacity**: 14,400 requests/day per key.
+- ✅ **Reliable**: Instantly takes over if Google's servers are busy or down.
 
 ### How It Works
 
-1. **Groq Vision tries first** → Analyzes image + mood + description
-2. **If Groq fails** → Gemini takes over automatically
-3. **User always gets captions** → No errors, seamless experience
+1.  **Gemini First** → The system tries to use one of your Google Gemini keys to get the best possible caption.
+2.  **Smart Rotation** → It rotates through your keys (Key 1 -> Key 2 -> Key 3...) to keep everything running smoothly.
+3.  **Instant Fallback** → If Gemini is busy, it instantly switches to Groq Vision so you never have to wait.
 
-### Why Dual Vision?
+### Why Gemini First?
 
-**Before (Old System):**
-- Gemini (1,500/day, vision) → Groq (14,400/day, **text-only**)
-- ❌ Groq couldn't see images, generated generic captions
+**Before (Groq First):**
+- Fast but sometimes "robotic" or generic.
+- Lacked the deep cultural nuance for "viral" captions.
 
-**Now (New System):**
-- Groq Vision (14,400/day, **vision**) → Gemini (1,500/day, **vision**)
-- ✅ Both providers analyze actual images
-- ✅ 10x more capacity with same quality
-- ✅ No more random text-based captions
+**Now (Gemini First):**
+- ✅ **Human-like Vibe**: Uses Gen Z slang, emojis, and emotional hooks naturally.
+- ✅ **Better Detail**: Notices small details like "golden hour lighting" or "vintage outfit".
+- ✅ **Same Reliability**: Still falls back to Groq if needed, so it's the best of both worlds.
 
 ### Environment Variables
 
-```env
-# Groq API Keys (Primary Provider)
-GROQ_API_KEY_1=gsk_your_first_key_here
-GROQ_API_KEY_2=gsk_your_second_key_here
+To scale your app, simply add more keys to your `.env` file. The system automatically detects them!
 
-# Gemini API Keys (Fallback Provider)
-GEMINI_API_KEY_1=AIzaSy_your_first_key_here
-GEMINI_API_KEY_2=AIzaSy_your_second_key_here
-GEMINI_API_KEY_3=AIzaSy_your_third_key_here
-GEMINI_API_KEY_4=AIzaSy_your_fourth_key_here
+```env
+# Gemini API Keys (Primary - Add as many as you want, up to 20!)
+GEMINI_API_KEY_1=AIzaSy_your_first_key
+GEMINI_API_KEY_2=AIzaSy_your_second_key
+GEMINI_API_KEY_3=AIzaSy_your_third_key
+# ...
+GEMINI_API_KEY_20=AIzaSy_your_20th_key
+
+# Groq API Keys (Fallback)
+GROQ_API_KEY_1=gsk_your_first_key
+GROQ_API_KEY_2=gsk_your_second_key
 ```
 
 ### Getting API Keys
 
-**Groq:**
-1. Visit [console.groq.com](https://console.groq.com)
-2. Sign up for free account
-3. Create API key
-4. Copy to `.env.local`
-
 **Gemini:**
 1. Visit [aistudio.google.com](https://aistudio.google.com)
-2. Sign in with Google account
-3. Click "Get API Key"
-4. Copy to `.env.local`
+2. Create a new project (tip: create multiple projects to get more quota!).
+3. Generate an API key.
+4. Add to `.env`.
+
+**Groq:**
+1. Visit [console.groq.com](https://console.groq.com)
+2. Sign up for free account.
+3. Create API key.
+4. Add to `.env`.
 
 ---
 

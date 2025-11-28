@@ -38,20 +38,21 @@ async function generateGroqCaptions(mood: string, description: string, imageUrl:
     console.log('🚀 Generating captions with Groq Vision (llama-3.2-11b-vision-preview)...');
 
     // Optimized prompt for vision model
-    // Optimized prompt for "Human-like" captions
-    const prompt = `Analyze this image and generate 3 unique social media captions.
+    // Optimized prompt for "Human-like" captions - Pallyy Style
+    const prompt = `Analyze this image and generate 3 unique, high-energy social media captions.
 
 MOOD: ${mood}
 ${description ? `CONTEXT: ${description}` : ''}
 
-STRICT GUIDELINES FOR "HUMAN" CAPTIONS:
-1. 🚫 **NO ROBOTIC LANGUAGE**: Strictly AVOID words like "unleash", "elevate", "symphony", "tapestry", "testament", "realm", "embrace", "breathtaking".
-2. 🗣️ **BE AUTHENTIC**: Write like a real Gen Z/Millennial user. Use natural phrasing, lowercase if it fits the vibe, and casual tone.
-3. 📏 **VARY THE LENGTHS**:
-   - **Option 1 (Short & Aesthetic)**: 5-10 words. Minimalist and punchy.
-   - **Option 2 (Relatable/Witty)**: 10-20 words. A mood, a joke, or a vibe.
-   - **Option 3 (Storytelling)**: 20-35 words. detailed and engaging.
-4. 👁️ **VISUAL PROOF**: You MUST mention specific details from the image (colors, lighting, objects) to prove you saw it.
+STRICT GUIDELINES FOR "VIRAL" CAPTIONS:
+1. 📏 **LENGTH**: All captions must be **30-50 words**. No short captions.
+2. 🗣️ **TONE**: Enthusiastic, confident, and authentic. Use natural Gen Z/Millennial slang.
+3. 💎 **STRUCTURE**:
+   - **Hook**: Start with a catchy reaction or statement.
+   - **Visuals**: Weave specific image details (colors, outfit, lighting) into the sentence.
+   - **Vibe**: Express how it feels (confidence, joy, chill).
+   - **Closing**: End with an engaging thought or question.
+4. 🚫 **NO ROBOTIC WORDS**: Ban "unleash", "elevate", "symphony", "tapestry", "testament".
 
 Generate exactly 3 captions formatted as a numbered list:`;
 
@@ -299,34 +300,17 @@ export async function POST(req: NextRequest) {
       resetTime: rateLimitResult.resetTime
     });
 
-    // 🚀 NEW STRATEGY: Try Groq Vision FIRST (14,400/day with image analysis!)
-    // Then fallback to Gemini (1,500/day) if Groq fails
-    console.log('🎯 Attempting Groq Vision first (Primary Provider - 14,400/day limit)...');
+    // 🚀 NEW STRATEGY: Try Gemini FIRST (Better quality/creativity)
+    // Then fallback to Groq Vision (Faster but less detailed)
+    console.log('🎯 Attempting Gemini first (Primary Provider - Better Quality)...');
 
     let result;
-    const groqResult = await generateGroqCaptions(mood, description || '', imageUrl);
 
-    if (groqResult.success && groqResult.captions) {
-      console.log('✅ Groq Vision successful! (Primary provider)');
-      result = { captions: groqResult.captions };
-    } else {
-      console.warn('⚠️ Groq Vision failed, trying Gemini fallback...', groqResult.error);
+    // Try Gemini first
+    keyResult = await geminiManager.getBestKey();
 
-      // 🔄 FALLBACK: Try Gemini when Groq fails
-      keyResult = await geminiManager.getBestKey();
-
-      if (!keyResult) {
-        console.error('❌ Both Groq Vision and Gemini exhausted!');
-        return NextResponse.json({
-          success: false,
-          message: "Our AI servers are currently at capacity. Please try again in a few minutes.",
-          error: 'all_providers_exhausted',
-          status: geminiManager.getStatus()
-        }, { status: 503 });
-      }
-
-      console.log(`🔑 Using Gemini as fallback (Request #${Date.now()})`);
-
+    if (keyResult) {
+      console.log(`🔑 Using Gemini key index ${keyResult.index}`);
       try {
         result = await generateCaptions({
           mood,
@@ -337,17 +321,38 @@ export async function POST(req: NextRequest) {
           ipAddress: clientIP,
           skipRateLimit: true,
         });
-        console.log('✅ Gemini fallback successful!');
+        console.log('✅ Gemini generation successful! (Primary provider)');
       } catch (geminiError: any) {
-        console.error('❌ Both Groq Vision and Gemini failed!', geminiError.message);
+        console.warn('⚠️ Gemini failed, trying Groq Vision fallback...', geminiError.message);
 
-        // Mark key as exhausted if it's a quota error
+        // Mark key as exhausted if needed
         if (geminiError.message?.includes('quota') || geminiError.message?.includes('429')) {
           geminiManager.markKeyExhausted(keyResult.index, geminiError);
         }
 
-        // Both providers failed - throw error
-        throw geminiError;
+        // Fallback to Groq will happen below
+        result = null;
+      }
+    } else {
+      console.warn('⚠️ No Gemini keys available, skipping to Groq Vision...');
+    }
+
+    // If Gemini failed or no keys, try Groq Vision
+    if (!result) {
+      console.log('🔄 FALLBACK: Attempting Groq Vision...');
+      const groqResult = await generateGroqCaptions(mood, description || '', imageUrl);
+
+      if (groqResult.success && groqResult.captions) {
+        console.log('✅ Groq Vision fallback successful!');
+        result = { captions: groqResult.captions };
+      } else {
+        console.error('❌ Both Gemini and Groq Vision exhausted!');
+        return NextResponse.json({
+          success: false,
+          message: "Our AI servers are currently at capacity. Please try again in a few minutes.",
+          error: 'all_providers_exhausted',
+          status: geminiManager.getStatus()
+        }, { status: 503 });
       }
     }
 

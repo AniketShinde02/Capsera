@@ -65,8 +65,8 @@ constructor(useSecondaryKey: boolean = false) {
 
 **New Environment Variables**:
 ```env
-BREVO_SMTP_USER_SECONDARY=95da76001@smtp-brevo.com
-SMTP_PASS_1=xsmtpsib-...  # Secondary API key/SMTP password
+BREVO_SMTP_USER_SECONDARY=your-smtp-username@smtp-brevo.com
+SMTP_PASS_1=your-brevo-api-key-or-smtp-password-here
 ```
 
 **Use Cases**:

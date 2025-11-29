@@ -17,42 +17,44 @@ export async function POST(
 
     const { db } = await connectToDatabase();
     const reportId = new ObjectId((await params).id);
-    const { action, notes } = await request.json();
+    const { action, notes, status } = await request.json();
 
-    // Find the report
-    const report = await db.collection('reports').findOne({
+    // Find the post
+    const post = await db.collection('posts').findOne({
       _id: reportId
     });
 
-    if (!report) {
+    if (!post) {
       return NextResponse.json(
-        { error: 'Report not found' }, 
+        { error: 'Content not found' },
         { status: 404 }
       );
     }
 
-    // Update the report status
-    await db.collection('reports').updateOne(
+    // Update the post moderation status
+    await db.collection('posts').updateOne(
       { _id: reportId },
-      { 
-        $set: { 
-          status: action,
-          reviewNotes: notes,
-          reviewedAt: new Date(),
-          reviewedBy: session.user.email
+      {
+        $set: {
+          moderationStatus: status, // 'resolved' or 'dismissed' passed from frontend
+          moderationAction: action, // 'removed', 'warned', etc.
+          moderationNotes: notes,
+          moderatedAt: new Date(),
+          moderatedBy: session.user.email,
+          isFlagged: false // Clear the flag since it's handled
         }
       }
     );
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Report ${action} successfully` 
+    return NextResponse.json({
+      success: true,
+      message: `Report ${action} successfully`
     });
 
   } catch (error) {
     console.error('Error reviewing report:', error);
     return NextResponse.json(
-      { error: 'Failed to review report' }, 
+      { error: 'Failed to review report' },
       { status: 500 }
     );
   }

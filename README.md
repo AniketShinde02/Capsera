@@ -4,7 +4,7 @@
 
 <div align="center">
 
-![Capsera Banner](../Capsera/screenshots/capsera_banner.png)
+![Capsera Banner](screenshots/capsera_banner.png)
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -13,7 +13,7 @@
 
 **🎯 Perfect captions • 🚀 Boost engagement • ✨ Save time • 📈 Grow your audience**
 
-[✨ **Live Demo**](https://capsera.online/) • [📚 **Documentation**](#-comprehensive-documentation) • [🚀 **Deploy Now**](#-deployment-guide) • [🔄 **Migration Guide**](#-major-changes--migration)
+[✨ **Live Demo**](https://capsera.online/) • [📚 **Documentation**](#-comprehensive-documentation) • [🔄 **System Flow**](docs/SYSTEM_FLOW_DIAGRAM.md) • [🚀 **Deploy Now**](#-deployment-guide) • [📋 **Changelog**](CHANGELOG.md)
 
 </div>
 

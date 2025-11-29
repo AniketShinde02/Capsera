@@ -1,3 +1,825 @@
+## [2025-11-29] - Random Username Generator, Mobile Responsiveness & UI Polish
+
+### 🎨 **NEW FEATURE: Creative Username Generator**
+
+#### **Automatic Username Assignment**
+- **File**: `src/lib/username-generator.ts`
+- **Problem**: Users without usernames showed as "User" 
+- **Solution**: Auto-generate creative usernames like "CreativeDesigner42", "QuantumArchitect91"
+- **Features**:
+  - 1,600+ unique combinations (40 adjectives × 40 nouns + numbers)
+  - **Consistent per user**: Uses email as seed, same email = same name
+  - Examples: SwiftExplorer84, BrightCreator42, CosmicPioneer56, EpicDreamer07
+  - Automatically falls back when no username set
+  - Professional and friendly naming
+
+#### **Implementation**
+- `getDisplayUsername(username, email)`: Smart fallback function
+- Integrated into profile page (`src/app/profile/page.tsx`)
+- Removed hardcoded "Premium User" badge (was showing to all users incorrectly)
+
+---
+
+### 📱 **Mobile Responsiveness Fixes**
+
+#### **OTP Form Optimization**
+**Problem**: OTP verification cards overflowing on mobile devices
+
+**Fixed Files**:
+- `src/components/auth-form.tsx` - Admin OTP modal
+- User OTP verification card
+
+**Changes**:
+- ✅ Container width: `max-w-[95%] sm:max-w-md` for proper mobile fit
+- ✅ Responsive padding: `p-2 sm:p-4` and `px-2 sm:px-4`
+- ✅ OTP input boxes: `w-10 h-10 sm:w-12 sm:h-12` (smaller on mobile)
+- ✅ Text sizes: `text-lg sm:text-xl`, `text-xs sm:text-sm`
+- ✅ Email wrapping: `break-words` to prevent overflow
+- ✅ Gap spacing: Changed from `space-x-2` to `gap-2` for better mobile
+- ✅ Centered layout: `max-w-md mx-auto`
+
+**Result**: Cards now fit perfectly within mobile screens without horizontal overflow
+
+---
+
+### 📧 **Email System Improvements**
+
+#### **Brevo Dual SMTP Key Support**
+**Enhancement**: Support for using separate Brevo accounts for different email types
+
+**Implementation** (`src/lib/brevo-email.ts`):
+```typescript
+constructor(useSecondaryKey: boolean = false) {
+  this.config = {
+    auth: {
+      user: useSecondaryKey 
+        ? process.env.BREVO_SMTP_USER_SECONDARY 
+        : process.env.BREVO_SMTP_USER,
+      pass: useSecondaryKey 
+        ? process.env.SMTP_PASS_1 
+        : process.env.BREVO_SMTP_PASS
+    }
+  };
+}
+```
+
+**New Environment Variables**:
+```env
+BREVO_SMTP_USER_SECONDARY=95da76001@smtp-brevo.com
+SMTP_PASS_1=xsmtpsib-...  # Secondary API key/SMTP password
+```
+
+**Use Cases**:
+- Suggestions use secondary key: `new BrevoEmailService(true)`
+- Role assignments/accounts use primary key: `new BrevoEmailService()`
+- Allows rate limiting separation and organization
+
+#### **Email Formatting Cleanup**
+**Fixed**: Removed `<>` angle brackets from email addresses in templates
+- Before: `John Doe <john@example.com>`
+- After: `**John Doe** • john@example.com`
+- File: `src/lib/brevo-email.ts` line 301
+- Cleaner, more modern email presentation
+
+---
+
+### 🎯 **InlineMessage Component Migration**
+
+**Replaced toast notifications** with inline messages across profile section for better UX:
+
+#### **Files Updated**:
+1. **`src/app/profile/page.tsx`** - Main profile
+   - Image upload, save changes feedback
+   - Added loading state: `type: 'loading'`
+   - Timeout: 4s for success/error, 0 for loading
+
+2. **`src/app/profile/privacy/page.tsx`** - Privacy settings
+   - Privacy update confirmations
+
+3. **`src/app/profile/password/page.tsx`** - Password change
+   - Password mismatch, update success/error
+   - Simplified UI (removed heavy framer-motion animations)
+
+4. **`src/app/profile/suggestions/page.tsx`** - Suggestions
+   - Submission feedback, loading states
+   - 5s timeout for messages
+
+5. **`src/app/profile/history/page.tsx`** - Caption history
+   - Delete confirmation, copy to clipboard
+   - 3s timeout
+
+6. **`src/app/profile/edit/page.tsx`** - Edit profile
+   - Image upload validation and feedback
+   - Profile update status
+
+7. **`src/app/profile/delete-account/page.tsx`** - Account deletion
+   - Deletion process feedback
+
+#### **Benefits**:
+- ✅ No intrusive popups
+- ✅ Contextual feedback exactly where needed
+- ✅ Cleaner, less disruptive UX
+- ✅ Loading states for async operations
+- ✅ Auto-dismiss with configurable timeouts
+
+---
+
+### 🔧 **Bug Fixes**
+
+#### **Email Authentication**
+- **Issue**: `[Error: Missing credentials for "PLAIN"]` on suggestion emails
+- **Cause**: Incorrect API key configuration
+- **Fix**: Properly configured `SMTP_PASS_1` with secondary Brevo account
+- **Files**: `src/app/api/suggestions/route.ts`, `src/app/api/admin/suggestions/[id]/reply/route.ts`
+
+#### **Profile UI**
+- **Removed**: Hardcoded "Premium User" badge showing to all users
+- **Reason**: No actual premium subscription system in place
+- **File**: `src/app/profile/page.tsx` line 302
+
+---
+
+### 📄 **Documentation**
+
+#### **New File**
+- `src/lib/username-generator.ts` - Fully documented random username generator
+
+#### **Updated Documentation**
+- CHANGELOG.md - Comprehensive recent changes
+- INLINE_MESSAGE_MIGRATION.md - Migration guide created
+
+---
+
+### 🧪 **Testing Checklist**
+
+- ✅ Mobile OTP forms fit within screen (iPhone, Android)
+- ✅ Generated usernames consistent per email
+- ✅ Secondary Brevo SMTP credentials working
+- ✅ InlineMessage components across all profile pages
+- ✅ Email formatting clean (no <>)
+- ✅ Premium badge removed
+- ✅ Desktop and mobile responsive across all screens
+- ✅ Suggestion emails delivered successfully
+
+---
+
+### 📦 **No New Dependencies**
+All features use existing packages - no additional npm installs required.
+
+---
+
+## [2025-11-29] - Suggestion System, Email Marketing & Configuration Improvements
+
+### 🎯 **NEW FEATURE: User Suggestion System**
+
+#### **Frontend Implementation**
+- **User Interface** (`src/app/profile/suggestions/page.tsx`):
+  - New "Suggestions" page in user profile section
+  - Clean submission form with title, description, and category selection
+  - Real-time suggestion tracking with status badges (pending, reviewed, planned, completed, declined)
+  - Visual category icons (✨ Feature, 🐛 Bug, 🚀 Improvement, 💡 Other)
+  - Admin reply display with timestamp when available
+  - Modern card-based UI with loading states and animations
+  - Added to ProfileSidebar with Lightbulb icon
+
+#### **Backend & Database**
+- **Suggestion Model** (`src/models/Suggestion.ts`):
+  - New MongoDB schema with fields: userId, title, description, category, status
+  - Added `adminReply` and `repliedAt` fields for admin responses
+  - Support for 5 status types including new 'declined' status
+  - Character limits: title (100), description (500)
+  - Automatic timestamp tracking
+
+- **API Endpoints**:
+  - `POST /api/suggestions` - Submit new user suggestion with automatic admin email notification
+  - `GET /api/suggestions` - Retrieve user's suggestions sorted by date
+  - Uses `SMTP_PASS_1` for email authentication (dedicated suggestion email key)
+
+#### **Email Notifications**
+- Professional HTML email sent to admin on new suggestion submission
+- Includes user details, category badge, and full description
+- Reply-to header set to user's email for easy communication
+- CTA button linking to admin dashboard
+
+---
+
+### 🛠️ **NEW FEATURE: Admin Suggestion Management**
+
+#### **Admin Dashboard** (`src/app/admin/suggestions/page.tsx`)
+- Dedicated suggestions management page at `/admin/suggestions`
+- View all user suggestions across the platform in chronological order
+- Color-coded status badges for quick visual scanning
+- Inline reply editor with real-time validation
+- One-click reply functionality with auto-status update to 'reviewed'
+- Glassmorphism design with smooth animations
+- Empty state messaging when no suggestions exist
+- User information display (name, email, username)
+
+#### **Admin Reply System**
+- **API Endpoint** (`src/app/api/admin/suggestions/[id]/reply/route.ts`):
+  - `POST /api/admin/suggestions/[id]/reply` - Send reply with optional status update
+  - Saves reply to database with timestamp
+  - Automatically populates user details for email
+  - Sends branded email notification to user
+  - Uses `SMTP_PASS_1` for authentication
+  
+- **Fetch Endpoint** (`src/app/api/admin/suggestions/route.ts`):
+  - `GET /api/admin/suggestions` - Retrieve all suggestions with populated user data
+  - Admin-only authentication check
+  - Sorted by creation date (newest first)
+
+#### **Reply Email Notification**
+- Professional "Re: [Title] - Update from Capsera" email to user
+- Includes original suggestion title and admin's complete response
+- Branded HTML template matching Capsera design system
+- CTA to visit Capsera homepage
+
+---
+
+### 📧 **Email Service Refactor & Enhancement**
+
+#### **Brevo Email Service Updates** (`src/lib/brevo-email.ts`)
+- **MAJOR FIX**: Resolved 265+ TypeScript syntax errors by restructuring entire class
+- **Dual API Key Support**:
+  - Constructor now accepts `useSecondaryKey: boolean` parameter
+  - `useSecondaryKey: true` → Uses `SMTP_PASS_1` (for suggestions/new features)
+  - `useSecondaryKey: false` → Uses `BREVO_SMTP_PASS` or `BREVO_API_KEY_1` (for roles/accounts)
+  - Fallback chain: `BREVO_SMTP_PASS` → `SMTP_PASS_1` → `BREVO_API_KEY_1`
+
+- **New Email Methods**:
+  - `sendSuggestionEmail()` - Notify admin of new user suggestion
+  - `sendSuggestionReplyEmail()` - Notify user of admin reply with branded template
+  - `getSuggestionTemplate()` - Generate suggestion notification HTML/text
+  - `getSuggestionReplyTemplate()` - Generate reply notification HTML/text
+
+- **Existing Methods Preserved**:
+  - All role assignment, account creation, and notification emails unchanged
+  - Backward compatible with existing email flows
+  - Uses primary SMTP credentials for all non-suggestion emails
+
+---
+
+### 🔐 **Configuration & Security Improvements**
+
+#### **Hardcoded Email Removal** (Environment Variable Migration)
+Replaced all instances of hardcoded `'sunnyshinde2601@gmail.com'` with configurable environment variables:
+
+- **Performance Monitor** (`src/lib/performance-monitor.ts`):
+  - `ERROR_ALERT_EMAIL` now uses `process.env.ADMIN_EMAIL_RECEIVER`
+  - All error tracking and quota alerts use dynamic admin email
+
+- **Authentication Forms** (`src/components/auth-form.tsx`):
+  - OTP generation requests use `process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER`
+  - OTP verification checks use `process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER`
+  - Admin account creation uses `process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER`
+  - Skip OTP flow uses `process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER`
+  - Display message updated to show dynamic email in UI
+
+- **Admin Setup API** (`src/app/api/admin/setup/route.ts`):
+  - OTP session validation uses `process.env.ADMIN_EMAIL_RECEIVER`
+  - Bypass session checks use `process.env.ADMIN_EMAIL_RECEIVER`
+  - Admin account verification uses `process.env.ADMIN_EMAIL_RECEIVER`
+
+#### **New Environment Variables Required**
+```env
+# Admin Email Configuration
+ADMIN_EMAIL_RECEIVER=your_admin_email@example.com
+NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER=your_admin_email@example.com
+
+# Brevo/Sendinblue Secondary Key (for suggestions)
+SMTP_PASS_1=your_secondary_api_key
+
+# EmailOctopus Marketing (see below)
+EMAIL_OCTOPUS_API_KEY=your_api_key
+EMAIL_OCTOPUS_LIST_ID=your_list_id
+```
+
+---
+
+### 📬 **NEW FEATURE: EmailOctopus Marketing Integration**
+
+#### **Service Implementation** (`src/lib/email-providers/email-octopus.ts`)
+- New EmailOctopus API client for marketing email management
+- `addContact(email, firstName, lastName)` method to subscribe users
+- Automatic duplicate detection (gracefully handles existing subscribers)
+- Comprehensive error logging for debugging
+- Fire-and-forget pattern to avoid blocking user experience
+- API endpoint: `https://emailoctopus.com/api/1.6`
+
+#### **User Model Updates** (`src/models/User.ts`)
+**BREAKING CHANGE**: Marketing email defaults changed to **OPT-IN by default**:
+- `userSettings.marketingEmails`: Changed from `false` → `true`
+- `notificationSettings.email.marketing`: Changed from `false` → `true`
+- `notificationSettings.email.newsletter`: Changed from `false` → `true`
+
+**Rationale**: New users automatically subscribe to promotional content but retain full control to opt-out anytime via settings.
+
+#### **API Integration** (`src/app/api/user/route.ts`)
+- **Enhanced PATCH Endpoint**:
+  - Checks BOTH `userSettings.marketingEmails` AND `notificationSettings.email.marketing`
+  - Automatically syncs with EmailOctopus when either setting is enabled
+  - Fire-and-forget async call (doesn't block user response)
+  - Fallback values for missing name fields
+  - Logs errors without failing user request
+
+#### **Sync Endpoint** (`src/app/api/user/sync-marketing/route.ts`)
+- **New Endpoint**: `POST /api/user/sync-marketing`
+- Purpose: Initial sync on user first login/signup
+- Can be called client-side to ensure new users are added to list
+- Checks marketing preferences before syncing
+
+#### **User Control**
+Users can manage marketing emails from two locations:
+1. **Profile → Settings**: Toggle `marketingEmails` in general settings
+2. **Profile → Notifications**: Toggle `marketing` and `newsletter` in detailed email preferences
+
+Both settings are monitored; enabling either will trigger EmailOctopus sync.
+
+---
+
+### 🐛 **Bug Fixes**
+
+#### **Email Service**
+- Fixed missing credentials error: `[Error: Missing credentials for "PLAIN"]`
+- Resolved class structure issues causing 265 TypeScript errors
+- Fixed method scope problems (all methods now properly inside class)
+- Added missing `sendSuggestionEmail` method
+
+#### **Profile Image Upload**
+- Removed immediate page refresh after image selection
+- Implemented "staged changes" pattern - image only persists on "Save Changes"
+- Added "Remove Image" functionality with Trash2 icon
+- Fixed `update()` session call timing to prevent unwanted refreshes
+- Ensured optimistic UI updates for better UX
+
+---
+
+### 🎨 **UI/UX Improvements**
+
+#### **Suggestion Page**
+- Modern card-based design with glassmorphism effects
+- Status badges with semantic color coding:
+  - 🟡 Pending (Yellow)
+  - 🔵 Reviewed (Blue)
+  - 🟣 Planned (Purple)
+  - 🟢 Completed (Green)
+  - 🔴 Declined (Red)
+- Category-specific icons and badges
+- Loading states with spinner animations
+- Empty state with helpful call-to-action
+- Smooth transitions and hover effects
+
+#### **Admin Suggestions Dashboard**
+- Responsive card grid layout
+- Inline reply editor with validation
+- Real-time success/error feedback
+- Auto-collapse reply form after sending
+- User information prominently displayed
+- Timestamp formatting with `date-fns`
+- Framer Motion animations for smooth transitions
+
+---
+
+### 🔧 **Technical Improvements**
+
+#### **Code Quality**
+- Fixed all TypeScript compilation errors in `brevo-email.ts`
+- Proper class method structure and scope
+- Enhanced error handling with try-catch blocks
+- Added comprehensive logging for debugging
+- Type-safe API responses with proper interfaces
+
+#### **Security**
+- All endpoints require authentication
+- Admin-only routes verify admin status
+- Input sanitization on suggestion forms
+- Email rate limiting handled by service providers
+- Session validation on every request
+
+#### **Performance**
+- Fire-and-forget email sending (non-blocking)
+- Async EmailOctopus sync (doesn't delay user actions)
+- Efficient database queries with proper indexes
+- Optimized user data population
+- Client-side loading states for perceived performance
+
+---
+
+### 📚 **Documentation**
+
+#### **New Documentation Files**
+- `docs/features/SUGGESTION_SYSTEM_AND_EMAIL_MARKETING.md`:
+  - Comprehensive guide to suggestion system
+  - EmailOctopus integration details
+  - API endpoint reference
+  - Configuration instructions
+  - Usage guide for users and admins
+  - Testing checklist
+  - Future enhancement ideas
+
+---
+
+### ⚠️ **Migration Notes**
+
+#### **For Existing Users**
+Existing users will retain their current marketing email preferences. Only **new users** will have marketing emails enabled by default.
+
+#### **For Administrators**
+1. Add new environment variables to `.env`:
+   - `ADMIN_EMAIL_RECEIVER`
+   - `NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER`
+   - `SMTP_PASS_1`
+   - `EMAIL_OCTOPUS_API_KEY`
+   - `EMAIL_OCTOPUS_LIST_ID`
+
+2. Update email service configuration in Brevo dashboard
+
+3. Verify EmailOctopus list is created and API key has proper permissions
+
+4. Test suggestion submission flow in staging environment
+
+---
+
+### 🧪 **Testing Performed**
+
+- ✅ User can submit suggestions with all categories
+- ✅ Admin receives email notification on new suggestion
+- ✅ Admin dashboard displays all suggestions correctly
+- ✅ Admin can reply to suggestions with custom message
+- ✅ User receives email notification on admin reply
+- ✅ Reply appears in user's suggestion list with timestamp
+- ✅ Marketing email preferences sync with EmailOctopus
+- ✅ Users can toggle marketing emails on/off
+- ✅ Environment variables work across all modules
+- ✅ Email service failures don't break user experience
+- ✅ Build completes successfully with no TypeScript errors
+
+---
+
+### 📦 **Dependencies**
+
+No new package dependencies added. All features use existing libraries:
+- `nodemailer` (already in use for Brevo)
+- `axios` (already in use, now also for EmailOctopus)
+- `framer-motion` (already in use for animations)
+- `date-fns` (already in use for date formatting)
+- `lucide-react` (already in use for icons)
+
+---
+
+### 🚀 **Future Enhancements**
+
+Potential improvements identified for future releases:
+- Suggestion voting/upvoting system
+- Pagination for large suggestion lists
+- Rich text editor for admin replies
+- EmailOctopus unsubscribe on opt-out (currently one-way sync)
+- Reply editing capability
+- Bulk suggestion management
+- Analytics dashboard for suggestion metrics
+- Custom admin-defined categories
+
+---
+
+## [2025-11-29] - Profile & Moderation System Polish
+
+
+### 👤 Profile Experience Enhancements
+- **Real-Time Data Sync**: Fixed an issue where profile updates (Bio, Title, etc.) were not immediately reflected in the UI. The profile dashboard now fetches fresh data from `/api/user` on mount and after every save, ensuring "what you see is what you get."
+- **Inline Notifications**: Replaced intrusive toast popups with sleek, inline status messages (with Lucide icons) for "Save" actions in Profile, Settings, and Notifications pages.
+- **Optimistic UI**: Implemented immediate visual feedback for avatar uploads, making the interface feel snappier.
+- **Email Visibility**: Added a read-only email field to the profile edit mode for better user context.
+- **Bug Fixes**: 
+  - Resolved browser errors caused by empty image `src` attributes in the Profile Sidebar and Dashboard.
+  - Fixed a pagination bug in the History page where switching pages resulted in a blank screen.
+
+### 🛡️ Moderation System Upgrades
+- **Pagination**: Implemented a 6-item grid pagination for the Admin Moderation Queue, improving performance and usability for large datasets.
+- **Logic Fix**: Corrected the review/dismiss workflow. Actions now properly update the `posts` collection (clearing the `isFlagged` status and updating `moderationStatus`), ensuring handled items correctly disappear from the "Pending" tab.
+- **API Alignment**: Updated `review` and `dismiss` API endpoints to target the correct database collection (`posts` instead of `reports`), fixing the "status not updating" issue.
+
+### 🔧 Technical Improvements
+- **Build Stability**: Fixed TypeScript errors in the `Suggestion` model (`ISuggestion` interface) that were preventing successful builds.
+- **Code Quality**: Added robust null checks in the History page filtering logic to prevent crashes with incomplete data.
+
+---
+
+## [2025-11-28] - Critical Admin Authentication Fix & Role Management Enhancements
+
+### 🔐 **CRITICAL BUG FIX: Admin Login from Normal Auth Form**
+
+#### **Issue Summary**
+Admin users were unable to log in through the standard homepage sign-in form (`/`), receiving "Invalid email or password" errors despite having correct credentials. This forced admins to use the dedicated admin registration modal or direct `/admin` route, creating a poor user experience and security confusion.
+
+#### **Root Cause Analysis**
+
+**Problem 1: 403 Forbidden Error**
+- **Location**: `src/lib/auth.ts` - `signIn` callback (lines 481-500)
+- **Symptom**: After successful authentication, NextAuth returned `403 Forbidden`
+- **Cause**: The `signIn` callback was only validating users against the regular `users` collection in MongoDB
+- **Impact**: Admin users stored in the `adminusers` collection were rejected even after successful password verification
+
+**Problem 2: Incorrect Redirect Logic**
+- **Location**: `src/components/auth-form.tsx` - `onSignInSubmit` function (lines 918-941)
+- **Symptom**: All users redirected to `/` homepage regardless of role
+- **Cause**: No session check after login to determine user type
+- **Impact**: Even if admins could log in, they wouldn't be redirected to the admin dashboard
+
+#### **Technical Deep Dive**
+
+**Authentication Flow (Before Fix):**
+```
+1. User enters credentials in homepage form
+2. signIn("credentials") called
+3. ✅ authorize() checks adminusers collection FIRST (this was working)
+4. ✅ Password verified, user object returned with isAdmin: true
+5. ❌ signIn() callback checks only users collection
+6. ❌ Admin user not found → returns false → 403 Forbidden
+7. ❌ Login fails
+```
+
+**Authentication Flow (After Fix):**
+```
+1. User enters credentials in homepage form
+2. signIn("credentials") called
+3. ✅ authorize() checks adminusers collection FIRST
+4. ✅ Password verified, user object returned with isAdmin: true
+5. ✅ signIn() callback detects isAdmin flag → returns true immediately
+6. ✅ Session created successfully
+7. ✅ Frontend checks session.user.isAdmin
+8. ✅ Redirects to /admin if admin, / if regular user
+```
+
+#### **Implementation Details**
+
+**Fix Part 1: SignIn Callback Enhancement**
+- **File**: `src/lib/auth.ts`
+- **Lines Modified**: 488-510
+- **Changes**:
+  ```typescript
+  // BEFORE: Only checked regular users
+  if (account?.provider === 'credentials') {
+    await dbConnect();
+    const userExists = await (User as any).findById(user.id);
+    return !!userExists; // ❌ Fails for admin users
+  }
+  
+  // AFTER: Checks admin flag first
+  if (account?.provider === 'credentials') {
+    // Check if user is admin (from adminusers collection)
+    if ((user as any).isAdmin) {
+      console.log('✅ SignIn callback - Admin user detected');
+      return true; // ✅ Allow immediately
+    }
+    
+    // Otherwise check regular users collection
+    await dbConnect();
+    const userExists = await (User as any).findById(user.id);
+    return !!userExists;
+  }
+  ```
+
+**Fix Part 2: Smart Redirect Logic**
+- **File**: `src/components/auth-form.tsx`
+- **Lines Modified**: 918-961
+- **Changes**:
+  ```typescript
+  // BEFORE: Always redirected to homepage
+  if (result?.ok) {
+    setOpen(false);
+    router.refresh();
+    router.push("/"); // ❌ All users go to homepage
+  }
+  
+  // AFTER: Role-based redirect
+  if (result?.ok) {
+    const { getSession } = await import('next-auth/react');
+    const session = await getSession();
+    
+    setOpen(false);
+    router.refresh();
+    
+    // Handle role as string or object
+    const userRole = typeof session?.user?.role === 'string' 
+      ? session.user.role 
+      : (session?.user?.role as any)?.name || '';
+      
+    const isAdmin = session?.user?.isAdmin || 
+                   userRole === 'admin' || 
+                   userRole === 'moderator' ||
+                   userRole === 'mod';
+    
+    if (isAdmin) {
+      router.push("/admin"); // ✅ Admins to dashboard
+    } else {
+      router.push("/"); // ✅ Users to homepage
+    }
+  }
+  ```
+
+**Fix Part 3: Debug Logging**
+- **File**: `src/lib/auth.ts`
+- **Lines Modified**: 60-73
+- **Purpose**: Added comprehensive logging to track authentication flow
+- **Logs Added**:
+  - `🔍 Auth Debug - Email:` - Shows attempted login email
+  - `🔍 Auth Debug - Admin user found:` - Confirms adminusers lookup
+  - `🔍 Auth Debug - Admin user details:` - Shows role, email, password hash status
+  - `🔍 Auth Debug - Password match:` - Confirms bcrypt verification result
+  - `✅ Unified Login:` - Confirms successful admin login
+  - `🔐 SignIn callback - Admin user detected` - Confirms callback approval
+
+#### **Testing & Validation**
+
+**Test Cases Verified:**
+1. ✅ Admin login from homepage form → Redirects to `/admin`
+2. ✅ Regular user login from homepage form → Redirects to `/`
+3. ✅ Admin with role 'admin' → Detected as admin
+4. ✅ Admin with role 'moderator' → Detected as admin
+5. ✅ Admin with role 'mod' → Detected as admin
+6. ✅ Invalid credentials → Shows error message
+7. ✅ Admin login from `/admin` modal → Still works
+8. ✅ Session persistence → Admins stay logged in
+
+**Console Output (Successful Admin Login):**
+```
+🔍 Auth Debug - Email: admin@example.com
+🔍 Auth Debug - Admin user found: true
+🔍 Auth Debug - Admin user details: {
+  email: 'admin@example.com',
+  role: 'admin',
+  isAdmin: true,
+  hasPassword: true
+}
+🔍 Auth Debug - Password match: true
+✅ Unified Login: Logged in as Admin via standard form: admin@example.com
+🔐 SignIn callback - Checking user: 68a41238196fa9f1f937830e admin@example.com
+✅ SignIn callback - Admin user detected, allowing sign in
+✅ Admin user logged in, redirecting to /admin
+```
+
+---
+
+### 🎨 **UI Improvements**
+
+#### **Quick Tier Access - Username Field Color Fix**
+- **File**: `src/app/admin/roles/page.tsx`
+- **Line Modified**: 469
+- **Issue**: Username input field had dark background (`bg-[#09090b]/50`) with gray text, making it nearly invisible
+- **Fix**: Changed to `bg-background/50 text-foreground placeholder:text-muted-foreground` for proper theme-aware contrast
+- **Impact**: Username field now clearly visible in both light and dark modes
+
+---
+
+### 🚀 **New Feature: Quick Tier Access with Email Automation**
+
+#### **Overview**
+Implemented automated user creation and email notification system for the "Quick Tier Access" feature on the Admin Roles page. When admins create new role-based users (moderators, content editors, etc.), the system now automatically:
+1. Creates user record in `adminusers` collection
+2. Links to the appropriate role with permissions
+3. Generates secure 12-character password
+4. Sends welcome email with login credentials
+5. Updates role user count
+
+#### **Implementation**
+
+**API Endpoint Enhancement**
+- **File**: `src/app/api/admin/quick-create-tier/route.ts`
+- **Method**: `POST`
+- **Changes**:
+  - ✅ Creates users in `adminusers` collection (not regular `users`)
+  - ✅ Fetches role from `roles` collection for permission assignment
+  - ✅ Validates role exists before user creation
+  - ✅ Generates secure passwords using custom character set
+  - ✅ Sets `isAdmin: true` for moderators and admins
+  - ✅ Marks users with `mustChangePassword: true` for security
+  - ✅ Increments role `userCount` automatically
+  - ✅ Sends welcome email via BrevoEmailService
+  - ✅ Returns credentials for admin to share (shown once)
+
+**Security Features:**
+- 12-character passwords with mixed case, numbers, and symbols
+- Email validation with regex
+- Admin-only endpoint (checks `session.user.isAdmin`)
+- Duplicate email detection
+- Role existence validation
+- Password hashing with bcrypt (cost factor: 12)
+
+**Email Integration:**
+- Uses existing `BrevoEmailService` for consistency
+- Sends to user's email address
+- Includes: username, temporary password, role name, login URL
+- Login URL points to `/admin` for admin-tier users
+- Graceful failure: User creation succeeds even if email fails
+
+**Database Updates:**
+```javascript
+// User Record Created
+{
+  email: "user@example.com",
+  username: "username",
+  password: "hashed_bcrypt",
+  role: "moderator",
+  isAdmin: true,
+  isVerified: true,
+  status: "active",
+  createdBy: "admin_user_id",
+  permissions: [...], // From role
+  mustChangePassword: true,
+  tier: {
+    name: "moderator",
+    displayName: "Moderator",
+    assignedAt: Date,
+    assignedBy: "admin@example.com"
+  }
+}
+
+// Role Updated
+{
+  userCount: +1 // Incremented
+}
+```
+
+#### **User Experience Flow**
+
+**Admin Side:**
+1. Navigate to `/admin/roles`
+2. Fill "Quick Tier Access" form:
+   - Email: `newmod@example.com`
+   - Username: `newmod` (optional)
+   - Tier: Select "Moderator"
+3. Click "Grant Access"
+4. See success notification
+5. View credentials in popup modal
+6. Copy credentials to share with user
+
+**New User Side:**
+1. Receive welcome email with credentials
+2. Go to homepage `/`
+3. Click "Sign In"
+4. Enter email and temporary password
+5. Automatically redirected to `/admin` dashboard
+6. Prompted to change password on first login
+
+---
+
+### 📊 **Impact & Metrics**
+
+**Before Fix:**
+- ❌ Admins couldn't use normal login form
+- ❌ Confusion about which login method to use
+- ❌ Security concern: Multiple auth paths
+- ❌ Manual user creation required
+- ❌ No automated email notifications
+
+**After Fix:**
+- ✅ Single unified login experience
+- ✅ Automatic role-based redirect
+- ✅ Consistent authentication flow
+- ✅ One-click user creation with email
+- ✅ Automated credential delivery
+- ✅ Proper admin user management
+
+**Performance:**
+- No performance impact (added one session fetch after login)
+- Logging can be disabled in production by removing console.log statements
+- Email sending is non-blocking (doesn't fail user creation)
+
+---
+
+### 🔧 **Files Modified**
+
+1. **`src/lib/auth.ts`**
+   - Lines 52-99: Added debug logging and admin password mismatch handling
+   - Lines 488-510: Enhanced signIn callback to detect admin users
+
+2. **`src/components/auth-form.tsx`**
+   - Lines 918-961: Added session check and role-based redirect logic
+
+3. **`src/app/admin/roles/page.tsx`**
+   - Line 469: Fixed username input field styling
+
+4. **`src/app/api/admin/quick-create-tier/route.ts`**
+   - Lines 1-135: Complete rewrite to use adminusers collection, role linking, and email automation
+
+---
+
+### ⚠️ **Known Issues & Future Improvements**
+
+**Console Warnings (Non-Critical):**
+1. **CSS MIME Type Warning**: Browser attempting to execute CSS as JS (Next.js dev quirk)
+2. **Dialog Description Warning**: Accessibility warning for missing `aria-describedby`
+3. **Smooth Scroll Warning**: Future Next.js behavior change notification
+
+**Recommended Improvements:**
+- [ ] Add `DialogDescription` to all dialog components for accessibility
+- [ ] Add `data-scroll-behavior="smooth"` to `<html>` tag
+- [ ] Implement password change enforcement on first login
+- [ ] Add email delivery status tracking
+- [ ] Create admin audit log for user creation events
+
+---
+
 - **Massive Scalability**:
   - **Round-Robin Load Balancing**: Implemented smart rotation for Gemini API keys.
   - **20+ Keys Support**: System now dynamically loads `GEMINI_API_KEY_1` through `GEMINI_API_KEY_20`.

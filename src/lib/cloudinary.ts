@@ -10,16 +10,16 @@ cloudinary.config({
 // Enhanced upload function with better error handling
 export async function uploadWithRetry(file: File, options: any = {}, maxRetries: number = 3): Promise<any> {
   let lastError: any;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`📤 Cloudinary upload attempt ${attempt}/${maxRetries}`);
-      
+
       // Convert file to buffer
       const buffer = await file.arrayBuffer();
       const base64 = Buffer.from(buffer).toString('base64');
       const dataUri = `data:${file.type};base64,${base64}`;
-      
+
       // Upload with timeout
       const uploadPromise = cloudinary.uploader.upload(dataUri, {
         resource_type: 'image',
@@ -29,26 +29,26 @@ export async function uploadWithRetry(file: File, options: any = {}, maxRetries:
         overwrite: false,
         ...options
       });
-      
+
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Upload timeout')), 30000); // 30 second timeout
       });
-      
+
       const result = await Promise.race([uploadPromise, timeoutPromise]) as any;
-      
+
       // Validate response
       if (!result || !result.secure_url || !result.public_id) {
         throw new Error('Invalid Cloudinary response format');
       }
-      
+
       console.log(`✅ Cloudinary upload successful on attempt ${attempt}`);
       return result;
-      
+
     } catch (error: any) {
       lastError = error;
       console.error(`❌ Cloudinary upload attempt ${attempt} failed:`, error.message);
-      
+
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
         console.log(`⏳ Retrying in ${delay}ms...`);
@@ -56,7 +56,7 @@ export async function uploadWithRetry(file: File, options: any = {}, maxRetries:
       }
     }
   }
-  
+
   console.error(`❌ All ${maxRetries} Cloudinary upload attempts failed`);
   throw lastError;
 }
@@ -90,7 +90,7 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string, 
 
     // Create archive path with timestamp and user ID if available
     const timestamp = Date.now();
-    const archivePath = userId 
+    const archivePath = userId
       ? `capsera_archives/${userId}/${timestamp}_${publicId.split('/').pop()}`
       : `capsera_archives/unknown_users/${timestamp}_${publicId.split('/').pop()}`;
 
@@ -115,17 +115,17 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string, 
       overwrite: true,
       invalidate: true
     });
-    
+
     if (copyResult && copyResult.public_id) {
       console.log(`✅ Image copied to archive successfully: ${copyResult.public_id}`);
-      
+
       // Delete the original image after successful copying
       try {
         const deleteResult = await cloudinary.uploader.destroy(publicId, {
           invalidate: true,
           resource_type: resourceType
         });
-        
+
         if (deleteResult.result === 'ok' || deleteResult.result === 'not found') {
           console.log(`🗑️ Original image deleted after archiving: ${publicId}`);
         } else {
@@ -135,10 +135,10 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string, 
         console.warn(`⚠️ Failed to delete original image after archiving: ${publicId}`, deleteError.message);
         // Still consider it a success since it was archived
       }
-      
-      return { 
-        success: true, 
-        archivedId: copyResult.public_id 
+
+      return {
+        success: true,
+        archivedId: copyResult.public_id
       };
     } else {
       console.error(`❌ Failed to archive image: ${publicId} - Invalid response from Cloudinary`);
@@ -147,10 +147,10 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string, 
 
   } catch (error: any) {
     console.error(`❌ Error archiving image: ${publicId}`, error);
-    
+
     // Enhanced error handling for specific Cloudinary errors
     let errorMessage = 'Unknown error during archiving';
-    
+
     if (error.message?.includes('not found')) {
       errorMessage = 'Image not found - may already be deleted or archived';
     } else if (error.message?.includes('unauthorized')) {
@@ -162,9 +162,9 @@ export async function archiveCloudinaryImage(publicId: string, userId?: string, 
     } else if (error.message) {
       errorMessage = error.message;
     }
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       error: errorMessage
     };
   }
@@ -184,10 +184,10 @@ export async function restoreCloudinaryImage(archivedId: string, originalPath?: 
 
     // Copy image back from archive to main folder
     const restoreResult = await cloudinary.uploader.rename(archivedId, restorePath);
-    
+
     if (restoreResult.public_id) {
       console.log(`✅ Image restored successfully: ${restoreResult.public_id}`);
-      
+
       // Delete the archived copy after successful restoration
       try {
         await cloudinary.uploader.destroy(archivedId);
@@ -196,10 +196,10 @@ export async function restoreCloudinaryImage(archivedId: string, originalPath?: 
         console.warn(`⚠️ Failed to delete archived copy after restoration: ${archivedId}`, deleteError);
         // Still consider it a success since it was restored
       }
-      
-      return { 
-        success: true, 
-        restoredId: restoreResult.public_id 
+
+      return {
+        success: true,
+        restoredId: restoreResult.public_id
       };
     } else {
       console.error(`❌ Failed to restore image: ${archivedId}`);
@@ -208,9 +208,9 @@ export async function restoreCloudinaryImage(archivedId: string, originalPath?: 
 
   } catch (error: any) {
     console.error(`❌ Error restoring image: ${archivedId}`, error);
-    return { 
-      success: false, 
-      error: error.message || 'Unknown error during restoration' 
+    return {
+      success: false,
+      error: error.message || 'Unknown error during restoration'
     };
   }
 }
@@ -219,7 +219,7 @@ export async function restoreCloudinaryImage(archivedId: string, originalPath?: 
 export async function listArchivedImages(userId?: string, limit: number = 50): Promise<{ success: boolean; images?: any[]; error?: string }> {
   try {
     const prefix = userId ? `capsera_archives/${userId}/` : 'capsera_archives/';
-    
+
     console.log(`📋 Listing archived images for prefix: ${prefix}`);
 
     const result = await cloudinary.api.resources({
@@ -232,8 +232,8 @@ export async function listArchivedImages(userId?: string, limit: number = 50): P
 
     if (result.resources) {
       console.log(`✅ Found ${result.resources.length} archived images`);
-      return { 
-        success: true, 
+      return {
+        success: true,
         images: result.resources.map((img: any) => ({
           id: img.public_id,
           url: img.secure_url,
@@ -248,9 +248,9 @@ export async function listArchivedImages(userId?: string, limit: number = 50): P
 
   } catch (error: any) {
     console.error('Error listing archived images:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Unknown error listing archived images' 
+    return {
+      success: false,
+      error: error.message || 'Unknown error listing archived images'
     };
   }
 }
@@ -260,7 +260,7 @@ export async function cleanupOldArchivedImages(daysOld: number = 90): Promise<{ 
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-    
+
     console.log(`🧹 Cleaning up archived images older than ${daysOld} days (before ${cutoffDate.toISOString()})`);
 
     // Get all archived images
@@ -282,7 +282,7 @@ export async function cleanupOldArchivedImages(daysOld: number = 90): Promise<{ 
 
     for (const image of result.resources) {
       const imageDate = new Date(image.created_at);
-      
+
       if (imageDate < cutoffDate) {
         try {
           await cloudinary.uploader.destroy(image.public_id);
@@ -298,20 +298,20 @@ export async function cleanupOldArchivedImages(daysOld: number = 90): Promise<{ 
     }
 
     console.log(`✅ Cleanup complete: ${deleted} deleted, ${errors} errors`);
-    return { 
-      success: true, 
-      deleted, 
-      errors, 
-      details 
+    return {
+      success: true,
+      deleted,
+      errors,
+      details
     };
 
   } catch (error: any) {
     console.error('Error during cleanup:', error);
-    return { 
-      success: false, 
-      deleted: 0, 
-      errors: 0, 
-      details: { error: error.message } 
+    return {
+      success: false,
+      deleted: 0,
+      errors: 0,
+      details: { error: error.message }
     };
   }
 }
@@ -322,25 +322,25 @@ export function extractCloudinaryPublicId(url: string): string | null {
     if (!url || typeof url !== 'string') {
       return null;
     }
-    
+
     // Handle different Cloudinary URL formats
     // Format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/image_name.jpg
     const cloudinaryPattern = /\/upload\/(?:v\d+\/)?([^\/]+(?:\/[^\/]+)*?)(?:\.\w+)?$/;
     const match = url.match(cloudinaryPattern);
-    
+
     if (match && match[1]) {
       // Remove file extension if present
       const publicId = match[1].replace(/\.\w+$/, '');
       return publicId;
     }
-    
+
     // Fallback: try to extract from the end of the URL
     const urlParts = url.split('/');
     const lastPart = urlParts[urlParts.length - 1];
     if (lastPart && lastPart.includes('.')) {
       return lastPart.split('.')[0];
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error extracting Cloudinary public ID:', error);

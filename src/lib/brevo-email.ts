@@ -131,18 +131,201 @@ class BrevoEmailService {
   private transporter: nodemailer.Transporter;
   private config: EmailConfig;
 
-  constructor() {
+  constructor(useSecondaryKey: boolean = false) {
     this.config = {
       host: process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com',
       port: parseInt(process.env.BREVO_SMTP_PORT || '587'),
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
-        user: process.env.BREVO_SMTP_USER || '',
-        pass: process.env.BREVO_SMTP_PASS || ''
+        user: useSecondaryKey
+          ? (process.env.BREVO_SMTP_USER_SECONDARY || process.env.BREVO_SMTP_USER || process.env.ADMIN_EMAIL_RECEIVER || '')
+          : (process.env.BREVO_SMTP_USER || process.env.ADMIN_EMAIL_RECEIVER || ''),
+        pass: useSecondaryKey
+          ? (process.env.SMTP_PASS_1 || '')
+          : (process.env.BREVO_SMTP_PASS || process.env.BREVO_API_KEY_1 || '')
       }
     };
 
     this.transporter = nodemailer.createTransport(this.config);
+  }
+
+
+  /**
+   * Send suggestion reply email to user
+   */
+  async sendSuggestionReplyEmail(data: {
+    userEmail: string;
+    userName: string;
+    suggestionTitle: string;
+    adminReply: string;
+  }): Promise<boolean> {
+    try {
+      const template = this.getSuggestionReplyTemplate(data);
+
+      const mailOptions = {
+        from: `"${process.env.APP_NAME || 'Capsera'}" <${this.config.auth.user}>`,
+        to: data.userEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('✅ Suggestion reply email sent:', result.messageId);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to send suggestion reply email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get suggestion reply email template
+   */
+  private getSuggestionReplyTemplate(data: {
+    userEmail: string;
+    userName: string;
+    suggestionTitle: string;
+    adminReply: string;
+  }): EmailTemplate {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+
+    return {
+      subject: `Re: ${data.suggestionTitle} - Update from Capsera`,
+      html: getHtmlTemplate({
+        title: 'Suggestion Update',
+        previewText: 'We have an update regarding your suggestion.',
+        heading: 'Suggestion Update 📢',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">Hello <strong>${data.userName}</strong>,</p>
+          <p style="margin-bottom: 24px;">Thank you for your suggestion: "<strong>${data.suggestionTitle}</strong>".</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #06b6d4; font-size: 16px; font-weight: 600;">Admin Reply</h3>
+            <p style="color: #e5e7eb; line-height: 1.6; white-space: pre-wrap;">${data.adminReply}</p>
+          </div>
+          
+          <p style="color: #9ca3af; font-size: 14px;">We appreciate your feedback and are constantly working to improve Capsera.</p>
+        `,
+        cta: {
+          text: 'Visit Capsera',
+          url: baseUrl
+        }
+      }),
+      text: `
+Suggestion Update
+
+Hello ${data.userName},
+
+Thank you for your suggestion: "${data.suggestionTitle}".
+
+Admin Reply:
+${data.adminReply}
+
+We appreciate your feedback and are constantly working to improve Capsera.
+
+---
+This is an automated message from Capsera.
+      `
+    };
+  }
+
+  /**
+   * Send suggestion notification to admin
+   */
+  async sendSuggestionEmail(suggestionData: {
+    userEmail: string;
+    userName: string;
+    title: string;
+    description: string;
+    category: string;
+  }): Promise<boolean> {
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL_RECEIVER;
+
+      if (!adminEmail) {
+        console.warn('⚠️ ADMIN_EMAIL_RECEIVER not set in .env, skipping suggestion email.');
+        return false;
+      }
+
+      const template = this.getSuggestionTemplate(suggestionData);
+
+      const mailOptions = {
+        from: `"${process.env.APP_NAME || 'Capsera'}" <${this.config.auth.user}>`,
+        to: adminEmail,
+        replyTo: suggestionData.userEmail,
+        subject: template.subject,
+        html: template.html,
+        text: template.text
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('✅ Suggestion email sent:', result.messageId);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to send suggestion email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get suggestion email template
+   */
+  private getSuggestionTemplate(data: {
+    userEmail: string;
+    userName: string;
+    title: string;
+    description: string;
+    category: string;
+  }): EmailTemplate {
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+
+    return {
+      subject: `💡 New Suggestion: ${data.title}`,
+      html: getHtmlTemplate({
+        title: 'New User Suggestion',
+        previewText: `New suggestion from ${data.userName}: ${data.title}`,
+        heading: 'New Suggestion Received 💡',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">You have received a new suggestion from <strong>${data.userName}</strong> (${data.userEmail}).</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-left: 4px solid #8b5cf6; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #8b5cf6; font-size: 16px; font-weight: 600;">${data.title}</h3>
+            <div style="margin-bottom: 12px;">
+              <span style="background-color: #2e1065; color: #c4b5fd; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; text-transform: uppercase;">${data.category}</span>
+            </div>
+            <p style="color: #e5e7eb; line-height: 1.6; white-space: pre-wrap;">${data.description}</p>
+          </div>
+          
+          <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #333333;">
+            <p style="color: #9ca3af; font-size: 14px; margin: 0;">Submitted by:</p>
+            <p style="color: #e5e7eb; font-size: 14px; margin: 4px 0 0 0;">
+              <strong>${data.userName}</strong> • <a href="mailto:${data.userEmail}" style="color: #8b5cf6; text-decoration: none;">${data.userEmail}</a>
+            </p>
+          </div>
+        `,
+        cta: {
+          text: 'View All Suggestions',
+          url: `${baseUrl}/admin/suggestions`
+        }
+      }),
+      text: `
+New Suggestion Received
+
+From: ${data.userName} (${data.userEmail})
+Category: ${data.category}
+
+Title: ${data.title}
+
+Description:
+${data.description}
+
+---
+This is an automated message from Capsera.
+      `
+    };
   }
 
   /**

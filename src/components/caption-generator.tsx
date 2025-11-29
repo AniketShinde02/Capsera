@@ -1080,7 +1080,7 @@ export function CaptionGenerator() {
       setButtonIcon(<Brain className="mr-2 h-4 w-4 animate-pulse" />);
 
       const captionController = new AbortController();
-      const captionTimeout = setTimeout(() => captionController.abort(), 60000);
+      const captionTimeout = setTimeout(() => captionController.abort('Request timed out'), 60000);
 
       // Call API with Base64 (Priority) or URL
       const captionResponse = await fetch('/api/generate-captions', {
@@ -1106,6 +1106,8 @@ export function CaptionGenerator() {
       const captionData = await captionResponse.json();
       if (captionData.captions) {
         setCaptions(captionData.captions);
+        // 🚀 FIX: Stop loading immediately to show captions without delay
+        setIsLoading(false);
       }
 
       // Success!
@@ -1123,6 +1125,26 @@ export function CaptionGenerator() {
           // We keep using the local blob preview which is faster and works perfectly.
           // setImagePreview(uploadResult.url); <--- REMOVED
           console.log('✅ Background upload complete (Private URL stored)');
+
+          // Save to history if we have captions and URL (since AI didn't save it due to missing URL)
+          if (captionData.captions && captionData.captions.length > 0 && session?.user) {
+            try {
+              console.log('💾 Saving post to history...');
+              await fetch('/api/posts/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  captions: captionData.captions,
+                  image: uploadResult.url,
+                  mood: values.mood,
+                  description: values.description
+                })
+              });
+              console.log('✅ Post saved to history');
+            } catch (err) {
+              console.error('❌ Failed to save post to history:', err);
+            }
+          }
         }
       }
 
@@ -1146,14 +1168,20 @@ export function CaptionGenerator() {
       updateButtonState('idle');
 
       let errorMessage = error.message || 'An unexpected error occurred.';
-      if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
+
+      // Handle AbortError / Timeout
+      if (error.name === 'AbortError' || error.message?.includes('aborted') || error.message?.includes('timed out')) {
+        errorMessage = 'The request took too long. Please check your connection and try again.';
+      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
         errorMessage = 'You have reached your daily limit!';
         setShowLimitShake(true);
       }
 
       setErrorWithTimer(errorMessage, 8000);
     } finally {
-      setIsLoading(false);
+      // Ensure loading is off in case of any weird edge cases, but it should be off by now
+      if (isLoading) setIsLoading(false);
+
       if (uploadStage !== 'idle') {
         setUploadStage('idle');
         updateButtonState('idle');
@@ -1584,7 +1612,7 @@ export function CaptionGenerator() {
                             handleUrlUpload(url.trim());
                           }
                         }}
-                        className="w-full text-xs py-2 h-auto border-dashed hover:bg-primary/5"
+                        className="w-full text-xs py-2 h-auto border-dashed hover:bg-primary/5 hover:text-primary dark:hover:text-white"
                       >
                         <Upload className="w-3 h-3 mr-2" />
                         Or paste image URL
@@ -1846,7 +1874,7 @@ export function CaptionGenerator() {
                     {isLoading ? (
                       // Loading State - Compact with enhanced animations
                       Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className={`bg-muted/20 p-4 space-y-3 border border-border rounded-xl shadow-sm transition-all duration-500 ${uploadStage === 'uploading'
+                        <div key={i} className={`bg-muted/20 p-4 space-y-3 border border-border rounded-xl shadow-sm ${uploadStage === 'uploading'
                           ? 'bg-primary/5'
                           : uploadStage === 'processing'
                             ? 'bg-secondary/5'

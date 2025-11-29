@@ -80,23 +80,28 @@ export async function getUserFreemiumTier(userId?: string): Promise<FreemiumTier
 
     // Check adminusers collection (uses email or string ID)
     const adminUsersCollection = db.collection('adminusers');
-    const adminUser = await adminUsersCollection.findOne({
-      email: userId, // Check if userId is actually an email (sometimes passed as ID)
-      isAdmin: true
-    });
 
-    if (adminUser) {
-      // console.log('👑 User is admin in adminusers collection:', adminUser.email);
-      return 'pro';
+    // Check by ID first if valid ObjectId
+    if (ObjectId.isValid(userId)) {
+      const adminUserById = await adminUsersCollection.findOne({
+        _id: new ObjectId(userId),
+        isAdmin: true
+      });
+
+      if (adminUserById) {
+        // console.log('👑 User is admin in adminusers collection (by ID):', adminUserById.email);
+        return 'pro';
+      }
     }
 
-    // Also check if userId matches an admin email directly
+    // Check if userId is actually an email
     const adminUserByEmail = await adminUsersCollection.findOne({
       email: userId,
       isAdmin: true
     });
 
     if (adminUserByEmail) {
+      // console.log('👑 User is admin in adminusers collection (by Email):', adminUserByEmail.email);
       return 'pro';
     }
 

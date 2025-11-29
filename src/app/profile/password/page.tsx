@@ -5,12 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { Loader2, Lock } from 'lucide-react';
 
 export default function PasswordPage() {
-    const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [status, setStatus] = useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
     const [passwords, setPasswords] = useState({
         current: '',
         new: '',
@@ -21,31 +21,20 @@ export default function PasswordPage() {
         e.preventDefault();
 
         if (passwords.new !== passwords.confirm) {
-            toast({
-                title: 'Error',
-                description: 'New passwords do not match',
-                variant: 'destructive',
-            });
+            setStatus({ type: 'error', message: 'New passwords do not match' });
             return;
         }
 
         setLoading(true);
+        setStatus({ type: 'loading', message: 'Updating password...' });
         try {
             // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            toast({
-                title: 'Success',
-                description: 'Password updated successfully',
-            });
-
+            setStatus({ type: 'success', message: 'Password updated successfully!' });
             setPasswords({ current: '', new: '', confirm: '' });
         } catch (error) {
-            toast({
-                title: 'Error',
-                description: 'Failed to update password',
-                variant: 'destructive',
-            });
+            setStatus({ type: 'error', message: 'Failed to update password. Please try again.' });
         } finally {
             setLoading(false);
         }
@@ -59,6 +48,16 @@ export default function PasswordPage() {
                     Change your password to keep your account secure.
                 </p>
             </div>
+
+            {status && (
+                <InlineMessage
+                    type={status.type}
+                    message={status.message}
+                    timeout={status.type === 'loading' ? 0 : 4000}
+                    onDismiss={() => setStatus(null)}
+                    showCloseButton={status.type !== 'loading'}
+                />
+            )}
 
             <form onSubmit={handleSubmit}>
                 <Card>

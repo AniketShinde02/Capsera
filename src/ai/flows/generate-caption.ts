@@ -420,7 +420,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
     console.log('📝 Caption lengths:', captions.map(c => String(c).length));
 
     // ⚡ SPEED OPTIMIZATION: Non-blocking database save for authenticated users
-    if (captions.length > 0 && input.userId) {
+    if (captions.length > 0 && input.userId && input.imageUrl) {
       // Start database save asynchronously - don't wait for it
       dbConnect()
         .then(async () => {

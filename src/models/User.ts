@@ -185,6 +185,51 @@ const UserSchema = new mongoose.Schema({
   welcomeEmailSent: {
     type: Boolean,
     default: false
+  },
+  // Privacy Settings
+  privacySettings: {
+    profilePublic: {
+      type: Boolean,
+      default: true
+    },
+    showActivity: {
+      type: Boolean,
+      default: true
+    },
+    allowIndexing: {
+      type: Boolean,
+      default: true
+    },
+    dataCollection: {
+      type: Boolean,
+      default: true
+    }
+  },
+  // General User Settings
+  userSettings: {
+    emailNotifications: { type: Boolean, default: true },
+    pushNotifications: { type: Boolean, default: false },
+    marketingEmails: { type: Boolean, default: true },
+    weeklyDigest: { type: Boolean, default: true },
+    language: { type: String, default: 'en' },
+    timezone: { type: String, default: 'UTC' },
+    autoSave: { type: Boolean, default: true },
+    showTips: { type: Boolean, default: true },
+  },
+  // Detailed Notification Settings
+  notificationSettings: {
+    email: {
+      marketing: { type: Boolean, default: true },
+      security: { type: Boolean, default: true },
+      updates: { type: Boolean, default: true },
+      newsletter: { type: Boolean, default: true }
+    },
+    push: {
+      comments: { type: Boolean, default: true },
+      likes: { type: Boolean, default: false },
+      mentions: { type: Boolean, default: true },
+      newFollowers: { type: Boolean, default: true }
+    }
   }
 });
 

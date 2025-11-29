@@ -57,12 +57,24 @@ export const authOptions: NextAuthOptions = {
           email: credentials.email.toLowerCase()
         });
 
+        console.log('🔍 Auth Debug - Email:', credentials.email);
+        console.log('🔍 Auth Debug - Admin user found:', !!adminUser);
+
         if (adminUser) {
+          console.log('🔍 Auth Debug - Admin user details:', {
+            email: adminUser.email,
+            role: adminUser.role,
+            isAdmin: adminUser.isAdmin,
+            hasPassword: !!adminUser.password
+          });
+
           // Verify password against admin record
           const isAdminPasswordMatch = await bcrypt.compare(
             credentials.password,
             adminUser.password
           );
+
+          console.log('🔍 Auth Debug - Password match:', isAdminPasswordMatch);
 
           if (isAdminPasswordMatch) {
             console.log('✅ Unified Login: Logged in as Admin via standard form:', adminUser.email);
@@ -79,6 +91,12 @@ export const authOptions: NextAuthOptions = {
               }
             );
 
+            // Check if admin user also has a regular user account
+            const usersCollection = db.collection('users');
+            const regularUser = await usersCollection.findOne({
+              email: credentials.email.toLowerCase()
+            });
+
             return {
               id: adminUser._id.toString(),
               email: adminUser.email,
@@ -87,11 +105,14 @@ export const authOptions: NextAuthOptions = {
               isAdmin: true,
               isVerified: adminUser.isVerified || false,
               image: adminUser.image || null,
-              // Add dual-mode flags if they exist
-              hasRegularUserAccount: adminUser.hasRegularUserAccount,
-              regularUserId: adminUser.regularUserId,
+              // Add dual-mode flags
+              hasRegularUserAccount: adminUser.hasRegularUserAccount !== undefined ? adminUser.hasRegularUserAccount : !!regularUser,
+              regularUserId: adminUser.regularUserId || regularUser?._id?.toString(),
               canBrowseAsUser: adminUser.canBrowseAsUser ?? true
             };
+          } else {
+            console.log('❌ Auth Debug - Admin password mismatch, NOT checking regular users');
+            throw new Error('Invalid credentials.');
           }
         }
 
@@ -473,11 +494,21 @@ export const authOptions: NextAuthOptions = {
       // Regular credentials provider validation
       if (account?.provider === 'credentials') {
         try {
+          console.log('🔐 SignIn callback - Checking user:', user.id, user.email);
+
+          // Check if user is admin (from adminusers collection)
+          if ((user as any).isAdmin) {
+            console.log('✅ SignIn callback - Admin user detected, allowing sign in');
+            return true;
+          }
+
+          // Otherwise check regular users collection
           await dbConnect();
           const userExists = await (User as any).findById(user.id);
+          console.log('🔐 SignIn callback - Regular user exists:', !!userExists);
           return !!userExists; // Only allow sign in if user exists in database
         } catch (error) {
-          console.error('Error validating user during sign in:', error);
+          console.error('❌ SignIn callback error:', error);
           return false;
         }
       }

@@ -103,7 +103,7 @@ export default function UsersPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersPerPage] = useState(10);
+  const [usersPerPage] = useState(4);
 
   const fetchData = async () => {
     try {
@@ -269,7 +269,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-8">
+    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:px-8 lg:pt-4 lg:pb-8">
 
       {/* Notification Toast */}
       {notification && (
@@ -287,7 +287,7 @@ export default function UsersPage() {
       )}
 
       {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-end gap-4">
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2 text-foreground">User Management</h1>
           <p className="text-muted-foreground">Manage users, roles, and permissions securely.</p>

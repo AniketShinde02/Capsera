@@ -20,7 +20,7 @@ class PerformanceMonitor {
   private metrics: PerformanceMetrics[] = []
   private readonly MAX_METRICS = 1000
   private readonly ALERT_THRESHOLD = 5000 // 5 seconds
-  private readonly ERROR_ALERT_EMAIL = 'sunnyshinde2601@gmail.com'
+  private readonly ERROR_ALERT_EMAIL = process.env.ADMIN_EMAIL_RECEIVER || 'admin@capsera.online'
 
   // Track API performance
   trackApiCall(endpoint: string, responseTime: number, statusCode: number, userId?: string, error?: string) {
@@ -54,7 +54,7 @@ class PerformanceMonitor {
   // Track Gemini API quota issues
   async trackGeminiQuotaError(endpoint: string, error: string) {
     console.error(`🚨 Gemini API Quota Error: ${endpoint} - ${error}`)
-    
+
     // Send immediate email alert
     try {
       const emailService = getEmailService()
@@ -98,7 +98,7 @@ class PerformanceMonitor {
   // Get system health metrics
   async getSystemHealth(): Promise<SystemHealth> {
     const startTime = Date.now()
-    
+
     // Simulate system metrics (in production, use actual system monitoring)
     const cpu = Math.random() * 30 + 10 // 10-40%
     const memory = Math.random() * 40 + 20 // 20-60%
@@ -116,7 +116,7 @@ class PerformanceMonitor {
   // Private methods for alerts
   private async alertSlowResponse(endpoint: string, responseTime: number) {
     console.warn(`🐌 Slow API Response: ${endpoint} took ${responseTime}ms`)
-    
+
     if (responseTime > 10000) { // 10 seconds - critical
       try {
         const emailService = getEmailService()
@@ -140,7 +140,7 @@ class PerformanceMonitor {
 
   private async alertError(endpoint: string, error: string, responseTime: number) {
     console.error(`❌ API Error: ${endpoint} - ${error} (${responseTime}ms)`)
-    
+
     try {
       const emailService = getEmailService()
       await emailService.sendEmail({

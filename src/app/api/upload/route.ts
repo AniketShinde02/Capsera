@@ -26,7 +26,7 @@ async function uploadWithRetry(uploadParams: any, maxRetries = 3): Promise<any> 
     try {
       console.log(`🔄 Cloudinary upload attempt ${attempt}/${maxRetries}`);
       const response = await cloudinary.uploader.upload(uploadParams.file, {
-        folder: 'capsera_uploads',
+        folder: uploadParams.folder || 'capsera_uploads',
         use_filename: true,
         unique_filename: true,
         overwrite: false,
@@ -138,13 +138,16 @@ export async function POST(req: Request) {
     const fileExtension = path.extname(file.name);
     const uniqueFileName = `${uuidv4()}${fileExtension}`;
 
+    const folder = formData.get('folder') as string || 'capsera_uploads';
+
     // Sanitized logging - don't expose full URLs
-    console.log(`📤 Starting Cloudinary upload for file: ${uniqueFileName} (${Math.round(file.size / 1024)}KB)`);
+    console.log(`📤 Starting Cloudinary upload for file: ${uniqueFileName} (${Math.round(file.size / 1024)}KB) to folder: ${folder}`);
 
     const uploadParams = {
       file: `data:${file.type};base64,${buffer.toString('base64')}`,
       fileName: uniqueFileName,
-      type: 'private', // 🔒 Make image private (not accessible via public URL)
+      type: 'upload', // 🔓 Make image public so it can be viewed in profile
+      folder: folder,
     };
 
     // Use retry logic for Cloudinary upload
@@ -155,9 +158,9 @@ export async function POST(req: Request) {
       console.log(`🔍 Performing content safety check for: ${uniqueFileName}`);
 
       // 🔐 Generate a temporary SIGNED URL for the safety check service
-      // This allows Sightengine to access the private image for analysis
+      // This allows Sightengine to access the image for analysis
       const signedSafetyUrl = cloudinary.url(response.public_id, {
-        type: 'private',
+        type: 'upload',
         sign_url: true,
         secure: true,
         expires_at: Math.floor(Date.now() / 1000) + 3600 // Valid for 1 hour

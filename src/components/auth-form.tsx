@@ -100,13 +100,13 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
       const response = await fetch('/api/admin/request-setup-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'sunnyshinde2601@gmail.com' })
+        body: JSON.stringify({ email: process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER })
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setSuccess('OTP generated and sent! Please check your email: sunnyshinde2601@gmail.com');
+        setSuccess(`OTP generated and sent! Please check your email: ${process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER}`);
         setTimeout(() => setSuccess(''), 3000);
 
         // Set 60-second cooldown
@@ -148,7 +148,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
         body: JSON.stringify({
           action: 'verify-token',
           token: otpString,
-          email: 'sunnyshinde2601@gmail.com'
+          email: process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER
         })
       });
 
@@ -244,7 +244,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
         body: JSON.stringify({
           action: 'verify-token',
           token: tokenToUse,
-          email: 'sunnyshinde2601@gmail.com'
+          email: process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER
         })
       });
 
@@ -379,7 +379,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'skip-otp',
-            email: 'sunnyshinde2601@gmail.com'
+            email: process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER
           })
         });
 
@@ -404,11 +404,11 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto ring-1 ring-border/50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-[95%] sm:max-w-md max-h-[90vh] overflow-y-auto ring-1 ring-border/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-bold text-foreground">Admin System Access</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">Admin System Access</h2>
           <button
             onClick={() => {
               // Reset all state when closing
@@ -431,13 +431,13 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
           {/* System Password Step */}
           {step === 'system-password' && (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-foreground mb-2">System Verification</h3>
-                <p className="text-sm text-muted-foreground">Enter system password to unlock admin access</p>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">System Verification</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">Enter system password to unlock admin access</p>
               </div>
 
               <div className="space-y-3">
@@ -467,9 +467,9 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
           {/* OTP Step */}
           {step === 'otp' && (
             <div className="space-y-4">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-foreground mb-2">OTP Verification</h3>
-                <p className="text-sm text-muted-foreground">Enter the 6-digit OTP sent to sunnyshinde2601@gmail.com</p>
+              <div className="text-center px-2">
+                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">OTP Verification</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground break-words">Enter the 6-digit OTP sent to {process.env.NEXT_PUBLIC_ADMIN_EMAIL_RECEIVER}</p>
                 {pinVerified && <p className="text-xs text-green-500 mt-1">✅ System PIN Verified</p>}
               </div>
 
@@ -477,14 +477,14 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
               <div className="text-center">
                 <button
                   onClick={handleSkipOTPCompletely}
-                  className="text-primary hover:text-primary/80 underline text-lg font-medium cursor-pointer transition-colors"
+                  className="text-primary hover:text-primary/80 underline text-base sm:text-lg font-medium cursor-pointer transition-colors"
                 >
                   Skip OTP
                 </button>
               </div>
 
               {/* OTP Input Fields */}
-              <div className="flex justify-center space-x-2">
+              <div className="flex justify-center gap-2 px-2">
                 {otp.map((digit, index) => (
                   <input
                     key={index}
@@ -493,7 +493,7 @@ const AdminRegistrationModal = ({ onClose, onSuccess }: { onClose: () => void; o
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(index, e.target.value)}
-                    className="w-12 h-12 text-center text-lg font-semibold bg-background border-2 border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground transition-all"
+                    className="w-10 h-10 sm:w-12 sm:h-12 text-center text-base sm:text-lg font-semibold bg-background border-2 border-input rounded-lg sm:rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-foreground transition-all"
                     placeholder="0"
                   />
                 ))}
@@ -974,15 +974,15 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
   // If in verification step, show OTP UI
   if (verificationStep) {
     return (
-      <div className="space-y-6 py-4 px-2">
-        <div className="text-center space-y-2">
-          <h3 className="text-xl font-bold text-foreground">Verify Your Email</h3>
-          <p className="text-sm text-muted-foreground">
+      <div className="space-y-6 py-4 px-2 sm:px-4 max-w-md mx-auto">
+        <div className="text-center space-y-2 px-2">
+          <h3 className="text-lg sm:text-xl font-bold text-foreground">Verify Your Email</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground break-words">
             Enter the 6-digit code sent to <span className="font-medium text-foreground">{verificationEmail}</span>
           </p>
         </div>
 
-        <div className="flex justify-center space-x-2">
+        <div className="flex justify-center gap-2 px-2 sm:px-4">
           {otp.map((digit, index) => (
             <input
               key={index}
@@ -991,7 +991,7 @@ export function AuthForm({ initialEmail = '' }: { initialEmail?: string }) {
               maxLength={1}
               value={digit}
               onChange={(e) => handleOtpChange(index, e.target.value)}
-              className="w-12 h-12 text-center text-lg font-semibold border-2 border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground transition-all"
+              className="w-10 h-10 sm:w-12 sm:h-12 text-center text-base sm:text-lg font-semibold border-2 border-input rounded-lg sm:rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground transition-all"
               placeholder="-"
             />
           ))}

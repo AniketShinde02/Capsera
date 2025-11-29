@@ -13,7 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image as ImageIcon, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, Database, HardDrive, Clock, CheckSquare, Square, X } from 'lucide-react';
+import { Image as ImageIcon, Trash2, Download, Eye, AlertTriangle, CheckCircle, XCircle, Settings, Search, Filter, RefreshCw, Info, Database, HardDrive, Clock, CheckSquare, Square, X, HelpCircle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import JSZip from 'jszip';
 import { MagicCard } from '@/components/admin/dashboard/magic-card';
 import { cn } from '@/lib/utils';
@@ -98,7 +99,7 @@ export default function ImageManagementPage() {
   const [moderationAction, setModerationAction] = useState<'approve' | 'reject' | 'flag'>('approve');
   const [downloadingImage, setDownloadingImage] = useState<string | null>(null);
   const [exportingData, setExportingData] = useState(false);
-  const [bulkDownloadProgress, setBulkDownloadProgress] = useState<{ current: number; total: number; zipSize?: string } | null>(null);
+  const [bulkDownloadProgress, setBulkDownloadProgress] = useState<{ current: number; total: number; zipSize?: string; compressing?: boolean; compressionPercent?: number } | null>(null);
 
   // Inline Feedback State
   const [inlineMessage, setInlineMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -202,55 +203,112 @@ export default function ImageManagementPage() {
         return;
       }
 
-      showNotification("Preparing images for compression...", "info");
+      showNotification("Starting bulk download...", "info");
 
       const zip = new JSZip();
       let processedCount = 0;
+      let failedCount = 0;
       setBulkDownloadProgress({ current: 0, total: images.length });
 
-      for (const image of images) {
-        try {
-          if (image.url && image.url !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image') {
+      // Filter valid images
+      const validImages = images.filter(img =>
+        img.url && img.url !== 'https://via.placeholder.com/400x400/cccccc/666666?text=No+Image'
+      );
+
+      console.log(`📦 Starting parallel download of ${validImages.length} images...`);
+
+      // Parallel download with batching (10 concurrent downloads)
+      const BATCH_SIZE = 10;
+      const batches = [];
+
+      for (let i = 0; i < validImages.length; i += BATCH_SIZE) {
+        batches.push(validImages.slice(i, i + BATCH_SIZE));
+      }
+
+      // Process batches sequentially, but images within each batch in parallel
+      for (const batch of batches) {
+        const downloadPromises = batch.map(async (image) => {
+          try {
             const response = await fetch(image.url, {
               method: 'GET',
               mode: 'cors',
-              headers: { 'Accept': 'image/*' }
+              headers: { 'Accept': 'image/*' },
+              signal: AbortSignal.timeout(30000) // 30s timeout per image
             });
 
             if (response.ok) {
               const blob = await response.blob();
               const extension = image.format.toLowerCase();
               const filename = `${image.originalName || image.filename || `image-${Date.now()}`}.${extension}`;
-              zip.file(filename, blob);
+
+              // Add to ZIP
+              zip.file(filename, blob, {
+                binary: true,
+                compression: 'STORE' // Don't compress yet, do it all at once later
+              });
+
               processedCount++;
-              setBulkDownloadProgress({ current: processedCount, total: images.length });
+              setBulkDownloadProgress({ current: processedCount, total: validImages.length });
+              return true;
+            } else {
+              console.warn(`⚠️ Failed to fetch ${image.originalName}: ${response.status}`);
+              failedCount++;
+              return false;
             }
+          } catch (error) {
+            console.error(`❌ Error downloading ${image.originalName}:`, error);
+            failedCount++;
+            return false;
           }
-        } catch (error) {
-          console.error(`❌ Error processing ${image.originalName}:`, error);
-        }
+        });
+
+        // Wait for current batch to complete before moving to next
+        await Promise.all(downloadPromises);
       }
 
       if (processedCount === 0) {
-        showNotification("Failed to process any images for ZIP creation", "error");
+        showNotification("Failed to download any images", "error");
+        setBulkDownloadProgress(null);
         return;
       }
 
-      showNotification("Compressing ZIP File...", "info");
+      console.log(`✅ Downloaded ${processedCount} images, ${failedCount} failed`);
+      showNotification(`Compressing ${processedCount} images into ZIP...`, "info");
 
+      // Mark as compressing
+      setBulkDownloadProgress({
+        current: processedCount,
+        total: validImages.length,
+        compressing: true,
+        compressionPercent: 0
+      });
+
+      // Generate ZIP with fast compression
       const zipBlob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
+        compressionOptions: { level: 3 }, // Reduced from 6 to 3 for speed
+        streamFiles: true // Stream files for better memory usage
+      }, (metadata) => {
+        // Progress callback during compression
+        const percent = Math.floor(metadata.percent);
+        setBulkDownloadProgress({
+          current: processedCount,
+          total: validImages.length,
+          compressing: true,
+          compressionPercent: percent
+        });
+        console.log(`🗜️ Compressing: ${percent}%`);
       });
 
       const zipSizeMB = (zipBlob.size / 1024 / 1024).toFixed(2);
-      setBulkDownloadProgress(prev => prev ? { ...prev, zipSize: `${zipSizeMB} MB` } : null);
+      console.log(`📦 ZIP created: ${zipSizeMB} MB`);
 
+      // Download the ZIP
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `images-bulk-download-${new Date().toISOString().split('T')[0]}.zip`;
+      a.download = `capsera-images-${new Date().toISOString().split('T')[0]}.zip`;
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
@@ -258,11 +316,15 @@ export default function ImageManagementPage() {
 
       setTimeout(() => URL.revokeObjectURL(url), 100);
 
-      showNotification(`Successfully downloaded ${processedCount} images in compressed ZIP file`, "success");
+      const successMsg = failedCount > 0
+        ? `Downloaded ${processedCount} images (${failedCount} failed) - ${zipSizeMB} MB`
+        : `Successfully downloaded ${processedCount} images - ${zipSizeMB} MB`;
+
+      showNotification(successMsg, failedCount > 0 ? "info" : "success");
 
     } catch (error) {
-      console.error('Bulk download failed:', error);
-      showNotification("ZIP Creation Failed. Please try individual downloads.", "error");
+      console.error('❌ Bulk download failed:', error);
+      showNotification("ZIP creation failed. Please try again.", "error");
     } finally {
       setBulkDownloadProgress(null);
     }
@@ -410,15 +472,68 @@ export default function ImageManagementPage() {
   // --- Filtering & Pagination ---
 
   const filteredImages = images.filter(image => {
-    const matchesSearch = searchTerm === '' ||
-      image.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      image.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      image.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      image.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (searchTerm === '') return true;
+
+    const search = searchTerm.toLowerCase().trim();
+
+    // Smart search: Check if it's a special query
+    // Date search: "today", "yesterday", "this week", "this month"
+    if (search === 'today') {
+      const today = new Date().toDateString();
+      return new Date(image.uploadedAt).toDateString() === today;
+    }
+    if (search === 'yesterday') {
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      return new Date(image.uploadedAt).toDateString() === yesterday;
+    }
+    if (search === 'this week' || search === 'week') {
+      const weekAgo = new Date(Date.now() - 7 * 86400000);
+      return new Date(image.uploadedAt) >= weekAgo;
+    }
+    if (search === 'this month' || search === 'month') {
+      const monthAgo = new Date(Date.now() - 30 * 86400000);
+      return new Date(image.uploadedAt) >= monthAgo;
+    }
+
+    // Size search: "large" (>5MB), "medium" (1-5MB), "small" (<1MB)
+    if (search === 'large') {
+      const sizeMB = parseFloat(image.size);
+      return sizeMB > 5;
+    }
+    if (search === 'medium') {
+      const sizeMB = parseFloat(image.size);
+      return sizeMB >= 1 && sizeMB <= 5;
+    }
+    if (search === 'small') {
+      const sizeMB = parseFloat(image.size);
+      return sizeMB < 1;
+    }
+
+    // Orphan search
+    if (search === 'orphan' || search === 'orphans') {
+      return image.storageLocation.toLowerCase().includes('orphan');
+    }
+
+    // Regular text search across multiple fields
+    const matchesSearch =
+      image.id.toLowerCase().includes(search) ||
+      image.filename.toLowerCase().includes(search) ||
+      image.originalName.toLowerCase().includes(search) ||
+      image.uploadedBy.toLowerCase().includes(search) ||
+      image.dimensions.toLowerCase().includes(search) ||
+      image.format.toLowerCase().includes(search) ||
+      image.storageLocation.toLowerCase().includes(search) ||
+      image.tags.some(tag => tag.toLowerCase().includes(search)) ||
+      (image.moderationNotes && image.moderationNotes.toLowerCase().includes(search)) ||
+      (image.flaggedReason && image.flaggedReason.toLowerCase().includes(search));
+
+    return matchesSearch;
+  }).filter(image => {
+    // Apply status filter
     const matchesStatus = statusFilter === 'all' || image.status === statusFilter;
     const matchesFormat = formatFilter === 'all' || image.format.toLowerCase() === formatFilter.toLowerCase();
 
-    return matchesSearch && matchesStatus && matchesFormat;
+    return matchesStatus && matchesFormat;
   });
 
   const indexOfLastImage = currentPage * imagesPerPage;
@@ -700,12 +815,28 @@ export default function ImageManagementPage() {
       {bulkDownloadProgress && (
         <div className="mb-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Bulk Download Progress</span>
-            <span className="text-sm text-blue-600 dark:text-blue-400">{bulkDownloadProgress.current} / {bulkDownloadProgress.total}</span>
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              {bulkDownloadProgress.compressing ? '🗜️ Compressing ZIP' : '📥 Downloading Images'}
+            </span>
+            <span className="text-sm text-blue-600 dark:text-blue-400">
+              {bulkDownloadProgress.compressing
+                ? `${bulkDownloadProgress.compressionPercent || 0}%`
+                : `${bulkDownloadProgress.current} / ${bulkDownloadProgress.total}`
+              }
+            </span>
           </div>
-          <Progress value={(bulkDownloadProgress.current / bulkDownloadProgress.total) * 100} className="h-2 bg-blue-500/20" />
+          <Progress
+            value={bulkDownloadProgress.compressing
+              ? bulkDownloadProgress.compressionPercent || 0
+              : (bulkDownloadProgress.current / bulkDownloadProgress.total) * 100
+            }
+            className="h-2 bg-blue-500/20"
+          />
           <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-            Creating ZIP file... {bulkDownloadProgress.zipSize && `Size: ${bulkDownloadProgress.zipSize}`}
+            {bulkDownloadProgress.compressing
+              ? `Compressing ${bulkDownloadProgress.current} images into ZIP file...`
+              : `Downloading images in parallel (10 at a time)...`
+            }
           </p>
         </div>
       )}
@@ -773,14 +904,80 @@ export default function ImageManagementPage() {
             </div>
           ) : (
             <>
-              <div className="relative flex-1 w-full animate-in fade-in">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search images..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-background border-none text-foreground h-10 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
-                />
+              <div className="relative flex-1 w-full animate-in fade-in flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, user, tags, or try: today, orphan, large..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-background border-none text-foreground h-10 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
+                  />
+                </div>
+
+                {/* Search Help Popover */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-xl hover:bg-accent"
+                    >
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 bg-card border-border text-foreground" align="start">
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        Search Guide
+                      </h4>
+
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">📝 Text Search</p>
+                          <p className="text-muted-foreground/80">Search across: filename, user, tags, dimensions, format, notes</p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">📅 Date Filters</p>
+                          <div className="flex flex-wrap gap-1">
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">today</code>
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">yesterday</code>
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">week</code>
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">month</code>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">📏 Size Filters</p>
+                          <div className="flex flex-wrap gap-1">
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">large</code>
+                            <span className="text-muted-foreground/60">(&gt;5MB)</span>
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">medium</code>
+                            <span className="text-muted-foreground/60">(1-5MB)</span>
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">small</code>
+                            <span className="text-muted-foreground/60">(&lt;1MB)</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">🔍 Special</p>
+                          <div className="flex flex-wrap gap-1">
+                            <code className="px-2 py-0.5 bg-primary/10 text-primary rounded">orphan</code>
+                            <span className="text-muted-foreground/60">(unlinked images)</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-border">
+                          <p className="text-muted-foreground/60 italic">
+                            💡 Tip: Combine with status and format filters for precise results
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full md:w-[180px] bg-background border-none text-foreground h-10 rounded-xl">

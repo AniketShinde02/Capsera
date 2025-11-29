@@ -59,6 +59,12 @@ export default function ContentModerationPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
 
   // Bulk Selection State
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
@@ -323,77 +329,104 @@ export default function ContentModerationPage() {
               <p>No reports found matching your criteria.</p>
             </div>
           ) : (
-            <div className={cn(
-              "grid gap-4",
-              viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-            )}>
-              {filteredReports.map(report => (
-                <Card key={report._id} className={cn(
-                  "transition-all hover:shadow-md border-muted",
-                  selectedReports.includes(report._id) && "ring-2 ring-primary border-primary"
-                )}>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={selectedReports.includes(report._id)}
-                          onCheckedChange={() => toggleSelection(report._id)}
-                        />
-                        <Badge variant={
-                          report.severity === 'critical' ? 'destructive' :
-                            report.severity === 'high' ? 'default' :
-                              'secondary'
-                        }>
-                          {report.severity}
-                        </Badge>
-                        <Badge variant="outline">{report.contentType}</Badge>
+            <>
+              <div className={cn(
+                "grid gap-4",
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+              )}>
+                {filteredReports.slice((currentPage - 1) * 6, currentPage * 6).map(report => (
+                  <Card key={report._id} className={cn(
+                    "transition-all hover:shadow-md border-muted",
+                    selectedReports.includes(report._id) && "ring-2 ring-primary border-primary"
+                  )}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={selectedReports.includes(report._id)}
+                            onCheckedChange={() => toggleSelection(report._id)}
+                          />
+                          <Badge variant={
+                            report.severity === 'critical' ? 'destructive' :
+                              report.severity === 'high' ? 'default' :
+                                'secondary'
+                          }>
+                            {report.severity}
+                          </Badge>
+                          <Badge variant="outline">{report.contentType}</Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(report.createdAt).toLocaleDateString()}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(report.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <CardTitle className="text-base mt-2 line-clamp-1">
-                      {report.reason}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                      {report.description}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      <User className="h-3 w-3" />
-                      <span>Reported by: {report.reportedBy}</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-2 flex justify-between">
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedReport(report)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Review
-                    </Button>
-                    {report.status === 'pending' && (
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50"
-                          onClick={() => handleAction(report._id, 'no_action', 'dismissed')}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => handleAction(report._id, 'removed', 'resolved')}
-                        >
-                          <Ban className="h-4 w-4" />
-                        </Button>
+                      <CardTitle className="text-base mt-2 line-clamp-1">
+                        {report.reason}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                        {report.description}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                        <User className="h-3 w-3" />
+                        <span>Reported by: {report.reportedBy}</span>
                       </div>
-                    )}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                    <CardFooter className="pt-2 flex justify-between">
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedReport(report)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Review
+                      </Button>
+                      {report.status === 'pending' && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50"
+                            onClick={() => handleAction(report._id, 'no_action', 'dismissed')}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => handleAction(report._id, 'removed', 'resolved')}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredReports.length > 6 && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {Math.ceil(filteredReports.length / 6)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredReports.length / 6), p + 1))}
+                    disabled={currentPage === Math.ceil(filteredReports.length / 6)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>

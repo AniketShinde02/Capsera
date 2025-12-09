@@ -403,47 +403,93 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
         messages[0].content.push({ type: 'image_url', image_url: { url: imageBase64 } });
       }
 
-      // 3. Call OpenRouter API
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openRouterKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://capsera.com',
-          'X-Title': 'Capsera',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-exp:free', // Using High-Quality Free Model
-          messages: messages,
-          temperature: 0.7,
-          response_format: { type: 'json_object' }
-        })
-      });
+      // 3. Call OpenRouter API with Fallback Strategy
+      let response;
+      let contentText;
+      let usedFallback = false;
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error(`❌ OpenRouter API Error (${response.status}):`, errText);
-        throw new Error(`AI Provider Error: ${response.status} - ${errText}`);
+      try {
+        // 🎯 PRIMARY: Try Gemini 2.0 Flash first
+        response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openRouterKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://capsera.com',
+            'X-Title': 'Capsera',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.0-flash-exp:free', // Using High-Quality Free Model
+            messages: messages,
+            temperature: 0.7,
+            response_format: { type: 'json_object' }
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error(`❌ OpenRouter API Error (${response.status}):`, errText);
+          throw new Error(`Primary AI Provider Error: ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
+        contentText = data.choices[0]?.message?.content;
+        console.log('✅ Captions generated with Gemini (Primary)');
+
+      } catch (primaryError: any) {
+        console.warn(`⚠️ Primary (Gemini) failed: ${primaryError.message}`);
+        console.log('🔄 FALLBACK: Switching to Llama 3.2 11B Vision (Free)...');
+
+        // 🛡️ FALLBACK: Try Llama 3.2 11B Vision
+        try {
+          const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openRouterKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://capsera.com',
+              'X-Title': 'Capsera',
+            },
+            body: JSON.stringify({
+              model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+              messages: messages,
+              temperature: 0.7,
+            })
+          });
+
+          if (!fallbackResponse.ok) {
+            const fbErr = await fallbackResponse.text();
+            console.error(`❌ Fallback (Llama) also failed: ${fallbackResponse.status} - ${fbErr}`);
+            throw new Error(`All AI providers failed. Primary: ${primaryError.message}, Fallback: ${fallbackResponse.status}`);
+          }
+
+          const fbData = await fallbackResponse.json();
+          contentText = fbData.choices[0]?.message?.content;
+          usedFallback = true;
+          console.log('✅ Captions generated with Llama (Fallback)');
+
+        } catch (fallbackError: any) {
+          console.error(`❌ Both providers failed:`, fallbackError.message);
+          throw new Error(`All AI providers exhausted. Please try again later.`);
+        }
       }
-
-      const data = await response.json();
-      const contentText = data.choices[0]?.message?.content;
 
       // 4. Parse Response
       let captions: string[] = [];
       try {
-        const parsed = JSON.parse(contentText);
+        const cleanedText = contentText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanedText);
         if (Array.isArray(parsed)) captions = parsed;
         else if (parsed.captions) captions = parsed.captions;
       } catch (e) {
-        // Fallback parse
+        // Fallback parse (especially for Llama which may not return strict JSON)
         captions = contentText.split('\n').filter((l: string) => l.length > 10).slice(0, 3);
       }
 
       // Ensure 3 captions
       captions = captions.slice(0, 3).map(c => c.replace(/^\d+[\.\)]\s*/, '')); // Remove numbers if present
 
-      console.log('✅ Captions generated successfully!');
+      console.log(`✅ Captions generated successfully${usedFallback ? ' (using fallback)' : ''}!`);
       result = { captions };
 
     } catch (error: any) {

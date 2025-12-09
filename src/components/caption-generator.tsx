@@ -1795,7 +1795,7 @@ export function CaptionGenerator() {
                                     : typeof quotaInfo?.remaining === 'number'
                                       ? Math.max(0, quotaInfo.remaining)
                                       : '...'
-                                  }/5 images today`
+                                  }/${freemiumUsage?.dailyLimit ?? quotaInfo?.total ?? 2} images today`
                                 }
                               </p>
                             </div>

@@ -395,31 +395,37 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
         console.log('🔄 FALLBACK: Switching to Llama 3.2 11B Vision (Free)...');
 
         // 2️⃣ TRY FALLBACK MODEL: Llama 3.2 11B Vision
-        const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openRouterKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://capsera.com',
-            'X-Title': 'Capsera',
-          },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-3.2-11b-vision-instruct:free', // 🛡️ Reliable Free Fallback
-            messages: messages,
-            temperature: 0.7,
-            // Note: Llama free sometimes doesn't support strict json_object, so we parse leniently below
-          })
-        });
+        try {
+          const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openRouterKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://capsera.com',
+              'X-Title': 'Capsera',
+            },
+            body: JSON.stringify({
+              model: 'meta-llama/llama-3.2-11b-vision-instruct:free', // 🛡️ Reliable Free Fallback
+              messages: messages,
+              temperature: 0.7,
+              // Note: Llama free sometimes doesn't support strict json_object, so we parse leniently below
+            })
+          });
 
-        if (!fallbackResponse.ok) {
-          const fbErr = await fallbackResponse.text();
-          throw new Error(`Fallback Provider Error: ${fallbackResponse.status} - ${fbErr}`);
+          if (!fallbackResponse.ok) {
+            const fbErr = await fallbackResponse.text();
+            console.error(`❌ Fallback (Llama) also failed: ${fallbackResponse.status} - ${fbErr}`);
+            throw new Error(`Both AI providers failed. Primary: ${geminiError.message}, Fallback: ${fallbackResponse.status} - ${fbErr}`);
+          }
+
+          const fbData = await fallbackResponse.json();
+          const fbContent = fbData.choices[0]?.message?.content;
+          console.log('✅ OpenRouter Output (Fallback Llama):', fbContent?.substring(0, 50) + '...');
+          output = { text: fbContent };
+        } catch (fallbackError: any) {
+          console.error(`❌ Fallback (Llama) error: ${fallbackError.message}`);
+          throw new Error(`All AI providers failed. Primary (Gemini): ${geminiError.message}, Fallback (Llama): ${fallbackError.message}`);
         }
-
-        const fbData = await fallbackResponse.json();
-        const fbContent = fbData.choices[0]?.message?.content;
-        console.log('✅ OpenRouter Output (Fallback Llama):', fbContent?.substring(0, 50) + '...');
-        output = { text: fbContent };
       }
 
       timings.aiGeneration = Date.now() - startTime - timings.safetyCheck - timings.rateLimit;

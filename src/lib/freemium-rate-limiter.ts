@@ -9,14 +9,14 @@ import { ObjectId } from 'mongodb';
 // 🎯 NEW FREEMIUM STRATEGY - Much Better Than Blocking!
 export const FREEMIUM_LIMITS = {
   FREE_TIER: {
-    DAILY_IMAGES: 5,        // 5 images per day (15 captions total)
+    DAILY_IMAGES: 2,        // 2 images per day (6 captions total) - Anonymous users
     WEEKLY_GRACE: 1,          // 1 image per week after daily limit
     RESET_TYPE: 'daily' as const,
     USER_TYPE: 'free' as const,
   },
   BASIC_TIER: {
-    DAILY_IMAGES: 20,       // 20 images per day (60 captions total)
-    WEEKLY_GRACE: 5,          // 5 images per week after daily limit
+    DAILY_IMAGES: 4,       // 4 images per day (12 captions total) - Registered users
+    WEEKLY_GRACE: 2,          // 2 images per week after daily limit
     RESET_TYPE: 'daily' as const,
     USER_TYPE: 'basic' as const,
   },

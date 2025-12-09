@@ -298,8 +298,8 @@ export function CaptionGenerator() {
         const data = await response.json();
         if (data.success && data.usage) {
           const newUsage = {
-            remainingDaily: data.usage.remainingDaily ?? 5,
-            dailyLimit: data.usage.dailyLimit ?? 5,
+            remainingDaily: data.usage.remainingDaily ?? 2,
+            dailyLimit: data.usage.dailyLimit ?? 2,
             upgradePrompt: data.usage.upgradePrompt ?? false,
             tier: data.usage.tier ?? 'free',
             gracePeriod: data.usage.gracePeriod ?? false,

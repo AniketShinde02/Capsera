@@ -50,7 +50,7 @@ export class ConsolidatedRateLimiter {
       // Fail open - allow request if primary system fails
       return {
         allowed: true,
-        remaining: 5,
+        remaining: 2,
         resetTime: Date.now() + 24 * 60 * 60 * 1000,
         userTier: 'free',
         isAdmin: false,
@@ -189,9 +189,9 @@ export class ConsolidatedRateLimiter {
       console.error('Error getting rate limit info:', error);
       return {
         isAuthenticated: !!userId,
-        maxGenerations: 5,
+        maxGenerations: 2,
         currentUsage: 0,
-        remaining: 5,
+        remaining: 2,
         resetTime: Date.now() + 24 * 60 * 60 * 1000,
         windowHours: 24,
         isAdmin: false,

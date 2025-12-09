@@ -1,3 +1,34 @@
+## [2025-12-09] - Maintenance Mode, Llama Fallback & Rate Limit Fixes
+
+### 🛠️ **Maintenance Mode Implementation**
+Due to the exhaustion of our free AI tier quota, we have transitioned the site into **Maintenance Mode**.
+- **Redesigned Maintenance Page**: (`src/app/maintenance/page.tsx`)
+  - Modern, themed UI with animations (Hero card, Status checks).
+  - **Honest Messaging**: Transparently explains the funding/quota situation to users.
+  - **Polling System**: Checks status every 30s without flickering (background fetch).
+  - **Donation/Contact CTA**: Encourages community support.
+
+### 🛡️ **Resilient AI Fallback System**
+To maximize remaining resources and reliability before shutdown:
+- **Implemented Llama 3.2 Fallback**:
+  - **API Route**: `src/app/api/generate-captions/route.ts` updated to catch Gemini `429` (Rate Limit) errors.
+  - **Flow**: Automatically switches to `meta-llama/llama-3.2-11b-vision-instruct:free` when Gemini fails.
+  - **User Experience**: Seamless fallback, users don't see 502/429 errors.
+
+### 🐛 **Critical Bug Fixes**
+- **Rate Limit UI Sync**:
+  - Fixed hardcoded "5/5 images" in `caption-generator.tsx`.
+  - Now accurately displays **2/day** (Anonymous) and **4/day** (Registered).
+  - Updated `freemium-rate-limiter.ts` limits to match.
+- **Polling Flicker**: Fixed the loading spinner flicker on the maintenance page during status checks.
+
+### 🔄 **System Status**
+- **Current State**: Offline / Maintenance Mode.
+- **Reason**: Free Tier AI Quota Exhausted.
+- **Resolution Plan**: Seek funding/sponsorship for Paid API Keys.
+
+---
+
 ## [2025-12-09] - AI Infrastructure & OpenRouter Migration
 
 ### 🚀 **MAJOR AI ARCHITECTURE OVERHAUL**

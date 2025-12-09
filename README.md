@@ -1,8 +1,11 @@
 # 🎨 Capsera: AI-Powered Social Media Caption Generator
 
+> **⚠️ CURRENT STATUS: MAINTENANCE MODE** - Due to overwhelming demand and free tier quota exhaustion, the service is currently offline. We are seeking funding/sponsorship to resume operations.
+
 > **Transform your social media presence with intelligent, image-aware caption generation powered by Groq Vision AI & Google Gemini**
 
 <div align="center">
+
 
 ![Capsera Banner](screenshots/capsera_banner.png)
 
@@ -24,12 +27,12 @@
 Capsera isn't just another caption generator – it's your **AI-powered creative partner** that actually *sees* and *understands* your images to create contextually perfect captions with maximum variety.
 
 ### 🎯 **Key Differentiators:**
-- **🤖 Dual-AI Provider System**: Groq Vision (14,400/day) + Gemini (1,500/day) for 99.9% uptime
+- **🤖 Resilient AI System**: OpenRouter (Gemini 2.0 Flash) + Llama 3.2 Vision Fallback for 99.9% reliability
 - **🔍 Advanced Image Analysis**: Both AI providers analyze colors, objects, people, and scenes
 - **📋 Paste-to-Upload**: Copy & paste images directly (Ctrl+V) - no file browser needed!
 - **🎭 Mood-Driven Generation**: 41 different moods for perfect tone matching
 - **🔄 Maximum Caption Variety**: 3 completely different caption styles every time
-- **🛡️ Smart Rate Limiting**: 3 free generations, 25 for registered users, **UNLIMITED for admins**
+- **🛡️ Smart Rate Limiting**: 2 free generations, 4 for registered users, **UNLIMITED for admins**
 - **🔐 Advanced Admin Security**: JWT-based production-ready admin system with dual-mode
 - **🗑️ Complete Image Management**: Cloudinary-powered upload, storage, and deletion
 - **🖼️ Smart Image Compression**: Automatic optimization with 70-90% size reduction
@@ -794,8 +797,8 @@ Capsera/
 ### **🔄 User Flow & Image Management**
 ```
 1. 🔍 Quota Check (Sequential - Required for security)
-   ├── Anonymous: 5 images/day (15 captions)
-   └── Authenticated: 20 images/day (60 captions)
+   ├── Anonymous: 2 images/day (6 captions)
+   └── Authenticated: 4 images/day (12 captions)
 
 2. 📤 Image Upload (Only if quota available)
    ├── Upload to Cloudinary

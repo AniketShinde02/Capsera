@@ -76,8 +76,26 @@ To ensure 99.99% uptime, we implemented a robust fallback mechanism within the s
 
 ---
 
+## 🌑 Phase 5: The "Quota Exhaustion" Reality (Maintenance Mode)
+**Date:** December 9, 2025 (Evening)
+**Status:** 🛑 Maintenance Mode Activated
+
+Despite the technical success of the OpenRouter migration and the resilience of the 2-tier fallback system, we eventually hit the **absolute hard limits** of the free tier ecosystem.
+
+1.  **Usage Spike:** The site gaining traffic meant the ~50 requests/day limit on the free model was consumed instantly.
+2.  **Fallback Exhaustion:** Even the Llama fallback model has rate limits on the free tier.
+3.  **The Decision:** Rather than showing users constant errors or "try again later" messages, we made the difficult decision to enable **Maintenance Mode**.
+
+### The Maintenance Strategy
+*   **User Interface:** A redesigned maintenance page that is honest and transparent about the funding issue.
+*   **Technical State:** The code is 100% production-ready and scalable. It only needs a Paid API Key ($5 credit) to resume full operation.
+*   **Community Call:** We are now seeking community sponsorship to fund the API costs.
+
+---
+
 ## 🎓 Lessons Learned
 1.  **Libraries can be blockers:** Sometimes "smart" libraries like Genkit prevent you from using new/experimental features because of strict validation. "Dumb" `fetch` calls are often more flexible.
 2.  **Aggregators > Direct:** dealing with individual provider billing (Google/AWS) is painful. Aggregators like OpenRouter solve the "access" problem instantly.
 3.  **Simplicity Wins:** Removing the key rotation logic made the code faster, readable, and less prone to bugs.
-4.  **Always Have a Backup:** Free tier models are great but volatile. A silent fallback ensures the user never sees an error page.
+4.  **Free Tiers are Finite:** No amount of engineering can bypass a hard volume quota. You eventually need a budget.
+5.  **Honesty is Best:** When service stops, telling users *why* (funding) is better than a generic error.

@@ -61,10 +61,7 @@ export function Hero() {
                 <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
 
                     {/* Badge */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
+                    <div
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/50 border border-border/50 backdrop-blur-sm mb-6 md:mb-8 hover:bg-muted/80 transition-colors cursor-default"
                     >
                         <span className="relative flex h-2 w-2">
@@ -74,13 +71,10 @@ export function Hero() {
                         <span className="text-sm font-medium text-muted-foreground">
                             v2.0 is now live
                         </span>
-                    </motion.div>
+                    </div>
 
                     {/* Main Heading */}
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
+                    <h1
                         className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 md:mb-8 leading-[1.1]"
                     >
                         Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-x">Viral</span> Captions
@@ -91,23 +85,17 @@ export function Hero() {
                                 <path d="M0 5 Q 50 10 100 5" stroke="currentColor" strokeWidth="8" fill="none" />
                             </svg>
                         </span>
-                    </motion.h1>
+                    </h1>
 
                     {/* Subheading */}
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
+                    <p
                         className="text-xl md:text-2xl text-muted-foreground max-w-2xl mb-8 md:mb-10 leading-relaxed"
                     >
                         Stop staring at a blank screen. Let our advanced AI analyze your photos and write engaging, personalized captions instantly.
-                    </motion.p>
+                    </p>
 
                     {/* CTA Button - Centered & Enhanced */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
+                    <div
                         className="flex justify-center w-full"
                     >
                         <Button
@@ -121,7 +109,7 @@ export function Hero() {
                             <span className="relative z-10">Start Generating Free</span>
                             <ArrowRight className="ml-2 sm:ml-3 h-5 w-5 sm:h-6 sm:w-6 group-hover:translate-x-2 transition-transform duration-300" />
                         </Button>
-                    </motion.div>
+                    </div>
 
 
                 </div>

@@ -4,10 +4,10 @@
  * Follows the same robust patterns as SmartGeminiManager
  */
 
-import { 
-  MultiProviderConfig, 
-  AIProviderRequest, 
-  AIProviderResponse, 
+import {
+  MultiProviderConfig,
+  AIProviderRequest,
+  AIProviderResponse,
   AIProviderStatus,
   ProviderHealthCheck,
   LoadBalancingConfig,
@@ -16,7 +16,7 @@ import {
 import { BaseAIProvider } from './base-provider';
 import { GeminiProvider } from './gemini-provider';
 import { GroqProvider } from './groq-provider';
-import { HuggingFaceProvider } from './huggingface-provider';
+// import { HuggingFaceProvider } from './huggingface-provider'; // Removed - using OpenRouter now
 import { GeminiConfig, GroqConfig, HuggingFaceConfig } from './types';
 
 export class MultiProviderManager {
@@ -31,7 +31,7 @@ export class MultiProviderManager {
     this.initializeProviders();
     this.startHealthMonitoring();
     this.initializeCircuitBreakers();
-    
+
     console.log(`🎯 Multi-Provider Manager initialized with ${this.providers.size} providers`);
   }
 
@@ -47,9 +47,9 @@ export class MultiProviderManager {
           case 'groq':
             provider = new GroqProvider(providerConfig as GroqConfig);
             break;
-          case 'huggingface':
-            provider = new HuggingFaceProvider(providerConfig as HuggingFaceConfig);
-            break;
+          // case 'huggingface':
+          //   provider = new HuggingFaceProvider(providerConfig as HuggingFaceConfig);
+          //   break;
           default:
             console.warn(`⚠️ Unknown provider: ${providerConfig.name}`);
             continue;
@@ -91,7 +91,7 @@ export class MultiProviderManager {
       try {
         const isHealthy = await provider.checkHealth();
         const responseTime = Date.now() - startTime;
-        
+
         this.healthChecks.set(name, {
           provider: name,
           isHealthy,
@@ -153,16 +153,16 @@ export class MultiProviderManager {
         console.log(`🔄 Attempting ${providerName} provider...`);
 
         const result = await provider.generateCaptions(request);
-        
+
         // Record successful request
         this.recordRequest(providerName, true, Date.now() - startTime);
-        
+
         console.log(`✅ Success with ${providerName} in ${result.processingTime}ms`);
         return result;
 
       } catch (error) {
         console.error(`❌ ${providerName} failed:`, error);
-        
+
         lastError = error instanceof AIProviderError ? error : new AIProviderError(
           error instanceof Error ? error.message : 'Unknown error',
           providerName,
@@ -172,7 +172,7 @@ export class MultiProviderManager {
 
         // Record failed request
         this.recordRequest(providerName, false, Date.now() - startTime);
-        
+
         // Update circuit breaker
         this.updateCircuitBreaker(providerName, false);
 
@@ -197,7 +197,7 @@ export class MultiProviderManager {
 
     for (const [name, provider] of this.providers) {
       const config = provider.getConfig();
-      
+
       // Skip if disabled
       if (!config.isEnabled) continue;
 
@@ -231,16 +231,16 @@ export class MultiProviderManager {
     switch (strategy) {
       case 'round_robin':
         return this.roundRobinSort(providers);
-      
+
       case 'weighted':
         return this.weightedSort(providers);
-      
+
       case 'least_connections':
         return this.leastConnectionsSort(providers);
-      
+
       case 'fastest_response':
         return this.fastestResponseSort(providers);
-      
+
       default:
         // Default to priority-based sorting
         return providers.sort((a, b) => {
@@ -261,7 +261,7 @@ export class MultiProviderManager {
 
   private weightedSort(providers: string[]): string[] {
     const weights = this.config.loadBalancing.weights || {};
-    
+
     return providers.sort((a, b) => {
       const weightA = weights[a] || 1;
       const weightB = weights[b] || 1;
@@ -304,7 +304,7 @@ export class MultiProviderManager {
     } else {
       breaker.failures++;
       breaker.lastFailure = new Date();
-      
+
       if (breaker.failures >= this.config.loadBalancing.circuitBreakerThreshold) {
         breaker.isOpen = true;
         console.log(`🔴 Circuit breaker opened for ${provider} (${breaker.failures} failures)`);
@@ -315,11 +315,11 @@ export class MultiProviderManager {
   // Public methods for monitoring and management
   public getProviderStatus(): Map<string, AIProviderStatus> {
     const statusMap = new Map<string, AIProviderStatus>();
-    
+
     for (const [name, provider] of this.providers) {
       statusMap.set(name, provider.getStatus());
     }
-    
+
     return statusMap;
   }
 
@@ -340,25 +340,25 @@ export class MultiProviderManager {
     if (provider) {
       provider.reset();
     }
-    
+
     const breaker = this.circuitBreakers.get(providerName);
     if (breaker) {
       breaker.failures = 0;
       breaker.isOpen = false;
     }
-    
+
     console.log(`🔄 Reset ${providerName} provider`);
   }
 
   public getProviderStats(): any {
     const stats: any = {};
-    
+
     for (const [name, provider] of this.providers) {
       const status = provider.getStatus();
       const recentRequests = this.requestHistory
         .filter(r => r.provider === name && r.timestamp > new Date(Date.now() - 60 * 60 * 1000)) // Last hour
         .length;
-      
+
       stats[name] = {
         status,
         recentRequests,
@@ -366,7 +366,7 @@ export class MultiProviderManager {
         healthCheck: this.healthChecks.get(name)
       };
     }
-    
+
     return stats;
   }
 }

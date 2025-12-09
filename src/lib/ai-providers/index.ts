@@ -27,19 +27,19 @@ export async function initializeMultiProviderSystem(): Promise<MultiProviderMana
 
   // Create configuration
   const config = createMultiProviderConfig();
-  
+
   // Validate that we have at least one provider
   if (config.providers.length === 0) {
     throw new Error('No AI providers configured. Please set at least one API key.');
   }
 
-  console.log(`✅ Found ${config.providers.length} configured providers:`, 
+  console.log(`✅ Found ${config.providers.length} configured providers:`,
     config.providers.map(p => p.name).join(', ')
   );
 
   // Initialize manager
   multiProviderManager = new MultiProviderManager(config);
-  
+
   console.log('🚀 Multi-Provider AI System initialized successfully');
   return multiProviderManager;
 }
@@ -64,7 +64,7 @@ export function getProviderStatus() {
   if (!multiProviderManager) {
     return null;
   }
-  
+
   return {
     providers: multiProviderManager.getProviderStatus(),
     healthChecks: multiProviderManager.getHealthChecks(),
@@ -85,7 +85,7 @@ export type { AIProviderRequest, AIProviderResponse, MultiProviderConfig } from 
 // Export individual providers for testing
 export { GeminiProvider } from './gemini-provider';
 export { GroqProvider } from './groq-provider';
-export { HuggingFaceProvider } from './huggingface-provider';
+// export { HuggingFaceProvider } from './huggingface-provider'; // Removed - using OpenRouter now
 export { BaseAIProvider } from './base-provider';
 
 // Export configuration utilities

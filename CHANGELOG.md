@@ -18,6 +18,7 @@ We have completely refactored the AI infrastructure to solve the persistent "503
 - **Updated**: `src/app/api/generate-captions/route.ts` - Removed 200+ lines of fallback code. Now generic `fetch` to OpenRouter.
 - **Updated**: `src/ai/genkit.ts` - Configured for OpenRouter compatibility.
 - **Fixed**: A critical bug where `genkitx-openai` blocked the Google model name locally. Switched to direct `fetch` implementation to solve this.
+- **Added**: **Resilient 2-Tier Fallback System**. If the primary Gemini model fails or is rate-limited, the system automatically switches to `meta-llama/llama-3.2-11b-vision-instruct` (Free) seamlessly.
 
 #### **Documentation**
 - Added `docs/reports/ARCH_MIGRATION_OPENROUTER.md` - Detailed incident report.
@@ -29,6 +30,13 @@ We have completely refactored the AI infrastructure to solve the persistent "503
 - **Resolved 503 Errors**: Users no longer see "At Capacity" errors.
 - **Resolved Model Validation Error**: `genkitx-openai` plugin was blocking `google/gemini-2.0-flash-exp:free`. Direct fetch bypassed this.
 - **Fixed TypeScript Lint Errors**: Removed unused imports in API routes.
+
+### 🐛 **Additional Bug Fixes (Dec 9, 2025)**
+- **Fixed Build Errors**: Removed duplicate OpenRouter code block causing variable redeclaration.
+- **Fixed Hydration Mismatch**: Username generation now happens client-side to avoid SSR/client mismatch.
+- **Fixed Profile Image Upload**: Image now shows instantly on selection, uploads only on "Save Changes" click.
+- **Removed Hero Animations**: Hero section now loads instantly without fade-in delays.
+- **Updated Rate Limits**: Anonymous users: 2 images/day, Registered users: 4 images/day (to preserve OpenRouter free tier).
 
 ---
 ## [2025-11-29] - Random Username Generator, Mobile Responsiveness & UI Polish

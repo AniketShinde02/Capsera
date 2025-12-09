@@ -9,23 +9,23 @@ import { ObjectId } from 'mongodb';
 // Default values that will be overridden by database values when available
 export const DEFAULT_RATE_LIMITS = {
   ANONYMOUS: {
-    MAX_GENERATIONS: 10, // 10 images per day (30 captions total)
+    MAX_GENERATIONS: 2, // 2 images per day
     WINDOW_HOURS: 24, // 24 hours (daily reset)
     USER_TYPE: 'anonymous' as const,
   },
   REGISTERED: {
-    MAX_GENERATIONS: 20, // 20 images per day (60 captions total)
+    MAX_GENERATIONS: 4, // 4 images per day
     WINDOW_HOURS: 24, // 24 hours (daily reset)
     USER_TYPE: 'registered' as const,
   },
   PRO: {
-    MAX_GENERATIONS: 50, // 50 images per day (150 captions total)
+    MAX_GENERATIONS: 50, // 50 images per day (Legacy pro users)
     WINDOW_HOURS: 24, // 24 hours (daily reset)
     USER_TYPE: 'pro' as const,
   },
   // Legacy support for existing authenticated users
   AUTHENTICATED: {
-    MAX_GENERATIONS: 20, // 20 images per day (60 captions total)
+    MAX_GENERATIONS: 4, // Matches REGISTERED
     WINDOW_HOURS: 24, // 24 hours (daily reset)
     USER_TYPE: 'registered' as const,
   },
@@ -212,20 +212,20 @@ export class UnifiedRateLimiter {
       if (tier === 'anonymous' && rateLimitConfigCache.anonymous) {
         return {
           ...DEFAULT_RATE_LIMITS.ANONYMOUS,
-          MAX_GENERATIONS: rateLimitConfigCache.anonymous.maxGenerations as 10,
-          WINDOW_HOURS: rateLimitConfigCache.anonymous.windowHours as 24,
+          MAX_GENERATIONS: rateLimitConfigCache.anonymous.maxGenerations as any,
+          WINDOW_HOURS: rateLimitConfigCache.anonymous.windowHours as any,
         };
       } else if (tier === 'registered' && rateLimitConfigCache.registered) {
         return {
           ...DEFAULT_RATE_LIMITS.REGISTERED,
-          MAX_GENERATIONS: rateLimitConfigCache.registered.maxGenerations as 20,
-          WINDOW_HOURS: rateLimitConfigCache.registered.windowHours as 24,
+          MAX_GENERATIONS: rateLimitConfigCache.registered.maxGenerations as any,
+          WINDOW_HOURS: rateLimitConfigCache.registered.windowHours as any,
         };
       } else if (tier === 'pro' && rateLimitConfigCache.pro) {
         return {
           ...DEFAULT_RATE_LIMITS.PRO,
-          MAX_GENERATIONS: rateLimitConfigCache.pro.maxGenerations as 50,
-          WINDOW_HOURS: rateLimitConfigCache.pro.windowHours as 24,
+          MAX_GENERATIONS: rateLimitConfigCache.pro.maxGenerations as any,
+          WINDOW_HOURS: rateLimitConfigCache.pro.windowHours as any,
         };
       }
     }
@@ -237,20 +237,20 @@ export class UnifiedRateLimiter {
     if (tier === 'anonymous' && rateLimitConfigCache.anonymous) {
       return {
         ...DEFAULT_RATE_LIMITS.ANONYMOUS,
-        MAX_GENERATIONS: rateLimitConfigCache.anonymous.maxGenerations as 10,
-        WINDOW_HOURS: rateLimitConfigCache.anonymous.windowHours as 24,
+        MAX_GENERATIONS: rateLimitConfigCache.anonymous.maxGenerations as any,
+        WINDOW_HOURS: rateLimitConfigCache.anonymous.windowHours as any,
       };
     } else if (tier === 'registered' && rateLimitConfigCache.registered) {
       return {
         ...DEFAULT_RATE_LIMITS.REGISTERED,
-        MAX_GENERATIONS: rateLimitConfigCache.registered.maxGenerations as 20,
-        WINDOW_HOURS: rateLimitConfigCache.registered.windowHours as 24,
+        MAX_GENERATIONS: rateLimitConfigCache.registered.maxGenerations as any,
+        WINDOW_HOURS: rateLimitConfigCache.registered.windowHours as any,
       };
     } else if (tier === 'pro' && rateLimitConfigCache.pro) {
       return {
         ...DEFAULT_RATE_LIMITS.PRO,
-        MAX_GENERATIONS: rateLimitConfigCache.pro.maxGenerations as 50,
-        WINDOW_HOURS: rateLimitConfigCache.pro.windowHours as 24,
+        MAX_GENERATIONS: rateLimitConfigCache.pro.maxGenerations as any,
+        WINDOW_HOURS: rateLimitConfigCache.pro.windowHours as any,
       };
     }
 

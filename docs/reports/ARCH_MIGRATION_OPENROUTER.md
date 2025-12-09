@@ -59,9 +59,25 @@ We deleted over **200 lines of code** related to:
 *   **Capacity:** ~50 requests/day (Free Tier) or Unlimited if we add $5 credit to OpenRouter.
 *   **Reliability:** 99.9% (OpenRouter is very stable).
 
+## 🛡️ Phase 4: Resilience & Fallback Strategy
+**Objective:** Eliminate single point of failure (even OpenRouter's primary model might hit rate limits).
+
+### The Strategy: "2-Tier AI System"
+To ensure 99.99% uptime, we implemented a robust fallback mechanism within the same OpenRouter pipeline:
+
+1.  **Tier 1 (Primary):** `google/gemini-2.0-flash-exp:free`
+    *   **Why:** Fastest inference, excellent image understanding.
+    *   **Risk:** Can hit "429 Rate Limit" or "503 Capacity" errors during peak times.
+
+2.  **Tier 2 (Fallback):** `meta-llama/llama-3.2-11b-vision-instruct:free`
+    *   **Trigger:** Automatically activated if Tier 1 fails (throws any error).
+    *   **Mechanism:** usage is seamless to the user. The system catches the error, logs a warning, and immediately retries with the Llama model.
+    *   **Status:** Proven to work via `src/scripts/test-fallback.ts`.
+
 ---
 
 ## 🎓 Lessons Learned
 1.  **Libraries can be blockers:** Sometimes "smart" libraries like Genkit prevent you from using new/experimental features because of strict validation. "Dumb" `fetch` calls are often more flexible.
 2.  **Aggregators > Direct:** dealing with individual provider billing (Google/AWS) is painful. Aggregators like OpenRouter solve the "access" problem instantly.
 3.  **Simplicity Wins:** Removing the key rotation logic made the code faster, readable, and less prone to bugs.
+4.  **Always Have a Backup:** Free tier models are great but volatile. A silent fallback ensures the user never sees an error page.

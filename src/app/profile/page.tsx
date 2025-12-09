@@ -49,6 +49,7 @@ export default function ProfileDashboard() {
     const [recentPage, setRecentPage] = useState(0);
 
     const [status, setStatus] = useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
+    const [displayUsername, setDisplayUsername] = useState<string>('');
 
     // Editing State
     const [isEditing, setIsEditing] = useState(false);
@@ -74,6 +75,13 @@ export default function ProfileDashboard() {
             fetchPosts();
         }
     }, [session]);
+
+    // Set display username after mount to avoid hydration mismatch
+    useEffect(() => {
+        if (formData.username || formData.email) {
+            setDisplayUsername(getDisplayUsername(formData.username, formData.email));
+        }
+    }, [formData.username, formData.email]);
 
     const fetchUserProfile = async () => {
         try {
@@ -132,70 +140,77 @@ export default function ProfileDashboard() {
         }
     };
 
+    const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setStatus({ type: 'loading', message: 'Uploading image...' });
-
-        // Optimistic update
+        // Instant preview (optimistic UI)
         const objectUrl = URL.createObjectURL(file);
         setFormData(prev => ({ ...prev, image: objectUrl }));
-
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', file);
-        formDataUpload.append('folder', 'profile/avatar'); // Dedicated folder
-
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formDataUpload
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setFormData(prev => ({ ...prev, image: data.url }));
-            } else {
-                throw new Error('Upload failed');
-            }
-        } catch (error) {
-            console.error('Upload error:', error);
-            setStatus({ type: 'error', message: 'Failed to upload image' });
-            // Revert on failure
-            if (session?.user) {
-                const user = session.user as any;
-                setFormData(prev => ({ ...prev, image: user.image || '' }));
-            }
-        }
+        setPendingImageFile(file); // Store for later upload
     };
 
     const handleRemoveImage = () => {
         setFormData(prev => ({ ...prev, image: '' }));
-        setStatus({ type: 'success', message: 'Image removed. Click Save to apply.' });
-        setTimeout(() => setStatus(null), 3000);
+        setPendingImageFile(null);
     };
 
     const handleSave = async () => {
         setIsSaving(true);
         setStatus(null);
+
         try {
+            let finalImageUrl = formData.image;
+
+            // Upload image if there's a pending file
+            if (pendingImageFile) {
+                setStatus({ type: 'loading', message: 'Uploading image...' });
+
+                const formDataUpload = new FormData();
+                formDataUpload.append('file', pendingImageFile);
+                formDataUpload.append('folder', 'profile/avatar');
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formDataUpload
+                });
+
+                if (uploadResponse.ok) {
+                    const uploadData = await uploadResponse.json();
+                    finalImageUrl = uploadData.url;
+                } else {
+                    throw new Error('Image upload failed');
+                }
+            }
+
+            // Update profile with final image URL
             const response = await fetch('/api/user', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ ...formData, image: finalImageUrl })
             });
 
             if (response.ok) {
-                await update(formData); // Update session
+                await update({ ...formData, image: finalImageUrl }); // Update session
+                setFormData(prev => ({ ...prev, image: finalImageUrl })); // Update local state with real URL
+                setPendingImageFile(null); // Clear pending file
                 setIsEditing(false);
                 setStatus({ type: 'success', message: 'Profile updated successfully' });
                 setTimeout(() => setStatus(null), 3000);
             } else {
-                throw new Error('Update failed');
+                throw new Error('Profile update failed');
             }
         } catch (error) {
             console.error('Update error:', error);
             setStatus({ type: 'error', message: 'Failed to update profile' });
+            // Revert image on failure
+            if (session?.user) {
+                const user = session.user as any;
+                setFormData(prev => ({ ...prev, image: user.image || '' }));
+                setPendingImageFile(null);
+            }
         } finally {
             setIsSaving(false);
         }
@@ -296,7 +311,7 @@ export default function ProfileDashboard() {
                                     </>
                                 ) : (
                                     <>
-                                        <h2 className="text-2xl font-bold">{getDisplayUsername(formData.username, formData.email)}</h2>
+                                        <h2 className="text-2xl font-bold">{displayUsername || formData.username || 'User'}</h2>
                                         <p className="text-xs text-muted-foreground mt-1">{formData.email}</p>
                                     </>
                                 )}

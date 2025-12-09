@@ -3,9 +3,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { generateCaptions } from '@/ai/flows/generate-caption';
 import { consolidatedRateLimiter } from '@/lib/consolidated-rate-limiter';
-import { getNextGeminiKey, getGeminiUsageStats } from '@/lib/gemini-keys';
+// import { getNextGeminiKey, getGeminiUsageStats } from '@/lib/gemini-keys';
 import { CaptionCacheService } from '@/lib/caption-cache';
-import { geminiManager } from '@/lib/smart-gemini-manager';
 import { smartErrorHandler } from '@/lib/smart-error-handler';
 
 // Groq Vision caption generation function - NOW WITH IMAGE ANALYSIS! 🎯
@@ -73,7 +72,7 @@ Generate exactly 3 captions formatted as a numbered list:`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.2-90b-vision-preview', // 🎯 VISION MODEL - Can see images!
+          model: 'llama-3.2-11b-vision-preview', // 🎯 11B VISION MODEL - Better for rate limits
           messages: [
             {
               role: 'system',
@@ -252,7 +251,7 @@ function getClientIP(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const clientIP = getClientIP(req);
-  let keyResult: { key: string; index: number } | null = null;
+  // let keyResult: { key: string; index: number } | null = null;
   let rateLimitChecked = false;
   let rateLimitResult: any = null;
 
@@ -363,154 +362,130 @@ export async function POST(req: NextRequest) {
       resetTime: rateLimitResult.resetTime
     });
 
-    // 🚀 NEW STRATEGY: Try Gemini FIRST (Better quality/creativity)
-    // Then fallback to Groq Vision (Faster but less detailed)
-    console.log('🎯 Attempting Gemini first (Primary Provider - Better Quality)...');
+
+    // 🚀 SINGLE PROVIDER STRATEGY: OpenRouter (Reliable & Cheap)
+    console.log('🤖 Sending image to OpenRouter...');
 
     let result;
 
-    // Try Gemini first
-    keyResult = await geminiManager.getBestKey();
+    try {
+      const openRouterKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterKey) throw new Error('OpenRouter API Key is missing in environment variables');
 
-    if (keyResult) {
-      console.log(`🔑 Using Gemini key index ${keyResult.index}`);
-      try {
-        result = await generateCaptions({
-          mood,
-          description,
-          imageUrl,
-          imageBase64, // 🚀 Pass Base64 for faster processing
-          publicId,
-          userId: session?.user?.id,
-          ipAddress: clientIP,
-          skipRateLimit: true,
-          skipSafetyCheck: !!imageBase64, // 🚀 Skip external safety check if using Base64 (rely on Gemini safety)
-        });
-        console.log('✅ Gemini generation successful! (Primary provider)');
-      } catch (geminiError: any) {
-        console.warn('⚠️ Gemini failed, trying Groq Vision fallback...', geminiError.message);
+      // 1. Prepare Messages
+      const messages: any[] = [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Create 3 viral social media captions for this image.
 
-        // Mark key as exhausted if needed
-        if (geminiError.message?.includes('quota') || geminiError.message?.includes('429')) {
-          geminiManager.markKeyExhausted(keyResult.index, geminiError);
+MOOD: ${mood}
+${description ? `CONTEXT: ${description}` : ''}
+
+STRICT GUIDELINES:
+1. 🚫 NO AI WORDS: Avoid "unleash", "elevate", "tapestry", "symphony".
+2. 📏 LENGTH: 30-50 words each.
+3. 💎 STRUCTURE: Hook + Visuals + Vibe + Question.
+4. 🗣️ TONE: Enthusiastic and authentic.
+
+Return as JSON array: ["caption1", "caption2", "caption3"]`
+            }
+          ]
         }
+      ];
 
-        // Fallback to Groq will happen below
-        result = null;
+      // 2. Add Image (URL or Base64)
+      if (imageUrl) {
+        messages[0].content.push({ type: 'image_url', image_url: { url: imageUrl } });
+      } else if (imageBase64) {
+        messages[0].content.push({ type: 'image_url', image_url: { url: imageBase64 } });
       }
-    } else {
-      console.warn('⚠️ No Gemini keys available, skipping to Groq Vision...');
+
+      // 3. Call OpenRouter API
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://capsera.com',
+          'X-Title': 'Capsera',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-exp:free', // Using High-Quality Free Model
+          messages: messages,
+          temperature: 0.7,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`❌ OpenRouter API Error (${response.status}):`, errText);
+        throw new Error(`AI Provider Error: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      const contentText = data.choices[0]?.message?.content;
+
+      // 4. Parse Response
+      let captions: string[] = [];
+      try {
+        const parsed = JSON.parse(contentText);
+        if (Array.isArray(parsed)) captions = parsed;
+        else if (parsed.captions) captions = parsed.captions;
+      } catch (e) {
+        // Fallback parse
+        captions = contentText.split('\n').filter((l: string) => l.length > 10).slice(0, 3);
+      }
+
+      // Ensure 3 captions
+      captions = captions.slice(0, 3).map(c => c.replace(/^\d+[\.\)]\s*/, '')); // Remove numbers if present
+
+      console.log('✅ Captions generated successfully!');
+      result = { captions };
+
+    } catch (error: any) {
+      console.error('❌ Generation Failed:', error.message);
+
+      return NextResponse.json({
+        success: false,
+        message: "Failed to generate captions. Please try again later.",
+        error: error.message,
+        debug_info: "OpenRouter Provider Failed"
+      }, { status: 502 }); // 502 Bad Gateway is appropriate here
     }
 
-    // If Gemini failed or no keys, try Groq Vision
-    if (!result) {
-      console.log('🔄 FALLBACK: Attempting Groq Vision...');
-      // Pass Base64 to Groq if available
-      const groqResult = await generateGroqCaptions(mood, description || '', imageUrl || '', imageBase64);
-
-      if (groqResult.success && groqResult.captions) {
-        console.log('✅ Groq Vision fallback successful!');
-        result = { captions: groqResult.captions };
-      } else {
-        console.error('❌ Both Gemini and Groq Vision exhausted!');
-        return NextResponse.json({
-          success: false,
-          message: "Our AI servers are currently at capacity. Please try again in a few minutes.",
-          error: 'all_providers_exhausted',
-          status: geminiManager.getStatus()
-        }, { status: 503 });
-      }
-    }
-
-    // ⚡ SPEED OPTIMIZATION: Store cache asynchronously (don't wait for it)
-    if (result.captions && result.captions.length > 0 && imageUrl) {
-      console.log(`💾 Storing new captions in cache (async)...`);
-      // Don't await this - let it run in background
+    // ⚡ SPEED OPTIMIZATION: Store cache asynchronously
+    if (result && result.captions && result.captions.length > 0 && imageUrl) {
+      // ... (Cache logic remains same) ...
       CaptionCacheService.storeCache(
         imageUrl,
         description || 'default',
         mood,
         result.captions,
         session?.user?.id
-      ).then(cacheResult => {
-        if (cacheResult) {
-          console.log(`✅ Captions cached successfully with ID: ${cacheResult._id}`);
-        } else {
-          console.log(`⚠️ Failed to cache captions`);
-        }
-      }).catch(err => {
-        console.error('❌ Cache storage error:', err);
-      });
+      ).catch(err => console.error('Cache save failed', err));
     }
 
     const processingTime = Date.now() - startTime;
-
-    console.log(`✅ Caption generated successfully in ${processingTime}ms`);
-    console.log(`📊 Caption length: ${result.captions?.[0]?.length || 0} characters`);
-
-    // 🎯 INCREMENT USAGE: Only now that we have successful captions
     await consolidatedRateLimiter.incrementUsage(session?.user?.id, clientIP);
-
-    // Get rate limit info for display
     const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
 
-    // Return success response with rate limit info
     return NextResponse.json({
       success: true,
       captions: result.captions,
       processingTime,
-      note: 'Generated with love using Gemini AI ❤️',
       rateLimit: {
         userTier: rateLimitInfo.userTier,
-        isAdmin: rateLimitInfo.isAdmin,
-        maxGenerations: rateLimitInfo.maxGenerations,
         remaining: rateLimitInfo.remaining,
-        resetTime: rateLimitInfo.resetTime,
-        resetMessage: rateLimitInfo.resetMessage
       }
     });
 
   } catch (error: any) {
-    const processingTime = Date.now() - startTime;
-
-    // Enhanced error logging for debugging
-    console.error('❌ CRITICAL ERROR in /api/generate-captions:', {
-      errorMessage: error.message,
-      errorStack: error.stack?.substring(0, 500),
-      errorName: error.name,
-      clientIP,
-      userEmail: session?.user?.email || 'anonymous',
-      processingTime,
-      timestamp: new Date().toISOString()
-    });
-
-    // SMART: Use intelligent error handling
-    const categorized = smartErrorHandler.categorizeError(error, {
-      clientIP,
-      userId: session?.user?.id,
-      userEmail: session?.user?.email
-    });
-
-    smartErrorHandler.trackError(error, { clientIP, userId: session?.user?.id });
-
-    // Mark key as exhausted if it's a quota error
-    if (categorized.category === 'quota_exceeded' && keyResult) {
-      geminiManager.markKeyExhausted(keyResult.index, error);
-    }
-
-    console.error(`💥 Error details:`, {
-      category: categorized.category,
-      clientIP,
-      userEmail: session?.user?.email || 'anonymous',
-      processingTime,
-      developerInfo: categorized.developerInfo
-    });
-
-    return NextResponse.json({
-      success: false,
-      message: categorized.userMessage,
-      error: categorized.category,
-      processingTime
-    }, { status: 500 });
+    // Top Level Error Handler
+    console.error('❌ Critical Error:', error);
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }

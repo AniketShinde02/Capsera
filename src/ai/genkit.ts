@@ -1,32 +1,28 @@
+// 🚀 OPENROUTER CONFIGURATION (Free Tier Compatible)
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { getNextGeminiKey } from '@/lib/gemini-keys';
+import { openAI } from 'genkitx-openai';
 
-// Get the first available Gemini API key for Genkit initialization
-const geminiKey = getNextGeminiKey();
+const openRouterKey = process.env.OPENROUTER_API_KEY;
 
-if (!geminiKey) {
-  console.error('❌ No available Gemini API keys! All keys may be rate limited.');
-  console.error('Please check your GEMINI_API_KEY_1 through GEMINI_API_KEY_4 environment variables');
+if (!openRouterKey) {
+  console.error('❌ OPENROUTER_API_KEY is missing! Please set it in your .env file.');
 } else {
-  console.log(`✅ Genkit initialized with Gemini key (length: ${geminiKey.length})`);
+  console.log(`✅ Genkit initialized with OpenRouter key (ending in ...${openRouterKey?.slice(-4)})`);
 }
 
+// NOTE: We don't use this directly in route.ts anymore for better control (we use direct fetch there)
+// But we keep this valid for other parts of the app that might use Genkit
 export const ai = genkit({
   plugins: [
-    googleAI({
-      apiKey: geminiKey || 'missing-api-key',
-    })
+    openAI({
+      apiKey: openRouterKey,
+      baseURL: 'https://openrouter.ai/api/v1',
+    }),
   ],
-  model: 'googleai/gemini-2.0-flash', // Stable Gemini 2.0 Flash (confirmed available)
+  model: 'openai/google/gemini-2.0-flash-exp:free', // 🎁 The Free High-Speed Model
 });
 
 // Export a function to check if AI is properly configured
 export function isAIConfigured(): boolean {
-  try {
-    const key = getNextGeminiKey();
-    return !!key;
-  } catch {
-    return false;
-  }
+  return !!process.env.OPENROUTER_API_KEY;
 }

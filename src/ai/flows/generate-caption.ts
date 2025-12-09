@@ -308,23 +308,23 @@ const generateCaptionsFlow = ai.defineFlow(
     timings.rateLimit = Date.now() - startTime - timings.safetyCheck;
     console.log(`⚡ Rate limit check completed in ${timings.rateLimit}ms`);
 
-    // 🤖 CRITICAL FIX: Use Genkit's proper image analysis method
-    console.log('🤖 Sending image to AI for analysis using Genkit...');
-    // API Key check is now handled by the Gemini key rotation system in genkit.ts
-    console.log('🔑 Using Gemini key rotation system (configured in genkit.ts)');
+    // 🤖 DIRECT OPENROUTER CALL (Bypassing Genkit Registry)
+    console.log('🤖 Sending image to OpenRouter (Gemini 2.0 Flash Free)...');
 
-    let output: any; // Declare output in outer scope
+    let output: any;
 
     try {
-      // ⚡ SPEED OPTIMIZATION: Streamlined AI prompt for faster processing
-      // Use Base64 if available, otherwise URL
-      const mediaPart = input.imageBase64
-        ? { media: { url: input.imageBase64 } }
-        : { media: { url: input.imageUrl! } };
+      const openRouterKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterKey) throw new Error('OpenRouter API Key is missing');
 
-      const result = await ai.generate([
+      // Prepare messages with image
+      const messages: any[] = [
         {
-          text: `Create 3 viral social media captions for this image.
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Create 3 viral social media captions for this image.
 
 MOOD: ${input.mood}
 ${input.description ? `CONTEXT: ${input.description}` : ''}
@@ -336,36 +336,58 @@ STRICT GUIDELINES:
 4. 🗣️ TONE: Enthusiastic and authentic.
 
 Return as JSON array: ["caption1", "caption2", "caption3"]`
-        },
-        mediaPart
-      ]);
+            }
+          ]
+        }
+      ];
 
-      output = result.output; // Assign to outer scope variable
+      // Add image (URL or Base64)
+      if (input.imageUrl) {
+        messages[0].content.push({
+          type: 'image_url',
+          image_url: { url: input.imageUrl }
+        });
+      } else if (input.imageBase64) {
+        messages[0].content.push({
+          type: 'image_url',
+          image_url: { url: input.imageBase64 }
+        });
+      }
+
+      console.log('🚀 Fetching from OpenRouter...');
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://capsera.com', // Optional: for OpenRouter analytics
+          'X-Title': 'Capsera', // Optional
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-exp:free',
+          messages: messages,
+          temperature: 0.7,
+          response_format: { type: 'json_object' } // Try to force JSON
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`OpenRouter API Error: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      const contentText = data.choices[0]?.message?.content;
+
+      console.log('✅ OpenRouter Response received');
+      output = { text: contentText };
 
       timings.aiGeneration = Date.now() - startTime - timings.safetyCheck - timings.rateLimit;
       console.log(`⚡ AI generation completed in ${timings.aiGeneration}ms`);
-      console.log('🔍 Full AI Result:', result);
-      console.log('🔍 Output object:', output);
-      console.log('✨ AI Generated Captions:', output?.text ? 'Captions generated' : 'No captions generated');
+
     } catch (error: any) {
       console.error('❌ AI Generation Error:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-
-      // Check for safety/content policy violations
-      if (error.message && (
-        error.message.includes('safety') ||
-        error.message.includes('blocked') ||
-        error.message.includes('content policy') ||
-        error.message.includes('SAFETY')
-      )) {
-        throw new Error(`Content flagged by safety filters.Please adjust your description or try a different image.`);
-      }
-
-      throw new Error(`AI generation failed: ${error.message} `);
+      throw new Error(`AI generation failed: ${error.message}`);
     }
 
     // ⚡ SPEED OPTIMIZATION: Fast response parsing
@@ -377,6 +399,8 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
         const parsed = JSON.parse(output.text);
         if (Array.isArray(parsed)) {
           captions = parsed.slice(0, 3);
+        } else if (parsed.captions && Array.isArray(parsed.captions)) {
+          captions = parsed.captions.slice(0, 3);
         } else {
           // Fallback: split by lines
           captions = output.text.split('\n').filter((line: string) => line.trim()).slice(0, 3);

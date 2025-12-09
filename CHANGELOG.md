@@ -1,3 +1,36 @@
+## [2025-12-09] - AI Infrastructure & OpenRouter Migration
+
+### 🚀 **MAJOR AI ARCHITECTURE OVERHAUL**
+We have completely refactored the AI infrastructure to solve the persistent "503 Service Unavailable" errors caused by Google's free tier rate limits and billing issues in India.
+
+#### **Migration to OpenRouter**
+- **Old Architecture**: Complex rotation of 4 Free Google API Keys (`SmartGeminiManager`) -> 15 requests/min limit -> Fails under load -> Fallback to Groq (which also failed).
+- **New Architecture**: Single, robust pipeline using **OpenRouter** as the provider.
+- **Why?**:
+  - Bypasses Google Cloud billing issues (Indian cards rejection).
+  - Provides access to **Gemini 2.0 Flash Experimental** (High quality).
+  - **Totally Free** tier usage (~50 req/day) or cheap unlimited usage.
+  - One key to rule them all (Access to Llama, Claude, etc. without code changes).
+
+#### **Technical Changes**
+- **Deleted**: `src/lib/smart-gemini-manager.ts` (Key rotation logic).
+- **Deleted**: `src/scripts/test-groq-vision.ts` (Old diagnostic scripts).
+- **Updated**: `src/app/api/generate-captions/route.ts` - Removed 200+ lines of fallback code. Now generic `fetch` to OpenRouter.
+- **Updated**: `src/ai/genkit.ts` - Configured for OpenRouter compatibility.
+- **Fixed**: A critical bug where `genkitx-openai` blocked the Google model name locally. Switched to direct `fetch` implementation to solve this.
+
+#### **Documentation**
+- Added `docs/reports/ARCH_MIGRATION_OPENROUTER.md` - Detailed incident report.
+- Added `docs/reports/AI_STABILIZATION_REPORT.md` - Previous stabilization attempts.
+- Added `docs/setup/GOOGLE_API_SETUP.md` - Guide for Google Cloud setup (legacy/reference).
+- Organized `docs/` folder into `reports/`, `setup/`, `systems/`, `guides/`.
+
+### 🐛 **Bug Fixes**
+- **Resolved 503 Errors**: Users no longer see "At Capacity" errors.
+- **Resolved Model Validation Error**: `genkitx-openai` plugin was blocking `google/gemini-2.0-flash-exp:free`. Direct fetch bypassed this.
+- **Fixed TypeScript Lint Errors**: Removed unused imports in API routes.
+
+---
 ## [2025-11-29] - Random Username Generator, Mobile Responsiveness & UI Polish
 
 ### 🎨 **NEW FEATURE: Creative Username Generator**

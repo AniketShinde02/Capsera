@@ -419,9 +419,10 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
             'X-Title': 'Capsera',
           },
           body: JSON.stringify({
-            model: 'google/gemini-flash-1.5', // 💸 Using Paid/Stable Model
+            model: 'google/gemini-1.5-flash', // 💸 Using Paid/Stable Model
             messages: messages,
             temperature: 0.7,
+            // Gemini supports response_format but sometimes prefers schema. Keeping it simple for now.
             response_format: { type: 'json_object' }
           })
         });

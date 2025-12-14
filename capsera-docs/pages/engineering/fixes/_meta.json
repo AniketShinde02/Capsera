@@ -1,0 +1,6 @@
+{
+    "SECURITY_DOCUMENTATION_FIXES": "Security Docs Fixes",
+    "HARDCODED_VALUES_FIXES": "Hardcoded Values Fixes",
+    "PASSWORD_RESET_SECURITY": "Password Reset Fix",
+    "TOKEN_VERIFICATION_FIX": "Token Verification Fix"
+}

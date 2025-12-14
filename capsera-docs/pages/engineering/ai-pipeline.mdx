@@ -1,0 +1,23 @@
+# How Capsera AI Works
+
+Capsera utilizes a multi-stage AI pipeline to deliver the best captions.
+
+## 1. Vision Analysis (Gemini 1.5 Flash)
+We use Google's Gemini 1.5 Flash model for its speed and multimodal capabilities.
+- **Input:** Base64 encoded image.
+- **Prompt:** A highly engineered system prompt that instructs the AI to act as a "Social Media Expert".
+- **Safety:** We filter out NSFW content immediately using Google's safety filters + our own text analysis.
+
+## 2. Context Extraction
+The AI identifies:
+- **Objects**: Phone, Coffee, Laptop.
+- **Action**: Working, Coding, relaxing.
+- **Sentiment**: Focused, Productive, Zen.
+
+## 3. Caption Generation
+Based on the extracted context and your selected **Mood**, the AI writes the caption.
+- *Funny Mode*: Injects puns related to the objects. (e.g., "Espresso yourself.")
+- *Aesthetic Mode*: Uses lowercase, minimal spacing, and specific emojis. (e.g., "coffee & code. ☕️")
+
+## 4. Optimization
+Finally, we append a block of 30 hashtags sorted by relevance and popularity volume (simulated).

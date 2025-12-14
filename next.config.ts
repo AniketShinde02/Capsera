@@ -308,6 +308,20 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+
+    ];
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/docs',
+        destination: 'http://localhost:3002/docs',
+      },
+      {
+        source: '/docs/:path*',
+        destination: 'http://localhost:3002/docs/:path*',
+      },
     ];
   },
 };

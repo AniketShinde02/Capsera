@@ -85,7 +85,7 @@ export default function ServerHeader() {
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
                 <img
-                  src="/logo-v2.png"
+                  src="/favicon-32x32.png"
                   alt="Capsera Logo"
                   className="w-full h-full object-contain"
                 />

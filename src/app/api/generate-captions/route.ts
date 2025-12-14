@@ -409,7 +409,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
       let usedFallback = false;
 
       try {
-        // 🎯 PRIMARY: Try Gemini 2.0 Flash first
+        // 🎯 PRIMARY: Try Gemini 1.5 Flash (Paid/Stable - Fast & Vision Capable)
         response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -419,7 +419,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
             'X-Title': 'Capsera',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.0-flash-exp:free', // Using High-Quality Free Model
+            model: 'google/gemini-flash-1.5', // 💸 Using Paid/Stable Model
             messages: messages,
             temperature: 0.7,
             response_format: { type: 'json_object' }
@@ -434,13 +434,13 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
 
         const data = await response.json();
         contentText = data.choices[0]?.message?.content;
-        console.log('✅ Captions generated with Gemini (Primary)');
+        console.log('✅ Captions generated with Gemini (Primary - Paid)');
 
       } catch (primaryError: any) {
         console.warn(`⚠️ Primary (Gemini) failed: ${primaryError.message}`);
-        console.log('🔄 FALLBACK: Switching to Llama 3.2 11B Vision (Free)...');
+        console.log('🔄 FALLBACK: Switching to Llama 3.2 11B Vision (Paid)...');
 
-        // 🛡️ FALLBACK: Try Llama 3.2 11B Vision
+        // 🛡️ FALLBACK: Try Llama 3.2 11B Vision (Paid Version)
         try {
           const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
@@ -451,7 +451,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
               'X-Title': 'Capsera',
             },
             body: JSON.stringify({
-              model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+              model: 'meta-llama/llama-3.2-11b-vision-instruct', // 💸 Using Paid Model
               messages: messages,
               temperature: 0.7,
             })

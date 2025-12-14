@@ -372,25 +372,33 @@ export async function POST(req: NextRequest) {
       const openRouterKey = process.env.OPENROUTER_API_KEY;
       if (!openRouterKey) throw new Error('OpenRouter API Key is missing in environment variables');
 
-      // 1. Prepare Messages
+      // 1. Prepare Messages with OPTIMIZED VIRAL CAPTION PROMPT
       const messages: any[] = [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `Create 3 viral social media captions for this image.
+              text: `You are a viral social media caption expert. Analyze this image and create 3 unique, engaging captions.
 
 MOOD: ${mood}
 ${description ? `CONTEXT: ${description}` : ''}
 
-STRICT GUIDELINES:
-1. 🚫 NO AI WORDS: Avoid "unleash", "elevate", "tapestry", "symphony".
-2. 📏 LENGTH: 30-50 words each.
-3. 💎 STRUCTURE: Hook + Visuals + Vibe + Question.
-4. 🗣️ TONE: Enthusiastic and authentic.
+STRICT RULES:
+1. 📏 LENGTH: 30-50 words each (MUST be complete sentences)
+2. 🎯 HOOK: Start with attention-grabbing first sentence
+3. 💬 TONE: ${mood.includes('Fun') || mood.includes('Playful') ? 'Playful, energetic, Gen-Z friendly' : mood.includes('Professional') ? 'Polished, confident, aspirational' : mood.includes('Thoughtful') ? 'Reflective, deep, meaningful' : 'Natural, authentic, relatable'}
+4. 🚫 BANNED WORDS: Never use "unleash", "elevate", "symphony", "tapestry", "testament", "embark", "journey"
+5. ✨ INCLUDE: Reference specific visual details you see in the image
+6. 🎨 EMOJIS: Use 2-4 relevant emojis naturally (not at the start)
+7. #️⃣ HASHTAGS: Include 3-5 trending hashtags at the end
 
-Return as JSON array: ["caption1", "caption2", "caption3"]`
+OUTPUT FORMAT (CRITICAL):
+Return ONLY a JSON array with exactly 3 captions:
+["caption 1 here", "caption 2 here", "caption 3 here"]
+
+Example output:
+["Just caught golden hour doing its thing ✨ The way the light hits different when you're not even trying 📸 Sometimes the best moments are the unplanned ones #GoldenHour #NoFilter #Vibes", "Another day, another slay 💅 This outfit really said 'main character energy' and I'm here for it 🔥 Who else is living their best life this weekend? #OOTD #WeekendVibes #Confidence", "POV: You finally found your signature look 😌 Took forever but worth every second 💯 Drop a 🔥 if you're feeling this aesthetic #StyleInspo #FashionGoals #Aesthetic"]`
             }
           ]
         }
@@ -419,12 +427,12 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
             'X-Title': 'Capsera',
           },
           body: JSON.stringify({
-            // 💰 PAID MODEL - Requires OpenRouter credits
-            // For testing without credits, use: 'meta-llama/llama-3.2-11b-vision-instruct:free'
-            model: 'google/gemini-flash-1.5',
+            // 🎯 FREE VISION MODEL - Best for high-volume use
+            // Alternatives: 'openai/gpt-4o-mini' ($0.15/1M) or 'google/gemini-flash-1.5' ($0.075/1M)
+            model: 'qwen/qwen2.5-vl-3b-instruct:free',
             messages: messages,
-            temperature: 0.7,
-            response_format: { type: 'json_object' }
+            temperature: 0.8, // Higher creativity for viral captions
+            max_tokens: 500
           })
         });
 

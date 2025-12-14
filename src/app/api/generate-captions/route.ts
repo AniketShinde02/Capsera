@@ -419,18 +419,48 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
             'X-Title': 'Capsera',
           },
           body: JSON.stringify({
-            model: 'google/gemini-1.5-flash', // 💸 Using Paid/Stable Model
+            // 💰 PAID MODEL - Requires OpenRouter credits
+            // For testing without credits, use: 'meta-llama/llama-3.2-11b-vision-instruct:free'
+            model: 'google/gemini-flash-1.5',
             messages: messages,
             temperature: 0.7,
-            // Gemini supports response_format but sometimes prefers schema. Keeping it simple for now.
             response_format: { type: 'json_object' }
           })
         });
 
         if (!response.ok) {
           const errText = await response.text();
-          console.error(`❌ OpenRouter API Error (${response.status}):`, errText);
-          throw new Error(`Primary AI Provider Error: ${response.status} - ${errText}`);
+          let errorData;
+          try {
+            errorData = JSON.parse(errText);
+          } catch {
+            errorData = { raw: errText };
+          }
+
+          // 🔴 CRITICAL LOGGING - Surface exact OpenRouter error
+          console.error('❌ OPENROUTER PRIMARY FAILURE:', {
+            status: response.status,
+            statusText: response.statusText,
+            model: 'google/gemini-flash-1.5',
+            error: errorData,
+            headers: {
+              'content-type': response.headers.get('content-type'),
+              'x-ratelimit-remaining': response.headers.get('x-ratelimit-remaining'),
+            },
+            diagnosis: response.status === 400
+              ? 'BAD REQUEST - Likely model access denied or invalid parameter'
+              : response.status === 401
+                ? 'UNAUTHORIZED - Invalid API key'
+                : response.status === 402
+                  ? 'PAYMENT REQUIRED - Insufficient credits'
+                  : response.status === 403
+                    ? 'FORBIDDEN - Account restricted or model not allowed'
+                    : response.status === 404
+                      ? 'NOT FOUND - Model does not exist'
+                      : 'UNKNOWN ERROR'
+          });
+
+          throw new Error(`Primary AI Provider Error: ${response.status} - ${JSON.stringify(errorData)}`);
         }
 
         const data = await response.json();
@@ -439,11 +469,11 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
 
       } catch (primaryError: any) {
         console.warn(`⚠️ Primary (Gemini) failed: ${primaryError.message}`);
-        console.log('🔄 FALLBACK: Switching to Llama 3.2 11B Vision (Paid)...');
 
-        // 🛡️ FALLBACK: Try Llama 3.2 11B Vision (Paid Version)
+        // 🛡️ SECONDARY: Try Gemini 1.5 Flash 8B (Different providers usually)
         try {
-          const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          console.log('🔄 FALLBACK 1: Switching to Gemini 1.5 Flash 8B...');
+          const secondaryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${openRouterKey}`,
@@ -452,26 +482,53 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
               'X-Title': 'Capsera',
             },
             body: JSON.stringify({
-              model: 'meta-llama/llama-3.2-11b-vision-instruct', // 💸 Using Paid Model
+              model: 'google/gemini-flash-1.5-8b',
               messages: messages,
               temperature: 0.7,
+              response_format: { type: 'json_object' }
             })
           });
 
-          if (!fallbackResponse.ok) {
-            const fbErr = await fallbackResponse.text();
-            console.error(`❌ Fallback (Llama) also failed: ${fallbackResponse.status} - ${fbErr}`);
-            throw new Error(`All AI providers failed. Primary: ${primaryError.message}, Fallback: ${fallbackResponse.status}`);
-          }
+          if (!secondaryResponse.ok) throw new Error('Secondary invalid');
 
-          const fbData = await fallbackResponse.json();
-          contentText = fbData.choices[0]?.message?.content;
+          const secData = await secondaryResponse.json();
+          contentText = secData.choices[0]?.message?.content;
           usedFallback = true;
-          console.log('✅ Captions generated with Llama (Fallback)');
+          console.log('✅ Captions generated with Gemini 8B (Fallback)');
 
-        } catch (fallbackError: any) {
-          console.error(`❌ Both providers failed:`, fallbackError.message);
-          throw new Error(`All AI providers exhausted. Please try again later.`);
+        } catch (secError) {
+          console.log('� FALLBACK 2: Switching to Llama 3.2 11B Vision...');
+          // 🛡️ TERTIARY: Try Llama 3.2 11B Vision
+          try {
+            const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openRouterKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://capsera.com',
+                'X-Title': 'Capsera',
+              },
+              body: JSON.stringify({
+                model: 'meta-llama/llama-3.2-11b-vision-instruct',
+                messages: messages,
+                temperature: 0.7,
+              })
+            });
+
+            if (!fallbackResponse.ok) {
+              const fbErr = await fallbackResponse.text();
+              throw new Error(`All fallbacks failed. Last error: ${fbErr}`);
+            }
+
+            const fbData = await fallbackResponse.json();
+            contentText = fbData.choices[0]?.message?.content;
+            usedFallback = true;
+            console.log('✅ Captions generated with Llama (Final Fallback)');
+
+          } catch (fallbackError: any) {
+            console.error(`❌ All providers failed:`, fallbackError.message);
+            throw new Error(`All AI providers exhausted. Please try again later.`);
+          }
         }
       }
 
@@ -498,7 +555,7 @@ Return as JSON array: ["caption1", "caption2", "caption3"]`
 
       return NextResponse.json({
         success: false,
-        message: "Failed to generate captions. Please try again later.",
+        message: error.message || "Failed to generate captions. Please try again later.",
         error: error.message,
         debug_info: "OpenRouter Provider Failed"
       }, { status: 502 }); // 502 Bad Gateway is appropriate here

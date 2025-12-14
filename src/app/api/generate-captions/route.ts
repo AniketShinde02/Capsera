@@ -645,7 +645,15 @@ Example output:
       }
 
       console.log(`✅ Final captions (${captions.length}):`, captions.map(c => c.substring(0, 50) + '...'));
-      result = { captions };
+      result = {
+        captions,
+        metadata: {
+          model: modelConfig.model,
+          isFreeModel: useFreeModel,
+          cost: useFreeModel ? 0 : 0.0004,
+          usedFallback
+        }
+      };
 
     } catch (error: any) {
       console.error('❌ Generation Failed:', error.message);

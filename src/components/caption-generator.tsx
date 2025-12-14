@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { generateCaptions } from "@/ai/flows/generate-caption";
 import { CaptionCard } from "./caption-card";
+import { FreeCaptionCard } from "./free-caption-card";
 import { Textarea } from "./ui/textarea";
 import { trackCaptionGeneration, hasConsent, saveFavoriteMood } from "@/lib/cookie-utils";
 import { compressWithWorker } from '@/lib/worker-client';
@@ -172,6 +173,7 @@ export function CaptionGenerator() {
   const { setOpen: setAuthModalOpen } = useAuthModal();
 
   const [captions, setCaptions] = useState<string[]>([]);
+  const [captionMetadata, setCaptionMetadata] = useState<{ isFreeModel?: boolean; cost?: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);

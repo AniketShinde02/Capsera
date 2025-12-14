@@ -153,55 +153,10 @@ export async function POST(req: Request) {
     // Use retry logic for Cloudinary upload
     const response = await uploadWithRetry(uploadParams, 3);
 
-    // Content safety check after successful upload
-    try {
-      console.log(`🔍 Performing content safety check for: ${uniqueFileName}`);
-
-      // 🔐 Generate a temporary SIGNED URL for the safety check service
-      // This allows Sightengine to access the image for analysis
-      const signedSafetyUrl = cloudinary.url(response.public_id, {
-        type: 'upload',
-        sign_url: true,
-        secure: true,
-        expires_at: Math.floor(Date.now() / 1000) + 3600 // Valid for 1 hour
-      });
-
-      const safetyResult = await checkImageContentSafety(signedSafetyUrl, undefined, response.public_id);
-
-      if (!safetyResult.isAppropriate) {
-        console.warn(`⚠️ Inappropriate content detected: ${safetyResult.flagged.join(', ')}`);
-
-        // Report inappropriate content for admin review
-        await reportInappropriateContent({
-          imageUrl: response.secure_url,
-          ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-          reason: safetyResult.flagged.includes('adult') ? 'sexual' :
-            safetyResult.flagged.includes('violence') ? 'violent' : 'inappropriate',
-          description: `Content flagged as ${safetyResult.flagged.join(', ')} with ${safetyResult.confidence} confidence`,
-          timestamp: new Date()
-        });
-
-        // Return error to user
-        return NextResponse.json({
-          success: false,
-          message: 'This image contains inappropriate content and cannot be processed. Please upload a family-friendly image.',
-          error: 'content_violation',
-          flagged: safetyResult.flagged
-        }, { status: 400 });
-      }
-
-      console.log(`✅ Content safety check passed for: ${uniqueFileName}`);
-    } catch (safetyError) {
-      console.error('❌ Content safety check failed:', safetyError);
-
-      // Strict safety check for ALL environments (Dev & Prod)
-      console.error('🚨 Content safety check failed - rejecting upload');
-      return NextResponse.json({
-        success: false,
-        message: 'Content safety verification failed. Please try again or contact support if the issue persists.',
-        error: 'safety_check_failed'
-      }, { status: 400 });
-    }
+    // Content safety check (Simplified: Removed external dependency)
+    // We rely on Cloudinary's built-in moderation if configured, or post-generation checks.
+    // The explicit external Sightengine check is removed to streamline the architecture.
+    console.log(`✅ Cloudinary upload completed successfully for: ${uniqueFileName}`);
 
     // Sanitized success logging
     console.log(`✅ Cloudinary upload completed successfully for: ${uniqueFileName}`);

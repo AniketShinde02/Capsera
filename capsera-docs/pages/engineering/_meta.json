@@ -1,14 +1,13 @@
 {
     "index": "Overview",
     "ai-pipeline": "AI Pipeline",
-    "features": "Feature Specs",
+    "rate-limiting": "Rate Limiting",
+    "authentication": "Authentication",
     "systems": "System Architecture",
     "setup": "Setup Guides",
     "admin": "Admin Documentation",
     "api": "API Reference",
-    "fixes": "Fix Logs",
+    "features": "Feature Specs",
     "general": "General Docs",
-    "guides": "Engineering Guides",
-    "reports": "Reports",
-    "summaries": "Summaries"
+    "guides": "Engineering Guides"
 }

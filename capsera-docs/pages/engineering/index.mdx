@@ -1,354 +1,43 @@
-# 📚 Capsera Documentation Hub
+# Capsera Engineering Documentation
 
-Welcome to the comprehensive documentation for Capsera! This hub provides organized access to all documentation, guides, and resources.
+Welcome to the technical documentation for Capsera.
 
-## 🎯 **Getting Started (New Users)**
+## Core Architecture
 
-### **🚀 First-Time Setup**
-1. **[Main README](/docs/engineering/general/HELP_FOLDER/README)** - Start here! Comprehensive project overview
-2. **[Setup Guide](/docs/engineering/setup/setup-guides/SETUP)** - Step-by-step installation instructions
-3. **[Environment Configuration](env.example)** - Complete environment variables template
-4. **[Quick Start Commands](/docs/engineering/guides/guides/commands)** - Essential commands reference
+-   **[AI Pipeline](/engineering/ai-pipeline)**: How we generate captions using OpenRouter and Vision models.
+-   **[Rate Limiting](/engineering/rate-limiting)**: Our multi-layered quota and security system.
+-   **[Authentication](/getting-started/authentication)**: NextAuth.js implementation with Dual Mode support.
 
-### **🔐 Admin Setup (System Administrators)**
-1. **[Admin Setup Guide](/docs/engineering/admin/admin-guides/ADMIN_SETUP)** - Complete admin system setup
-2. **[Enhanced Admin System](/docs/engineering/admin/ENHANCED_ADMIN_SYSTEM)** - PIN + OTP security system
-3. **[Security Configuration](/docs/engineering/admin/admin-guides/ADMIN_SETUP)** - Security best practices
-4. **[Role Management](/docs/engineering/admin/admin-guides/ADMIN_SETUP)** - User permissions setup
-5. **[Admin Creation Flow](/docs/engineering/admin/ENHANCED_ADMIN_SYSTEM)** - Step-by-step admin setup process
+## System Components
 
-## 📖 **Core Documentation**
+-   **Backend**: Next.js 15 App Router API routes.
+-   **Database**: MongoDB with Mongoose ODM.
+-   **Storage**: Cloudinary for image optimization and storage.
+-   **Email**: Brevo SMTP for notifications.
 
-### **User Documentation**
-- **[User Help Guide](/docs/engineering/general/help)** - Complete user documentation & troubleshooting
-- **[Authentication Flow](/docs/engineering/guides/guides/flow)** - How authentication works
-- **[API Reference](/docs/engineering/api/API_DOCUMENTATION)** - Complete API documentation
+## Key Workflows
 
-### **Technical Documentation**
-- **[Feature Changelog](/docs/engineering/general/new_features)** - Latest updates & improvements
-- **[Design Guidelines](/docs/engineering/guides/guides/blueprint)** - UI/UX specifications
-- **[Deployment Guide](/docs/engineering/setup/VERCEL_DEPLOYMENT_GUIDE)** - Production deployment
+### 1. Caption Generation
+1.  User uploads image (or pastes URL).
+2.  Frontend compresses image (max 4MB).
+3.  Backend validates quota (`ConsolidatedRateLimiter`) and spend limits (`daily_spend`).
+4.  Image sent to OpenRouter (`gpt-4o-mini`).
+5.  Response parsed and returned to user.
 
-## 🚀 **Latest Updates & Major Improvements (January 2025)**
+### 2. Admin System
+-   **Unified Login**: Admins log in via standard portal or dedicated admin route.
+-   **Dual Mode**: Admins can generate captions as regular users (tracking usage separately) or as admins (unlimited).
+-   **Maintenance Mode**: Database-driven switch to lock frontend access.
 
-### **🔒 Analytics Cookie Consent System - COMPLETED**
-**Status**: ✅ **Database Flooding Prevention & Optimization**
+## Development
 
-Fixed critical analytics cookie consent flooding that was creating 960+ duplicate database entries:
+### Commands
+-   `npm run dev`: Start development server.
+-   `npm run setup-admin`: Initialize admin user.
+-   `npm run maintenance:check`: Verify docs status.
 
-- **Deduplication System** - Server-side and client-side deduplication mechanisms
-- **Debounce Protection** - 2-second debounce to prevent rapid-fire tracking events
-- **Cleanup Scripts** - Comprehensive cleanup tools for existing duplicate entries
-- **Performance Optimization** - Reduced database bloat and improved query performance
-- **Template Variables** - Replaced hardcoded values with configurable placeholders
-
-**📁 Key Files**: [Analytics API](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/analytics/track/route.ts), [Cookie Consent](https://github.com/AniketShinde02/Capsera/blob/main/src/components/CookieConsent.tsx), [Cleanup Script](https://github.com/AniketShinde02/Capsera/blob/main/scripts/cleanup-analytics-flood.js)
-
-**📚 Full Details**: [Security Documentation Fixes](/docs/engineering/fixes/SECURITY_DOCUMENTATION_FIXES), [Hardcoded Values Fixes](/docs/engineering/fixes/HARDCODED_VALUES_FIXES)
-
-### **🔧 Database Schema Optimization - COMPLETED**
-**Status**: ✅ **Mongoose Duplicate Index Warnings Eliminated**
-
-Fixed duplicate index warnings across all Mongoose models:
-
-- **Schema Cleanup** - Removed redundant `index: true` declarations where `unique: true` already creates indexes
-- **Performance Improvement** - Cleaner builds without index warnings
-- **Models Fixed** - CaptionCache, AdminUser, RateLimit, ApiKey, DataRecoveryRequest, BlockedCredentials
-- **Build Optimization** - Eliminated Mongoose warnings during production builds
-
-**📁 Key Files**: [User Model](https://github.com/AniketShinde02/Capsera/blob/main/src/models/User.ts), [CaptionCache Model](https://github.com/AniketShinde02/Capsera/blob/main/src/models/CaptionCache.ts), [AdminUser Model](https://github.com/AniketShinde02/Capsera/blob/main/src/models/AdminUser.ts)
-
-**📚 Full Details**: [Duplicate Index Fixes](/docs/engineering/summaries/summaries/fixes-summaries/DUPLICATE_INDEX_FIXES)
-
-### **📚 Documentation Security & Maintenance - COMPLETED**
-**Status**: ✅ **Security-Hardened Documentation System**
-
-Comprehensive security audit and maintenance of all documentation:
-
-- **Security Audit** - Comprehensive security documentation audit and fixes
-- **Hardcoded Values** - Replaced all hardcoded URLs, database strings, and sensitive information
-- **Template System** - Implemented `{{BASE_URL}}`, `{{MONGODB_URI}}`, `{{MAINTENANCE_SECRET}}` placeholders
-- **Environment Agnostic** - Documentation now works across different deployment environments
-- **Security Guidelines** - Created comprehensive security documentation guidelines
-
-**📁 Key Files**: [Postman Testing](/docs/engineering/guides/testing-guides/POSTMAN_API_TESTING), [Vercel Deployment](/docs/engineering/setup/VERCEL_DEPLOYMENT_GUIDE)
-
-**📚 Full Details**: [Security Documentation Fixes](/docs/engineering/fixes/SECURITY_DOCUMENTATION_FIXES), [Hardcoded Values Fixes](/docs/engineering/fixes/HARDCODED_VALUES_FIXES)
-
-### **🖼️ Image Display System Fixes - COMPLETED**
-**Status**: ✅ **Profile Page Images & Upload Area Optimization**
-
-Fixed critical image display issues throughout the application:
-
-- **Profile Page Images** - Fixed image display issues in profile page cards
-- **Upload Area Optimization** - Resolved blank upload area after caption generation
-- **Loading State Management** - Improved loading skeletons and error handling
-- **Image Rendering** - Enhanced image rendering with proper error boundaries
-- **State Management** - Simplified image state management for better reliability
-
-**📁 Key Files**: [Profile Page](https://github.com/AniketShinde02/Capsera/blob/main/src/app/profile/page.tsx), [Caption Generator](https://github.com/AniketShinde02/Capsera/blob/main/src/components/caption-generator.tsx)
-
-**📚 Full Details**: [Image Display Fixes](/docs/engineering/summaries/summaries/IMAGE_DISPLAY_FIXES_SUMMARY)
-
-### **⚡ Performance & Code Quality - COMPLETED**
-**Status**: ✅ **CodeRabbit Integration & TypeScript Improvements**
-
-Addressed 170+ code quality issues from AI code review:
-
-- **CodeRabbit Integration** - Addressed 170+ code quality issues from AI code review
-- **TypeScript Improvements** - Fixed type safety issues and improved error handling
-- **Security Enhancements** - Resolved security vulnerabilities and improved input validation
-- **Error Handling** - Standardized error handling across all API routes
-- **Code Optimization** - Removed debug logs and improved production readiness
-
-**📁 Key Files**: [Admin Analytics](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/admin/analytics/route.ts), [Test Image API](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/test-image/route.ts), [Cloudinary Utils](https://github.com/AniketShinde02/Capsera/blob/main/src/lib/cloudinary.ts)
-
-**📚 Full Details**: [Security Fixes Complete](/docs/engineering/summaries/summaries/fixes-summaries/SECURITY_FIXES_COMPLETE)
-
-### **👑 Admin Unlimited Access System - COMPLETED**
-**Status**: ✅ **Admin users now have unlimited caption generation**
-
-- **No Quota Limits**: Admin users bypass all rate limiting restrictions
-- **Enhanced UI**: Special "👑 Admin: Unlimited images" display
-- **Dual-Mode System**: Seamless switching between admin and user modes
-- **Profile Integration**: Admin Dashboard button on profile pages
-
-**📁 Key Files**: [Rate Limiting](https://github.com/AniketShinde02/Capsera/blob/main/src/lib/rate-limit.ts), [Caption Generator](https://github.com/AniketShinde02/Capsera/blob/main/src/components/caption-generator.tsx), [Admin Mode Toggle](https://github.com/AniketShinde02/Capsera/blob/main/src/components/admin/AdminModeToggle.tsx)
-
-### **🔐 Enhanced Security & Setup Flow - COMPLETED**
-**Status**: ✅ **Improved security with better user experience**
-
-- **System Lock PIN**: Mandatory PIN verification when enabled
-- **Session Validation**: Automatic redirect for authenticated admins
-- **Compact UI Design**: Streamlined setup forms with better hierarchy
-- **OTP & PIN Management**: Improved verification flow
-- **Multi-Layer Security**: PIN + OTP verification required for admin setup
-- **Secure Admin Creation**: Any email can create admin after security verification
-- **Existing Admin Login**: Direct login option for users with admin credentials
-
-**📁 Key Files**: [Setup Page](https://github.com/AniketShinde02/Capsera/blob/main/src/app/setup/page.tsx), [PIN Verification API](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/admin/verify-setup-pin/route.ts), [Admin Setup API](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/admin/setup/route.ts)
-
-### **🎨 UI/UX Improvements - COMPLETED**
-**Status**: ✅ **Enhanced user experience across all components**
-
-### Recent UX Fix: Caption Generator
-
-- Fixed a double upload animation bug in the caption generation flow by reusing an already-uploaded image when available. This avoids redundant uploads and improves user clarity. See `src/components/caption-generator.tsx` for implementation details.
-
-- **Smooth Animations**: Text transitions and mode switching animations
-- **Toast Notifications**: Replaced intrusive alerts with elegant toasts
-- **Theme Consistency**: Fixed dark mode visibility and color schemes
-- **Responsive Design**: Improved mobile experience and button sizing
-
-**📁 Key Files**: [Admin Mode Toggle](https://github.com/AniketShinde02/Capsera/blob/main/src/components/admin/AdminModeToggle.tsx), [Admin Header](https://github.com/AniketShinde02/Capsera/blob/main/src/components/admin/AdminHeader.tsx), [Profile Page](https://github.com/AniketShinde02/Capsera/blob/main/src/app/profile/page.tsx)
-
-### **⚡ Performance & Compatibility - COMPLETED**
-**Status**: ✅ **Next.js 15 compatibility and performance improvements**
-
-- **Next.js 15 Compatibility**: Fixed `params` handling in dynamic API routes
-- **React Hooks Compliance**: Resolved hooks order violations
-- **Error Handling**: Improved error messages and user feedback
-- **Code Optimization**: Removed console logs and debug information
-
-**📁 Key Files**: [User API Routes](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/admin/users/[id]/route.ts), [Image API Routes](https://github.com/AniketShinde02/Capsera/blob/main/src/app/api/admin/images/[id]/route.ts)
-
-### **🌐 Deployment & Infrastructure - COMPLETED**
-**Status**: ✅ **Optimized for Vercel and Netlify deployment**
-
-- **Vercel Integration**: Proper metadata and favicon configuration
-- **Favicon System**: Modern Next.js metadata-based favicon system
-- **Netlify Support**: Added `netlify.toml` configuration
-- **Environment Management**: Better handling of environment variables
-
-**📁 Key Files**: [Layout](https://github.com/AniketShinde02/Capsera/blob/main/src/app/layout.tsx), [netlify.toml](../netlify.toml), [Vercel Configuration](https://github.com/AniketShinde02/Capsera/blob/main/vercel.json)
-
-### **🐛 Critical Bug Fixes - COMPLETED**
-**Status**: ✅ **All major issues resolved**
-
-- **Setup Redirect Loop**: Fixed infinite redirect to PIN step after login
-- **Admin Quota Display**: Removed quota limits from admin interface
-- **Session Management**: Fixed `isAdmin: false` issues in admin sessions
-- **API Route Errors**: Resolved Next.js 15 compatibility issues
-- **Alert Popups**: Replaced all `alert()` calls with toast notifications
-- **Console Logs**: Removed unnecessary logging and debug messages
-
-**📁 Key Files**: [Auth Configuration](https://github.com/AniketShinde02/Capsera/blob/main/src/lib/auth.ts), [Rate Limiting](https://github.com/AniketShinde02/Capsera/blob/main/src/lib/rate-limit.ts), [Components](https://github.com/AniketShinde02/Capsera/blob/main/src/components/)
-
-## 🔧 **Troubleshooting & Support**
-
-### **Problem Resolution**
-- **[Troubleshooting Guide](/docs/engineering/general/TROUBLESHOOTING)** - Comprehensive issue resolution
-- **[Common Issues](/docs/engineering/general/TROUBLESHOOTING)** - Quick fixes for common problems
-- **[Development Issues](/docs/engineering/general/TROUBLESHOOTING)** - Development-specific problems
-
-### **Getting Help**
-- **GitHub Issues** - Report bugs and request features
-- **GitHub Discussions** - Community support and questions
-- **Email Support** - Direct technical support
-
-## 📋 **Documentation Categories**
-
-### **🚀 Setup & Installation**
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [Main README](/docs/engineering/general/HELP_FOLDER/README) | Project overview & quick start | All users |
-| [SETUP.md](/docs/engineering/setup/setup-guides/SETUP) | Detailed installation | Developers |
-| [env.example](env.example) | Environment configuration | Developers |
-| [ADMIN_SETUP.md](/docs/engineering/admin/admin-guides/ADMIN_SETUP) | Admin system setup | System administrators |
-
-### **📖 User Guides**
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [help.md](/docs/engineering/general/help) | User documentation | End users |
-| [flow.md](/docs/engineering/guides/guides/flow) | Authentication flow | Developers |
-| [commands.md](/docs/engineering/guides/guides/commands) | Command reference | Developers |
-
-### **🔧 Technical Reference**
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [API_DOCUMENTATION.md](/docs/engineering/api/API_DOCUMENTATION) | API reference | Developers |
-| [new_features.md](/docs/engineering/general/new_features) | Feature updates | All users |
-| [blueprint.md](/docs/engineering/guides/guides/blueprint) | Design specifications | Designers |
-
-### **🚨 Support & Troubleshooting**
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [TROUBLESHOOTING.md](/docs/engineering/general/TROUBLESHOOTING) | Issue resolution | All users |
-| [VERCEL_DEPLOYMENT_GUIDE.md](/docs/engineering/setup/VERCEL_DEPLOYMENT_GUIDE) | Deployment help | Developers |
-
-### **🔧 Maintenance & Operations**
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [MAINTENANCE_GUIDE.md](/docs/engineering/guides/MAINTENANCE_GUIDE) | Maintenance procedures | Developers & DevOps |
-| [MAINTENANCE_IMPLEMENTATION.md](/docs/engineering/systems/systems/MAINTENANCE_IMPLEMENTATION) | Step-by-step implementation | Developers & DevOps |
-
-## 🎯 **Quick Navigation by Need**
-
-### **"I want to..."**
-
-#### **Set up CaptionCraft for the first time**
-1. Read [Main README](/docs/engineering/general/HELP_FOLDER/README) for overview
-2. Follow [Setup Guide](/docs/engineering/setup/setup-guides/SETUP) step-by-step
-3. Configure [Environment Variables](env.example)
-4. Set up [Admin System](/docs/engineering/admin/admin-guides/ADMIN_SETUP)
-
-#### **Deploy to production**
-1. Read [Vercel Deployment Guide](/docs/engineering/setup/VERCEL_DEPLOYMENT_GUIDE)
-2. Configure production environment variables
-3. Run database migrations
-4. Test production deployment
-
-#### **Fix a problem**
-1. Check [Troubleshooting Guide](/docs/engineering/general/TROUBLESHOOTING)
-2. Look for your specific issue
-3. Follow the resolution steps
-4. Check [Common Issues](/docs/engineering/general/TROUBLESHOOTING)
-
-#### **Understand how authentication works**
-1. Read [Authentication Flow](/docs/engineering/guides/guides/flow)
-2. Check [API Documentation](/docs/engineering/api/API_DOCUMENTATION)
-3. Review [Security Features](/docs/engineering/general/HELP_FOLDER/README)
-
-#### **Set up admin users**
-1. Follow [Admin Setup Guide](/docs/engineering/admin/admin-guides/ADMIN_SETUP)
-
-#### **Maintain and update the system**
-1. Read [Maintenance Guide](/docs/engineering/guides/MAINTENANCE_GUIDE)
-2. Use automated maintenance scripts
-3. Follow the maintenance schedule
-4. Check documentation status regularly
-2. Generate setup token with `npm run generate-token`
-3. Configure environment variables
-4. Complete setup process
-
-#### **Use the API**
-1. Read [API Documentation](/docs/engineering/api/API_DOCUMENTATION)
-2. Check authentication requirements
-3. Review rate limiting rules
-4. Test with provided examples
-
-## 📊 **Documentation Status**
-
-### **✅ Complete & Up-to-Date**
-- [x] Main README - Comprehensive project guide
-- [x] Setup Guide - Complete installation instructions
-- [x] Admin Setup - Full admin system documentation
-- [x] User Help - Complete user documentation
-- [x] API Documentation - Full API reference
-- [x] Troubleshooting - Comprehensive issue resolution
-- [x] Commands Reference - Complete command list
-- [x] Authentication Flow - Detailed auth documentation
-- [x] Environment Template - Complete env variables
-- [x] Deployment Guide - Production deployment
-- [x] Admin Dashboard - Fully functional admin system
-
-### **🔄 Regular Updates**
-- [x] Feature Changelog - Updated with each release
-- [x] Troubleshooting - Updated with common issues
-- [x] API Documentation - Updated with new endpoints
-
-## 🔍 **Search & Navigation Tips**
-
-### **Finding Specific Information**
-- **Use Ctrl+F** to search within documents
-- **Check the table of contents** at the top of each document
-- **Look for emojis** that indicate content type (🚀 setup, 🔐 security, etc.)
-- **Check related documents** in the same category
-
-### **Common Search Terms**
-- **"rate limiting"** → [Troubleshooting](/docs/engineering/general/TROUBLESHOOTING)
-- **"admin setup"** → [Admin Setup Guide](/docs/engineering/admin/admin-guides/ADMIN_SETUP)
-- **"environment variables"** → [env.example](env.example)
-- **"API endpoints"** → [API Documentation](/docs/engineering/api/API_DOCUMENTATION)
-- **"deployment"** → [Vercel Guide](/docs/engineering/setup/VERCEL_DEPLOYMENT_GUIDE)
-- **"authentication"** → [Auth Flow](/docs/engineering/guides/guides/flow)
-
-## 📝 **Contributing to Documentation**
-
-### **How to Help**
-1. **Report missing information** via GitHub Issues
-2. **Suggest improvements** via GitHub Discussions
-3. **Submit corrections** via Pull Requests
-4. **Share your experience** with the community
-
-### **Documentation Standards**
-- **Clear structure** with headings and subheadings
-- **Code examples** for technical procedures
-- **Screenshots** for visual procedures
-- **Troubleshooting sections** for common issues
-- **Regular updates** with new features
-
-## 🆘 **Still Can't Find What You Need?**
-
-### **Contact Options**
-1. **GitHub Issues** - Report documentation gaps
-2. **GitHub Discussions** - Ask the community
-3. **Email Support** - Direct technical help
-4. **Pull Requests** - Contribute improvements
-
-### **Documentation Requests**
-When requesting new documentation, please include:
-- What you're trying to accomplish
-- What information is missing
-- Your technical background level
-- Any specific examples or use cases
-
----
-
-## 🎉 **Documentation Success Metrics**
-
-- **📚 10+ comprehensive guides** covering all aspects
-- **🔍 Easy navigation** with clear categorization
-- **📱 Mobile-friendly** documentation format
-- **🔄 Regular updates** with latest features
-- **🎯 User-focused** content organization
-- **🔧 Technical depth** for developers
-- **📖 User-friendly** for end users
-
----
-
-**Last Updated**: August 2025  
-**Documentation Version**: 2.0  
-**Status**: Complete & Comprehensive 📚
-
-*This documentation hub ensures you can find everything you need to use, develop, and deploy CaptionCraft successfully!* 🚀
+### Directory Structure
+-   `src/app`: Next.js App Router pages and API.
+-   `src/lib`: Core logic (Auth, Rate Limit, DB).
+-   `src/models`: Mongoose schemas.
+-   `src/components`: React components (ui, admin, general).

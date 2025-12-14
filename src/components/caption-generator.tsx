@@ -971,112 +971,77 @@ export function CaptionGenerator() {
       setCurrentMood(values.mood);
       setCurrentDescription(values.description || '');
 
-      // 🚀 "FIRE AND FORGET" STRATEGY:
-      // 1. Convert image to Base64 (Fast & Compressed)
-      // 2. Send to AI immediately (Don't wait for Cloudinary)
-      // 3. Upload to Cloudinary in background (for history)
 
-      let imageBase64: string | null = null;
+      // 🚀 SEQUENTIAL STRATEGY (Cost-Optimized): 
+      // 1. Upload to Cloudinary (Wait for it) - Required for cost savings
+      // 2. Send URL to AI (No Base64 to save tokens)
+
       let imageUrlForAi = currentImageData?.url || '';
+      let imagePublicId = currentImageData?.publicId;
 
-      // If we have a file, convert to Base64 for immediate AI processing
-      // ⚡ FIX: 413 Payload Too Large - Compress image specifically for AI analysis
-      if (uploadedFile) {
-        setButtonMessage('Preparing image...');
+      // step 1: perform upload if needed
+      if (uploadedFile && !currentImageData) {
+        setButtonMessage('Uploading image...');
+        updateButtonState('uploading');
 
-        // Helper to resize and compress image for AI (Max 1024px, 0.7 quality)
-        // This ensures the payload is small (<1MB) to avoid 413 errors
-        const resizeForAI = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const img = new window.Image();
-              img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
+        const formData = new FormData();
 
-                // Aggressive resizing for AI (it doesn't need 4K)
-                const maxDim = 1024;
-                let width = img.width;
-                let height = img.height;
+        // ⚡ SPEED OPTIMIZATION: Compress image before upload
+        // Users often upload 4K/5MB images which take 10s+ to upload
+        // We resize to max 1024px width (~200KB) for instant upload
+        let fileToSend = uploadedFile;
+        try {
+          const compressed = await compressImageForUpload(uploadedFile); // Re-use existing compressor
+          if (compressed.size < uploadedFile.size) {
+            fileToSend = compressed;
+            console.log(`📉 Compressed for upload: ${(uploadedFile.size / 1024).toFixed(0)}KB -> ${(compressed.size / 1024).toFixed(0)}KB`);
+          }
+        } catch (e) {
+          console.warn('Compression failed, sending original');
+        }
 
-                if (width > height) {
-                  if (width > maxDim) {
-                    height = Math.round((height * maxDim) / width);
-                    width = maxDim;
-                  }
-                } else {
-                  if (height > maxDim) {
-                    width = Math.round((width * maxDim) / height);
-                    height = maxDim;
-                  }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                ctx?.drawImage(img, 0, 0, width, height);
-
-                // Compress to JPEG at 0.7 quality
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                resolve(dataUrl);
-              };
-              img.onerror = reject;
-              img.src = e.target?.result as string;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        };
+        formData.append('file', fileToSend);
 
         try {
-          imageBase64 = await resizeForAI(uploadedFile);
-          console.log('📉 Image compressed for AI. Length:', imageBase64.length);
-        } catch (err) {
-          console.error('Compression failed, falling back to raw file:', err);
-          // Fallback to raw file if canvas fails (unlikely)
-          imageBase64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(uploadedFile);
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
           });
+
+          if (!uploadRes.ok) throw new Error('Upload failed');
+
+          const uploadData = await uploadRes.json();
+          if (!uploadData.success) throw new Error(uploadData.message || 'Upload failed');
+
+          imageUrlForAi = uploadData.secure_url || uploadData.url;
+          imagePublicId = uploadData.public_id;
+
+          setCurrentImageData({
+            url: imageUrlForAi,
+            publicId: imagePublicId
+          });
+
+          // Cache locally
+          const cacheKey = `image_${imagePublicId}`;
+          localStorage.setItem(cacheKey, JSON.stringify({
+            url: imageUrlForAi,
+            publicId: imagePublicId,
+            timestamp: Date.now()
+          }));
+
+          console.log('✅ Upload complete:', imageUrlForAi);
+
+        } catch (uploadErr) {
+          console.error('Upload failed:', uploadErr);
+          throw new Error('Image upload failed. Please try again.');
         }
       }
 
-      // ⚡ START BACKGROUND UPLOAD (Don't await!)
-      let backgroundUploadPromise: Promise<any> | null = null;
-
-      if (uploadedFile && !currentImageData) {
-        setButtonMessage('Uploading in background...');
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-
-        // Start upload but don't block AI
-        backgroundUploadPromise = fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        }).then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              setCurrentImageData(data);
-              // Cache in local storage
-              const cacheKey = `image_${data.public_id}`;
-              localStorage.setItem(cacheKey, JSON.stringify({
-                url: data.url,
-                publicId: data.public_id,
-                timestamp: Date.now()
-              }));
-              return data;
-            }
-            console.warn('Background upload failed:', data);
-            return null;
-          }).catch(err => {
-            console.error('Background upload error:', err);
-            return null;
-          });
+      // Step 2: Generate captions using the URL
+      if (!imageUrlForAi) {
+        throw new Error('No image available for generation');
       }
 
-      // Step 3: Generate captions IMMEDIATELY with Base64
       updateButtonState('generating');
       setButtonMessage('AI is analyzing your image...');
       setButtonIcon(<Brain className="mr-2 h-4 w-4 animate-pulse" />);
@@ -1084,16 +1049,15 @@ export function CaptionGenerator() {
       const captionController = new AbortController();
       const captionTimeout = setTimeout(() => captionController.abort('Request timed out'), 60000);
 
-      // Call API with Base64 (Priority) or URL
+      // Call API with URL ONLY (No Base64)
       const captionResponse = await fetch('/api/generate-captions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mood: values.mood,
           description: values.description,
-          imageUrl: imageUrlForAi, // Fallback if Base64 fails
-          imageBase64: imageBase64, // 🚀 SEND BASE64 DIRECTLY!
-          publicId: currentImageData?.publicId,
+          imageUrl: imageUrlForAi,
+          publicId: imagePublicId,
         }),
         signal: captionController.signal,
       });
@@ -1108,6 +1072,12 @@ export function CaptionGenerator() {
       const captionData = await captionResponse.json();
       if (captionData.captions) {
         setCaptions(captionData.captions);
+
+        // Capture metadata for UI decisions (e.g., Free vs Paid card style)
+        if (captionData.metadata) {
+          setCaptionMetadata(captionData.metadata);
+        }
+
         // 🚀 FIX: Stop loading immediately to show captions without delay
         setIsLoading(false);
       }
@@ -1118,35 +1088,23 @@ export function CaptionGenerator() {
       setButtonIcon(<Upload className="mr-2 h-4 w-4" />);
       setUploadStage('idle');
 
-      // Wait for background upload to finish (just to ensure we have the URL for history)
-      if (backgroundUploadPromise) {
-        const uploadResult = await backgroundUploadPromise;
-        if (uploadResult && uploadResult.url) {
-          // 🔒 PRIVACY UPDATE: Do NOT update the preview with the Cloudinary URL.
-          // The Cloudinary URL is now 'private' and cannot be viewed directly.
-          // We keep using the local blob preview which is faster and works perfectly.
-          // setImagePreview(uploadResult.url); <--- REMOVED
-          console.log('✅ Background upload complete (Private URL stored)');
-
-          // Save to history if we have captions and URL (since AI didn't save it due to missing URL)
-          if (captionData.captions && captionData.captions.length > 0 && session?.user) {
-            try {
-              console.log('💾 Saving post to history...');
-              await fetch('/api/posts/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  captions: captionData.captions,
-                  image: uploadResult.url,
-                  mood: values.mood,
-                  description: values.description
-                })
-              });
-              console.log('✅ Post saved to history');
-            } catch (err) {
-              console.error('❌ Failed to save post to history:', err);
-            }
-          }
+      // Save to history automatically since we have everything
+      if (captionData.captions && captionData.captions.length > 0 && session?.user && imageUrlForAi) {
+        try {
+          // console.log('💾 Saving post to history...');
+          await fetch('/api/posts/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              captions: captionData.captions,
+              image: imageUrlForAi,
+              mood: values.mood,
+              description: values.description
+            })
+          });
+          // console.log('✅ Post saved to history');
+        } catch (err) {
+          console.error('❌ Failed to save post to history:', err);
         }
       }
 
@@ -1929,11 +1887,19 @@ export function CaptionGenerator() {
                     ) : captions.length > 0 ? (
                       // Generated Captions - Compact
                       captions.map((caption, index) => (
-                        <CaptionCard
-                          key={index}
-                          caption={caption}
-                          index={index}
-                        />
+                        captionMetadata?.isFreeModel ? (
+                          <FreeCaptionCard
+                            key={index}
+                            rawText={caption}
+                            index={index}
+                          />
+                        ) : (
+                          <CaptionCard
+                            key={index}
+                            caption={caption}
+                            index={index}
+                          />
+                        )
                       ))
                     ) : (
                       // Empty State - Compact

@@ -1,23 +1,52 @@
-# How Capsera AI Works
+# AI Generation Pipeline (Stable v1)
 
-Capsera utilizes a multi-stage AI pipeline to deliver the best captions.
+Capsera uses **OpenRouter** to access state-of-the-art vision models for caption generation. The architecture is strictly optimized for speed, cost, and "human-like" quality.
 
-## 1. Vision Analysis (Gemini 1.5 Flash)
-We use Google's Gemini 1.5 Flash model for its speed and multimodal capabilities.
-- **Input:** Base64 encoded image.
-- **Prompt:** A highly engineered system prompt that instructs the AI to act as a "Social Media Expert".
-- **Safety:** We filter out NSFW content immediately using Google's safety filters + our own text analysis.
+## 1. Request Handling & Optimization
 
-## 2. Context Extraction
-The AI identifies:
-- **Objects**: Phone, Coffee, Laptop.
-- **Action**: Working, Coding, relaxing.
-- **Sentiment**: Focused, Productive, Zen.
+The `/api/generate-captions` endpoint utilizes a strict **Sequential Flow**:
 
-## 3. Caption Generation
-Based on the extracted context and your selected **Mood**, the AI writes the caption.
-- *Funny Mode*: Injects puns related to the objects. (e.g., "Espresso yourself.")
-- *Aesthetic Mode*: Uses lowercase, minimal spacing, and specific emojis. (e.g., "coffee & code. ☕️")
+1.  **Client-Side Compression**:
+    -   Images > 1024px are compressed in the browser before upload.
+    -   Reduces upload size (e.g., 5MB → 200KB) and latency (10s → <1s).
 
-## 4. Optimization
-Finally, we append a block of 30 hashtags sorted by relevance and popularity volume (simulated).
+2.  **Upload & Validation**:
+    -   **Strict Cloudinary URL Usage**: API hard-rejects Base64 payload (`400 Bad Request`) to prevent bandwidth abuse.
+    -   **URL Transformation**: All Cloudinary URLs are transformed to `w_512,q_auto:eco,f_jpg` before AI analysis.
+    -   **Token Savings**: This reduces vision token consumption by ~60% compared to raw/high-res images.
+
+3.  **Cost & Safety Gates**:
+    -   **Cost Ceiling**: Reject any single request estimated > $0.002.
+    -   **Daily Spend Cap**: Hard stop at $0.50/user/day (tracked in `daily_spend`).
+    -   **Rate Limits**: Checks `ConsolidatedRateLimiter` (Free/Pro tiers).
+
+## 2. Model Architecture
+
+We use a single, reliable production model. No complex fallbacks or "zombie" code.
+
+-   **Primary Model**: `openai/gpt-4o-mini`
+    -   **Why**: Best-in-class vision capabilities at minimal cost ($0.15/1M input tokens).
+    -   **Status**: Active Production.
+-   **Dev/Free Model**: `qwen/qwen2.5-vl-3b-instruct:free`
+    -   **Status**: Opt-in only via `USE_FREE_AI_MODEL=true`.
+    -   **Usage**: For internal testing or "Free Tier" users if enabled.
+
+**Removed Components** (Streamlined for Launch):
+-   ❌ **Sightengine**: Removed external moderation to reduce latency/failure points.
+-   ❌ **Gemini/Llama Fallbacks**: Removed inactive fallback chains ("zombie code").
+
+## 3. Prompt Engineering (Viral/Human)
+
+The system prompt interacts with the AI as a "Viral Social Media Ghostwriter" with strict constraints to effectively ban robotic behaviors:
+
+-   **Tone**: "Casual, authentic, 'bestie' energy".
+-   **Format**: **Strictly lowercase** (aesthetic Gen-Z style).
+-   **Length**: Punchy, 15-40 words.
+-   **Ban List**: Explicitly forbids words like: *unleash, elevate, symphony, tapestry, embark, game-changer, testament, realm, delve*.
+-   **Output**: Strict JSON array of 3 strings.
+
+## 4. Cost Tracking
+
+-   **Estimation**: Pre-calculates cost based on image size (512px) and token usage.
+-   **Actuals**: Records exact usage from OpenRouter response when available.
+-   **Database**: Spend is tracked in the `daily_spend` collection.

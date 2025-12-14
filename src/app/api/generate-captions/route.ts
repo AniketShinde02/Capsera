@@ -427,12 +427,15 @@ Example output:
             'X-Title': 'Capsera',
           },
           body: JSON.stringify({
-            // 🎯 FREE VISION MODEL - Best for high-volume use
-            // Alternatives: 'openai/gpt-4o-mini' ($0.15/1M) or 'google/gemini-flash-1.5' ($0.075/1M)
-            model: 'qwen/qwen2.5-vl-3b-instruct:free',
+            // 🎯 PRODUCTION MODEL: GPT-4o-mini
+            // Cost: $0.0005-$0.002 per image (realistic, image = ~2,500 tokens)
+            // Why not free: Free models (qwen) don't follow JSON format reliably
+            // Cost optimization: Using Cloudinary URLs (not base64) + 512px max size
+            model: 'openai/gpt-4o-mini',
             messages: messages,
-            temperature: 0.8, // Higher creativity for viral captions
-            max_tokens: 500
+            temperature: 0.8,
+            max_tokens: 500,
+            response_format: { type: 'json_object' } // Force clean JSON (no preamble text)
           })
         });
 
@@ -540,22 +543,69 @@ Example output:
         }
       }
 
-      // 4. Parse Response
+      // 4. Parse Response - ENHANCED with debugging
       let captions: string[] = [];
+
+      console.log('🔍 Raw AI Response:', contentText?.substring(0, 200));
+
       try {
-        const cleanedText = contentText.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Remove markdown code blocks and trim
+        let cleanedText = contentText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        // Try parsing as JSON
         const parsed = JSON.parse(cleanedText);
-        if (Array.isArray(parsed)) captions = parsed;
-        else if (parsed.captions) captions = parsed.captions;
+
+        if (Array.isArray(parsed)) {
+          captions = parsed;
+          console.log('✅ Parsed as direct array, length:', captions.length);
+        } else if (parsed.captions && Array.isArray(parsed.captions)) {
+          captions = parsed.captions;
+          console.log('✅ Parsed from .captions property, length:', captions.length);
+        } else if (typeof parsed === 'object') {
+          // Handle case where model returns {0: "caption1", 1: "caption2", 2: "caption3"}
+          captions = Object.values(parsed);
+          console.log('✅ Parsed as object values, length:', captions.length);
+        }
       } catch (e) {
-        // Fallback parse (especially for Llama which may not return strict JSON)
-        captions = contentText.split('\n').filter((l: string) => l.length > 10).slice(0, 3);
+        console.warn('⚠️ JSON parse failed, trying fallback parsing:', e);
+
+        // Fallback: Split by newlines and filter
+        const lines = contentText.split('\n').filter((l: string) => l.trim().length > 10);
+
+        // Try to extract captions from numbered list
+        captions = lines
+          .map((line: string) => line.replace(/^[\d\.\)\-\*\s]+/, '').trim())
+          .filter((line: string) => line.length > 20) // Only keep substantial captions
+          .slice(0, 3);
+
+        console.log('✅ Fallback parsing extracted:', captions.length, 'captions');
       }
 
-      // Ensure 3 captions
-      captions = captions.slice(0, 3).map(c => c.replace(/^\d+[\.\)]\s*/, '')); // Remove numbers if present
+      // Ensure we have exactly 3 captions
+      if (captions.length === 0) {
+        console.error('❌ No captions extracted! Raw response:', contentText);
+        throw new Error('Failed to extract captions from AI response');
+      }
 
-      console.log(`✅ Captions generated successfully${usedFallback ? ' (using fallback)' : ''}!`);
+      // Clean up captions (remove numbers, extra quotes, etc.)
+      captions = captions
+        .slice(0, 3)
+        .map(c => {
+          let cleaned = String(c).trim();
+          // Remove leading numbers like "1. " or "1) "
+          cleaned = cleaned.replace(/^[\d\.\)\-\*\s]+/, '');
+          // Remove surrounding quotes if present
+          cleaned = cleaned.replace(/^["']|["']$/g, '');
+          return cleaned.trim();
+        })
+        .filter(c => c.length > 0);
+
+      // Pad with fallback if needed
+      while (captions.length < 3) {
+        captions.push(`${mood.split(' ')[0]} Caption ${captions.length + 1} - Try generating again`);
+      }
+
+      console.log(`✅ Final captions (${captions.length}):`, captions.map(c => c.substring(0, 50) + '...'));
       result = { captions };
 
     } catch (error: any) {

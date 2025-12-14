@@ -219,7 +219,7 @@ export default function ImageManagementPage() {
 
       // Parallel download with batching (10 concurrent downloads)
       const BATCH_SIZE = 10;
-      const batches = [];
+      const batches: ImageItem[][] = [];
 
       for (let i = 0; i < validImages.length; i += BATCH_SIZE) {
         batches.push(validImages.slice(i, i + BATCH_SIZE));

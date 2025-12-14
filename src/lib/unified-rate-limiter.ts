@@ -153,7 +153,7 @@ export class UnifiedRateLimiter {
       const { db } = await connectToDatabase();
 
       // Check if userId is a valid MongoDB ObjectId
-      let user = null;
+      let user: any = null;
       if (userId && userId.length === 24 && /^[0-9a-fA-F]{24}$/.test(userId)) {
         // Check regular users collection first
         const usersCollection = db.collection('users');

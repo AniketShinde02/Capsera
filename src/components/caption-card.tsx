@@ -25,7 +25,7 @@ export function CaptionCard({ caption, index }: CaptionCardProps) {
   const [canNativeShare, setCanNativeShare] = useState(false);
 
   useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
       setCanNativeShare(true);
     }
   }, []);

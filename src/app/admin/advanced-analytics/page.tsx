@@ -81,7 +81,7 @@ export default function AdvancedAnalyticsPage() {
               setTimeSeriesData(result.data.realTimeActivity.chartData);
             } else {
               // Fallback: generate realistic data based on actual metrics
-              const realTimeSeries = [];
+              const realTimeSeries: TimeSeriesData[] = [];
               for (let i = 6; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);

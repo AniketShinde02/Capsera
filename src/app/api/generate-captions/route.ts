@@ -263,12 +263,36 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { mood, description, imageUrl, imageBase64, publicId } = body;
 
-    // Validate required fields (imageUrl OR imageBase64 is required)
+    // Validate required fields and REJECT base64 to save costs
     if (!mood || (!imageUrl && !imageBase64)) {
       return NextResponse.json({
         success: false,
         message: 'Mood and image are required'
       }, { status: 400 });
+    }
+
+    // 🔥 COST OPTIMIZATION: Reject base64, require Cloudinary URL
+    if (imageBase64 && !imageUrl) {
+      console.error('❌ Base64 image rejected - use Cloudinary URL to save 3-6× tokens');
+      return NextResponse.json({
+        success: false,
+        message: 'Image must be uploaded to Cloudinary first. Base64 images consume excessive credits.',
+        error: 'base64_rejected'
+      }, { status: 400 });
+    }
+
+    // 🎯 OPTIMIZE CLOUDINARY URL: Force 512px width + auto quality
+    let optimizedImageUrl = imageUrl;
+    if (imageUrl && imageUrl.includes('cloudinary.com')) {
+      // Check if already optimized
+      if (!imageUrl.includes('w_512')) {
+        // Insert transformation parameters before /upload/
+        optimizedImageUrl = imageUrl.replace(
+          '/upload/',
+          '/upload/w_512,q_auto:eco,f_jpg/'
+        );
+        console.log('✅ Cloudinary URL optimized for AI:', optimizedImageUrl.substring(0, 80) + '...');
+      }
     }
 
     // ⚡ SPEED OPTIMIZATION: Quick cache check with optimized query
@@ -404,20 +428,39 @@ Example output:
         }
       ];
 
-      // 2. Add Image (URL or Base64)
-      if (imageUrl) {
-        messages[0].content.push({ type: 'image_url', image_url: { url: imageUrl } });
-      } else if (imageBase64) {
-        messages[0].content.push({ type: 'image_url', image_url: { url: imageBase64 } });
+      // 2. Add Image - ALWAYS use optimized Cloudinary URL (never base64)
+      if (optimizedImageUrl) {
+        messages[0].content.push({
+          type: 'image_url',
+          image_url: { url: optimizedImageUrl }
+        });
+      } else {
+        throw new Error('No valid image URL available');
       }
 
-      // 3. Call OpenRouter API with Fallback Strategy
+      // 3. Call OpenRouter API with Model Selection
+      const useFreeModel = process.env.USE_FREE_AI_MODEL === 'true';
+      const modelConfig = useFreeModel ? {
+        model: 'qwen/qwen2.5-vl-3b-instruct:free',
+        temperature: 0.8,
+        max_tokens: 500,
+        comment: '🆓 FREE MODEL - May return non-JSON formatted responses'
+      } : {
+        model: 'openai/gpt-4o-mini',
+        temperature: 0.8,
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+        comment: '💰 PAID MODEL ($0.001/image) - Guaranteed JSON output'
+      };
+
+      console.log(`🤖 Using ${useFreeModel ? 'FREE' : 'PAID'} model:`, modelConfig.model);
+
       let response;
       let contentText;
       let usedFallback = false;
 
       try {
-        // 🎯 PRIMARY: Try Gemini 1.5 Flash (Paid/Stable - Fast & Vision Capable)
+        // 🎯 PRIMARY: Selected model based on config
         response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -427,15 +470,11 @@ Example output:
             'X-Title': 'Capsera',
           },
           body: JSON.stringify({
-            // 🎯 PRODUCTION MODEL: GPT-4o-mini
-            // Cost: $0.0005-$0.002 per image (realistic, image = ~2,500 tokens)
-            // Why not free: Free models (qwen) don't follow JSON format reliably
-            // Cost optimization: Using Cloudinary URLs (not base64) + 512px max size
-            model: 'openai/gpt-4o-mini',
+            model: modelConfig.model,
             messages: messages,
-            temperature: 0.8,
-            max_tokens: 500,
-            response_format: { type: 'json_object' } // Force clean JSON (no preamble text)
+            temperature: modelConfig.temperature,
+            max_tokens: modelConfig.max_tokens,
+            ...(modelConfig.response_format && { response_format: modelConfig.response_format })
           })
         });
 

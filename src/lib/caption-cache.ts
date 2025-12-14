@@ -31,6 +31,14 @@ export class CaptionCacheService {
     prompt: string,
     mood: string
   ): Promise<CacheResult> {
+    // DISABLED: Cache checking disabled to prevent MongoDB timeout delays
+    console.log('⚡ Cache checking DISABLED - skipping to direct generation');
+    return {
+      found: false,
+      savedQuota: false
+    };
+
+    /* ORIGINAL CODE - DISABLED
     try {
       // Generate a more reliable cache key
       let cacheKey: string;
@@ -103,6 +111,7 @@ export class CaptionCacheService {
         savedQuota: false
       };
     }
+    */
   }
 
   /**
@@ -115,6 +124,11 @@ export class CaptionCacheService {
     captions: string[],
     userId?: string
   ): Promise<ICaptionCache | null> {
+    // DISABLED: Cache storage disabled to prevent MongoDB timeout delays
+    console.log('⚡ Cache storage DISABLED - skipping cache save');
+    return null;
+
+    /* ORIGINAL CODE - DISABLED
     try {
       // Generate the same cache key logic as checkCache
       let cacheKey: string;
@@ -189,6 +203,7 @@ export class CaptionCacheService {
       console.error('❌ Cache store error:', error);
       return null;
     }
+    */
   }
 
   /**

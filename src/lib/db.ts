@@ -48,6 +48,7 @@ export async function dbConnect(): Promise<Mongoose> {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      bufferTimeoutMS: 30000, // Wait 30s before timing out buffered operations
       maxPoolSize: 5, // Reduced pool size for better connection management
       serverSelectionTimeoutMS: 60000, // Increased to 60s
       socketTimeoutMS: 120000, // Increased to 2 minutes

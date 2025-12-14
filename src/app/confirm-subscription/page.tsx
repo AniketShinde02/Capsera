@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 function ConfirmSubscriptionContent() {
   const searchParams = useSearchParams();
-  const email = searchParams.get('email');
+  const email = searchParams?.get('email');
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
 
@@ -84,7 +84,7 @@ function ConfirmSubscriptionContent() {
             {message}
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="text-center space-y-4">
           {email && (
             <div className="bg-muted p-3 rounded-lg">
@@ -93,7 +93,7 @@ function ConfirmSubscriptionContent() {
               </p>
             </div>
           )}
-          
+
           <div className="space-y-3">
             {status === 'success' ? (
               <>

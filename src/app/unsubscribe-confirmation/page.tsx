@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 function UnsubscribeConfirmationContent() {
   const searchParams = useSearchParams();
-  const email = searchParams.get('email');
+  const email = searchParams?.get('email');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

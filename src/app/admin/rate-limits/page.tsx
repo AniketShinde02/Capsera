@@ -10,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Settings, 
+import {
+  Settings,
   Save,
-  RefreshCw, 
-  AlertCircle, 
+  RefreshCw,
+  AlertCircle,
   AlertTriangle,
   Users,
   UserCheck,
@@ -55,7 +55,7 @@ export default function AdminRateLimitsPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [userLookupLoading, setUserLookupLoading] = useState(false);
-  const [userRateLimitData, setUserRateLimitData] = useState(null);
+  const [userRateLimitData, setUserRateLimitData] = useState<any>(null);
   const [resetUserLoading, setResetUserLoading] = useState(false);
 
   const fetchRateLimits = async () => {
@@ -63,24 +63,24 @@ export default function AdminRateLimitsPage() {
       setLoading(true);
       const response = await fetch('/api/admin/rate-limits');
       const data = await response.json();
-      
+
       if (data.success) {
         setRateLimits(data.data.rateLimits);
         setAnonymousLimit(data.data.rateLimits.ANONYMOUS.MAX_GENERATIONS);
         setRegisteredLimit(data.data.rateLimits.REGISTERED.MAX_GENERATIONS);
-        
+
         // Set Pro limit if available
         if (data.data.rateLimits.PRO && data.data.rateLimits.PRO.MAX_GENERATIONS) {
           setProLimit(data.data.rateLimits.PRO.MAX_GENERATIONS);
         }
-        
+
         // Set last updated time from API response if available
         if (data.data.lastUpdated) {
           setLastUpdated(new Date(data.data.lastUpdated));
         } else {
           setLastUpdated(new Date());
         }
-        
+
         setError(null);
       } else {
         setError(data.message || 'Failed to fetch rate limits');
@@ -110,9 +110,9 @@ export default function AdminRateLimitsPage() {
           }
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setRateLimits(data.data.rateLimits);
         toast({
@@ -234,9 +234,9 @@ export default function AdminRateLimitsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Rate Limit Management</h1>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={fetchRateLimits}
           disabled={loading}
         >
@@ -263,7 +263,7 @@ export default function AdminRateLimitsPage() {
           <TabsTrigger value="global">Global Rate Limits</TabsTrigger>
           <TabsTrigger value="user">User Rate Limits</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="global" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Current Rate Limits */}
@@ -379,8 +379,8 @@ export default function AdminRateLimitsPage() {
                     />
                   </div>
                   <div className="pt-2">
-                    <Button 
-                      onClick={updateRateLimits} 
+                    <Button
+                      onClick={updateRateLimits}
                       disabled={loading || saving}
                       className="w-full"
                     >
@@ -407,8 +407,8 @@ export default function AdminRateLimitsPage() {
                   <div className="space-y-2">
                     <Label>Reset Options</Label>
                     <div className="grid grid-cols-1 gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => {
                           if (confirm('Are you sure you want to reset rate limits for anonymous users?')) {
                             fetch('/api/admin/rate-limits/reset', {
@@ -416,37 +416,37 @@ export default function AdminRateLimitsPage() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ userType: 'anonymous' })
                             })
-                            .then(res => res.json())
-                            .then(data => {
-                              if (data.success) {
-                                toast({
-                                  variant: "default",
-                                  title: "Success",
-                                  description: `Reset ${data.data.resetCount} anonymous user rate limits`
-                                });
-                                fetchRateLimits();
-                              } else {
-                                toast({
-                                  variant: "destructive",
-                                  title: "Error",
-                                  description: data.message || 'Failed to reset rate limits'
-                                });
-                              }
-                            })
-                            .catch(err => toast({
-                              variant: "destructive",
-                              title: "Error",
-                              description: err.message || 'Failed to reset rate limits'
-                            }));
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.success) {
+                                  toast({
+                                    variant: "default",
+                                    title: "Success",
+                                    description: `Reset ${data.data.resetCount} anonymous user rate limits`
+                                  });
+                                  fetchRateLimits();
+                                } else {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description: data.message || 'Failed to reset rate limits'
+                                  });
+                                }
+                              })
+                              .catch(err => toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: err.message || 'Failed to reset rate limits'
+                              }));
                           }
                         }}
                       >
                         <UserX className="w-4 h-4 mr-2" />
                         Reset Anonymous Users
                       </Button>
-                      
-                      <Button 
-                        variant="outline" 
+
+                      <Button
+                        variant="outline"
                         onClick={() => {
                           if (confirm('Are you sure you want to reset rate limits for registered users?')) {
                             fetch('/api/admin/rate-limits/reset', {
@@ -454,37 +454,37 @@ export default function AdminRateLimitsPage() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ userType: 'registered' })
                             })
-                            .then(res => res.json())
-                            .then(data => {
-                              if (data.success) {
-                                toast({
-                                  variant: "default",
-                                  title: "Success",
-                                  description: `Reset ${data.data.resetCount} registered user rate limits`
-                                });
-                                fetchRateLimits();
-                              } else {
-                                toast({
-                                  variant: "destructive",
-                                  title: "Error",
-                                  description: data.message || 'Failed to reset rate limits'
-                                });
-                              }
-                            })
-                            .catch(err => toast({
-                              variant: "destructive",
-                              title: "Error",
-                              description: err.message || 'Failed to reset rate limits'
-                            }));
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.success) {
+                                  toast({
+                                    variant: "default",
+                                    title: "Success",
+                                    description: `Reset ${data.data.resetCount} registered user rate limits`
+                                  });
+                                  fetchRateLimits();
+                                } else {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description: data.message || 'Failed to reset rate limits'
+                                  });
+                                }
+                              })
+                              .catch(err => toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: err.message || 'Failed to reset rate limits'
+                              }));
                           }
                         }}
                       >
                         <Users className="w-4 h-4 mr-2" />
                         Reset Registered Users
                       </Button>
-                      
-                      <Button 
-                        variant="outline" 
+
+                      <Button
+                        variant="outline"
                         className="mt-4"
                         onClick={() => {
                           if (confirm('Are you sure you want to reset ALL rate limits? This will affect all users.')) {
@@ -493,28 +493,28 @@ export default function AdminRateLimitsPage() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ all: true })
                             })
-                            .then(res => res.json())
-                            .then(data => {
-                              if (data.success) {
-                                toast({
-                                  variant: "default",
-                                  title: "Success",
-                                  description: `Reset ${data.data.resetCount} rate limits for all users`
-                                });
-                                fetchRateLimits();
-                              } else {
-                                toast({
-                                  variant: "destructive",
-                                  title: "Error",
-                                  description: data.message || 'Failed to reset rate limits'
-                                });
-                              }
-                            })
-                            .catch(err => toast({
-                              variant: "destructive",
-                              title: "Error",
-                              description: err.message || 'Failed to reset rate limits'
-                            }));
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.success) {
+                                  toast({
+                                    variant: "default",
+                                    title: "Success",
+                                    description: `Reset ${data.data.resetCount} rate limits for all users`
+                                  });
+                                  fetchRateLimits();
+                                } else {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description: data.message || 'Failed to reset rate limits'
+                                  });
+                                }
+                              })
+                              .catch(err => toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: err.message || 'Failed to reset rate limits'
+                              }));
                           }
                         }}
                       >
@@ -528,7 +528,7 @@ export default function AdminRateLimitsPage() {
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="user" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
@@ -567,7 +567,7 @@ export default function AdminRateLimitsPage() {
                       <span className="ml-2">Lookup</span>
                     </Button>
                   </div>
-                  
+
                   {userRateLimitData && (
                     <div className="mt-4 space-y-4">
                       <div>
@@ -583,7 +583,7 @@ export default function AdminRateLimitsPage() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div>
                         <h3 className="text-sm font-medium">Rate Limit Status</h3>
                         <div className="bg-muted p-3 rounded-md mt-2">
@@ -596,14 +596,14 @@ export default function AdminRateLimitsPage() {
                             <div>{userRateLimitData.rateLimit?.remaining || 0} images</div>
                             <div className="font-medium">Resets At:</div>
                             <div>
-                              {userRateLimitData.rateLimit?.resetsAt 
-                                ? new Date(userRateLimitData.rateLimit.resetsAt).toLocaleString() 
+                              {userRateLimitData.rateLimit?.resetsAt
+                                ? new Date(userRateLimitData.rateLimit.resetsAt).toLocaleString()
                                 : "N/A"}
                             </div>
                           </div>
                         </div>
                       </div>
-                      
+
                       <Button
                         variant="outline"
                         onClick={resetUserRateLimit}
@@ -627,7 +627,7 @@ export default function AdminRateLimitsPage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             {userRateLimitData && userRateLimitData.records && userRateLimitData.records.length > 0 && (
               <Card>
                 <CardHeader>

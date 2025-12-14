@@ -8,10 +8,10 @@ export default function Footer() {
   const pathname = usePathname();
 
   // Hide footer on admin, setup, login, and profile pages
-  const isAdminPage = pathname.startsWith('/admin');
-  const isSetupPage = pathname.startsWith('/setup');
-  const isLoginPage = pathname.startsWith('/login');
-  const isProfilePage = pathname.startsWith('/profile');
+  const isAdminPage = pathname?.startsWith('/admin');
+  const isSetupPage = pathname?.startsWith('/setup');
+  const isLoginPage = pathname?.startsWith('/login');
+  const isProfilePage = pathname?.startsWith('/profile');
 
   if (isAdminPage || isSetupPage || isLoginPage || isProfilePage) {
     return null;

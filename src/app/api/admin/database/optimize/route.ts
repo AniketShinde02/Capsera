@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     // Import and use proper permission check
     const { canManageAdmins } = await import('@/lib/init-admin');
     const canManage = await canManageAdmins(session.user.id);
@@ -22,20 +22,20 @@ export async function POST(request: NextRequest) {
 
     // Get database statistics before optimization
     const beforeStats = await db.stats();
-    
+
     // Get list of collections
     const collections = await db.listCollections().toArray();
-    
-    const optimizationResults = [];
+
+    const optimizationResults: any[] = [];
 
     // For each collection, perform optimization tasks
     for (const collection of collections) {
       try {
         const coll = db.collection(collection.name);
-        
+
         // Get collection stats
         const collStats = await db.command({ collStats: collection.name });
-        
+
         // Create indexes if they don't exist (basic optimization)
         if (collection.name === 'users') {
           try {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
             // Index might already exist
           }
         }
-        
+
         if (collection.name === 'posts') {
           try {
             await coll.createIndex({ createdAt: -1 });
@@ -89,8 +89,8 @@ export async function POST(request: NextRequest) {
       results: optimizationResults
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Database optimization completed',
       collectionsOptimized: optimizationResults.filter(r => r.status === 'optimized').length,
       totalCollections: collections.length,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error optimizing database:', error);
     return NextResponse.json(
-      { error: 'Failed to optimize database' }, 
+      { error: 'Failed to optimize database' },
       { status: 500 }
     );
   }

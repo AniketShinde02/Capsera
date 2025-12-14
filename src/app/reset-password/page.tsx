@@ -18,8 +18,8 @@ function ResetPasswordContent() {
   const sp = useSearchParams();
   const router = useRouter();
 
-  const token = useMemo(() => sp.get('token') || '', [sp]);
-  const email = useMemo(() => sp.get('email') || '', [sp]);
+  const token = useMemo(() => sp?.get('token') || '', [sp]);
+  const email = useMemo(() => sp?.get('email') || '', [sp]);
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -55,7 +55,7 @@ function ResetPasswordContent() {
         });
 
         const data: TokenValidationResult = await res.json();
-        
+
         if (data.valid) {
           setTokenValid(true);
           if (data.expiresAt) {
@@ -121,7 +121,7 @@ function ResetPasswordContent() {
           console.error('Failed to parse error response:', parseError);
           errorMessage = `Server error (${res.status}). Please try again.`;
         }
-        
+
         if (res.status === 429) {
           if (errorMessage.includes('daily limit')) {
             setError('You have reached the maximum password reset requests for today. Please try again tomorrow.');
@@ -152,15 +152,15 @@ function ResetPasswordContent() {
 
   const formatTimeRemaining = () => {
     if (!tokenExpiresAt) return '';
-    
+
     const now = new Date();
     const diff = tokenExpiresAt.getTime() - now.getTime();
-    
+
     if (diff <= 0) return 'Expired';
-    
+
     const minutes = Math.floor(diff / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
+
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
@@ -200,7 +200,7 @@ function ResetPasswordContent() {
                 <p className="text-muted-foreground mt-2 text-sm sm:text-base">Your password has been updated successfully.</p>
               </div>
             </CardHeader>
-            
+
             <CardContent className="text-center space-y-6 p-6 sm:p-8">
               <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
                 <div className="flex items-center justify-center gap-3 mb-3">
@@ -214,9 +214,9 @@ function ResetPasswordContent() {
                   You can now sign in with your new password
                 </p>
               </div>
-              
+
               <div className="space-y-3">
-                <Button 
+                <Button
                   onClick={() => {
                     const loginUrl = `/?login=true&email=${encodeURIComponent(email)}`;
                     router.push(loginUrl);
@@ -226,7 +226,7 @@ function ResetPasswordContent() {
                   <LogIn className="w-4 h-4 mr-2" />
                   Go to Login Now
                 </Button>
-                
+
                 <Button asChild variant="outline" className="w-full h-11 sm:h-10">
                   <Link href="/">Return to Homepage</Link>
                 </Button>
@@ -251,7 +251,7 @@ function ResetPasswordContent() {
               <p className="text-muted-foreground mt-2 text-sm sm:text-base">Create a new secure password for your account</p>
             </div>
           </CardHeader>
-          
+
           <CardContent className="space-y-6 p-6 sm:p-8">
             {/* Email Display - Mobile First */}
             <div className="p-3 rounded-lg bg-muted/50 border">
@@ -301,7 +301,7 @@ function ResetPasswordContent() {
                   {!token || !email ? 'Invalid or missing reset link' : 'Reset link is invalid or expired'}
                 </p>
                 <p className="text-xs text-muted-foreground mb-6 px-2">
-                  {!token || !email 
+                  {!token || !email
                     ? 'This link may have expired or is invalid. Please request a new password reset.'
                     : 'This reset link has already been used or has expired. Please request a new password reset link.'
                   }
@@ -310,7 +310,7 @@ function ResetPasswordContent() {
                   <Button asChild variant="outline" className="w-full h-11 sm:h-10">
                     <Link href="/">Return to Home</Link>
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleRequestNewLink}
                     disabled={requestingNewLink}
                     className="w-full bg-primary hover:bg-primary/90 h-11 sm:h-10"
@@ -355,7 +355,7 @@ function ResetPasswordContent() {
                       {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
-                  
+
                   {/* Password Strength Indicator - Mobile First */}
                   <div className="space-y-2">
                     <div className="w-full bg-muted rounded-full h-2">
@@ -389,7 +389,7 @@ function ResetPasswordContent() {
                       {show2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
-                  
+
                   {/* Password Match Indicator - Mobile First */}
                   {confirm && (
                     <div className="flex items-center gap-2 text-xs">
@@ -443,7 +443,7 @@ function ResetPasswordContent() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email, token, newPassword: password }),
                       });
-                      
+
                       if (!res.ok) {
                         let errorMessage = 'Reset failed. Please request a new link and try again.';
                         try {
@@ -456,7 +456,7 @@ function ResetPasswordContent() {
                         setError(errorMessage);
                         return;
                       }
-                      
+
                       // Password reset successful - start redirect countdown
                       setSuccess('Password reset successful! Redirecting to login page...');
                       setRedirecting(true);

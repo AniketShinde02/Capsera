@@ -34,8 +34,9 @@ graph TD
 **File**: `src/lib/freemium-rate-limiter.ts`
 
 Handles business rules for user quotas (generations per day).
--   **Free Tier**: 2 - 5 generations per day (configurable).
--   **Pro Tier**: Higher limits (20+).
+-   **Anonymous**: 2 generations per day.
+-   **Free (Registered)**: 4 generations per day.
+-   **Pro Tier**: Higher limits (Coming Soon).
 -   **Admin**: Unlimited (`isAdmin: true` bypass).
 -   **Storage**: `freemium_usage` collection in MongoDB.
 

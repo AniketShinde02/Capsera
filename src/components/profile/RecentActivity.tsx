@@ -7,7 +7,7 @@ import { Copy, Trash2, Calendar, Clock, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { notify } from '@/lib/notify';
 
 interface Post {
     _id: string;
@@ -18,13 +18,12 @@ interface Post {
 }
 
 export function RecentActivity({ posts, loading, onDelete }: { posts: Post[], loading?: boolean, onDelete: (id: string) => void }) {
-    const { toast } = useToast();
+    // const { toast } = useToast(); // Removed legacy toast
     const [hoveredId, setHoveredId] = useState<string | null>(null);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        toast({
-            title: "Copied!",
+        notify('success', 'Copied!', {
             description: "Caption copied to clipboard",
         });
     };

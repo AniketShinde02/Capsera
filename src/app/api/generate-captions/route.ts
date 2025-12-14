@@ -237,7 +237,8 @@ export async function POST(req: NextRequest) {
 
 
     // 🚨 DEFINE CONFIG
-    const useFreeModel = process.env.USE_FREE_AI_MODEL === 'true';
+    // User requested switch to GPT model for better quality
+    const useFreeModel = false; // process.env.USE_FREE_AI_MODEL === 'true';
 
     // 🚨 COST CEILING CHECK ($0.002 max per request)
     const estimatedCost = useFreeModel ? 0 : (optimizedImageUrl.includes('w_512') ? 0.0004 : 0.002);
@@ -278,23 +279,23 @@ export async function POST(req: NextRequest) {
             {
               type: 'text',
               text: `You are a viral social media ghostwriter. Analyze this image and write 3 captions that will stop the scroll.
-MOOD: ${mood}
-${description ? `CONTEXT: ${description}` : ''}
+  MOOD: ${mood}
+  ${description ? `CONTEXT: ${description}` : ''}
 
-CRITICAL INSTRUCTIONS FOR HUMAN-LIKE TONE:
-1. �️ VOICE: Casual, authentic, "bestie" energy. Write like a real person, not a brand.
-2. 🚫 BAN LIST: Absolutely NO "unleash", "elevate", "symphony", "tapestry", "embark", "game-changer", "testament", "realm", "delve".
-3. 🔡 FORMAT: STRICTLY LOWERCASE ONLY. No capitalization at start of sentences. (aesthetic/gen-z style).
-4. 📏 LENGTH: Punchy. 15-40 words maximum.
-5. 🎨 VISUALS: Mention specific details (colors, objects, lighting) you see in the photo.
-6. 🎣 HOOK: Start with a POV, a thought, or a "feeling when..." statement.
+  CRITICAL INSTRUCTIONS FOR HUMAN-LIKE TONE:
+  1. �️ VOICE: Casual, authentic, "bestie" energy. Write like a real person, not a brand.
+  2. 🚫 BAN LIST: Absolutely NO "unleash", "elevate", "symphony", "tapestry", "embark", "game-changer", "testament", "realm", "delve".
+  3. 🔡 FORMAT: STRICTLY LOWERCASE ONLY. No capitalization at start of sentences. (aesthetic/gen-z style).
+  4. � LENGTH: Punchy. 30-40 words maximum.
+  5. 🎨 VISUALS: Mention specific details (colors, objects, lighting) you see in the photo.
+  6. 🎣 HOOK: Start with a POV, a thought, or a "feeling when..." statement.
 
-OUTPUT FORMAT (CRITICAL):
-Return ONLY a JSON array with exactly 3 captions string:
-["caption 1...", "caption 2...", "caption 3..."]`
+  OUTPUT FORMAT (CRITICAL):
+  Return ONLY a JSON array with exactly 3 captions string:
+  ["caption 1...", "caption 2...", "caption 3..."]`
             }
           ]
-        }
+        } 
       ];
 
       // 2. Add Image

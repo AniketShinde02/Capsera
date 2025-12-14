@@ -44,50 +44,42 @@ function HomeContent() {
           <div className="container mx-auto px-3 sm:px-4 md:px-6">
             <CaptionGenerator />
 
-            {/* Free Tier Disclaimer - Creative & Friendly */}
-            <div className="mt-8 max-w-3xl mx-auto">
-              <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 backdrop-blur-sm p-6 shadow-lg">
-                {/* Decorative gradient orb */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl" />
-                <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl" />
+            {/* Free Tier Disclaimer - Prominent & Minimal */}
+            <div className="mt-12 max-w-4xl mx-auto text-center">
+              <div className="relative z-10 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  {/* Icon */}
-                  <div className="shrink-0 p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                {/* Attention-grabbing Headline */}
+                <h3 className="font-extrabold text-xl sm:text-2xl md:text-3xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center gap-3">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                  </div>
+                  </span>
+                  Powered by Free AI Magic
+                  <span className="text-xs sm:text-sm font-bold px-3 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded-full border border-green-500/20">
+                    100% Free
+                  </span>
+                </h3>
 
-                  {/* Content */}
-                  <div className="flex-1">
-                    <h3 className="font-bold text-foreground text-base mb-1.5 flex items-center gap-2">
-                      ⚡ Powered by Free AI Magic
-                      <span className="text-xs font-normal px-2 py-0.5 bg-green-500/10 text-green-600 dark:text-green-400 rounded-full border border-green-500/20">
-                        100% Free
-                      </span>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      We're running on a <span className="font-semibold text-foreground">free AI tier</span> to keep Capsera accessible to everyone!
-                      This means we have <span className="font-semibold text-foreground">limited daily requests</span>.
-                      If you hit a limit, just come back tomorrow or{' '}
-                      <Link href="/contact" className="text-blue-500 hover:text-blue-600 underline font-medium">
-                        reach out
-                      </Link>
-                      {' '}— we're working on upgrades! 🚀
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <span className="px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full border border-blue-500/20 font-medium">
-                        🎯 Anonymous: 2/day
-                      </span>
-                      <span className="px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full border border-purple-500/20 font-medium">
-                        ✨ Registered: 4/day
-                      </span>
-                      <span className="px-2.5 py-1 bg-pink-500/10 text-pink-600 dark:text-pink-400 rounded-full border border-pink-500/20 font-medium">
-                        💎 Admin: Unlimited
-                      </span>
-                    </div>
-                  </div>
+                {/* Clear Explanation */}
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+                  We're running on a <span className="font-semibold text-foreground">low AI credit</span> to keep Capsera accessible to everyone!
+                  Due to high demand, we have <span className="font-semibold text-foreground">limited daily requests</span>.
+                  Hit a limit? Come back tomorrow or{' '}
+                  <Link href="/contact" className="text-blue-500 hover:text-blue-600 underline font-medium hover:decoration-2">
+                    message us
+                  </Link>
+                  {' '}— we're working hard on upgrades! 🚀
+                </p>
+
+                {/* Minimal Stats */}
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <span className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-semibold shadow-sm border border-blue-100 dark:border-blue-800">
+                    🎯 Anonymous: 2/day
+                  </span>
+                  <span className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-semibold shadow-sm border border-purple-100 dark:border-purple-800">
+                    ✨ Registered: 4/day
+                  </span>
                 </div>
               </div>
             </div>

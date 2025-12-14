@@ -8,7 +8,7 @@ import MaintenanceCheck from '@/components/maintenance-check';
 import ServerHeader from '@/components/server-header';
 import Footer from '@/components/footer';
 import { AuthModal } from '@/components/auth-modal';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from '@/components/ui/sonner';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { PerformanceOptimizer } from '@/components/PerformanceOptimizer';

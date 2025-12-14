@@ -8,6 +8,7 @@ import { Loader2, Sparkles, UploadCloud, AlertTriangle, AlertCircle, ImageIcon, 
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useAuthModal } from "@/context/AuthModalContext";
+import { notify, notifyApiError } from "@/lib/notify";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -88,7 +89,7 @@ const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }:
   }, [optimizedSrc, onLoadStart]);
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.error('❌ Image failed to load:', imageSrc?.substring(0, 50) + '...');
+
 
     if (retryCount < maxRetries && isCloudinaryUrl) {
       // Retry Cloudinary images with cache-busting
@@ -139,7 +140,7 @@ const ImageRenderer = ({ imageSrc, onLoadStart, onLoad, onError, imageLoading }:
   return (
     <>
       {/* Always show the image if we have a source, even during loading */}
-      {optimizedSrc && <img {...commonProps} style={{ opacity: imageLoading ? 0.5 : 1 }} />}
+      {optimizedSrc && <img {...commonProps} src={optimizedSrc} style={{ opacity: imageLoading ? 0.5 : 1 }} />}
 
       {/* Removed spinner overlay so image preview is not visually blocked while loading */}
     </>
@@ -321,9 +322,10 @@ export function CaptionGenerator() {
           // Update quota info
           if (typeof newUsage.remainingDaily === 'number') {
             setQuotaInfo(prev => ({
-              ...prev,
               remaining: newUsage.remainingDaily,
-              total: newUsage.dailyLimit
+              total: newUsage.dailyLimit,
+              isAuthenticated: prev?.isAuthenticated ?? false,
+              isAdmin: prev?.isAdmin ?? false
             }));
           }
         }
@@ -614,12 +616,14 @@ export function CaptionGenerator() {
           fileToUpload = compressedFile;
         } else {
           const maxSizeMB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
-          setError(`File too large. Please upload an image smaller than ${maxSizeMB}MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+          notify('warning', `Image too large (Max ${maxSizeMB}MB)`, {
+            description: `Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`
+          });
           setImageLoading(false);
           return;
         }
       } catch (err) {
-        setError(`File too large and could not be compressed. Please upload a smaller image.`);
+        notify('warning', 'Image too large and could not be compressed.');
         setImageLoading(false);
         return;
       }
@@ -627,7 +631,7 @@ export function CaptionGenerator() {
 
     // Validate type against the file we will upload
     if (!allowedTypes.includes(fileToUpload.type)) {
-      setError('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+      notify('warning', 'Invalid file type', { description: 'Please upload JPEG, PNG, GIF, or WebP' });
       setImageLoading(false);
       return;
     }
@@ -645,8 +649,7 @@ export function CaptionGenerator() {
       setObjectUrl(newObjectUrl);
       setImagePreview(newObjectUrl);
     } catch (error) {
-      console.error('❌ Object URL creation error:', error);
-      setError('Failed to create image preview. Please try again.');
+      notify('error', 'Failed to create image preview');
       setImageLoading(false);
     }
 
@@ -1018,7 +1021,7 @@ export function CaptionGenerator() {
 
           setCurrentImageData({
             url: imageUrlForAi,
-            publicId: imagePublicId
+            publicId: imagePublicId || ''
           });
 
           // Cache locally
@@ -1083,6 +1086,7 @@ export function CaptionGenerator() {
       }
 
       // Success!
+      notify('success', 'Captions generated successfully!');
       setButtonState('generate-another');
       setButtonMessage('Upload New Image');
       setButtonIcon(<Upload className="mr-2 h-4 w-4" />);
@@ -1122,22 +1126,17 @@ export function CaptionGenerator() {
       setTimeout(() => fetchFreemiumUsage(), 500);
 
     } catch (error: any) {
-      console.error('❌ Caption generation error:', error);
       setUploadStage('idle');
       setIsLoading(false);
       updateButtonState('idle');
 
-      let errorMessage = error.message || 'An unexpected error occurred.';
+      // 🔔 Centralized Error Notification
+      notifyApiError(error);
 
-      // Handle AbortError / Timeout
-      if (error.name === 'AbortError' || error.message?.includes('aborted') || error.message?.includes('timed out')) {
-        errorMessage = 'The request took too long. Please check your connection and try again.';
-      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
-        errorMessage = 'You have reached your daily limit!';
+      // UI visual feedback (shake effect)
+      if (error.message?.includes('quota') || error.message?.includes('limit')) {
         setShowLimitShake(true);
       }
-
-      setErrorWithTimer(errorMessage, 8000);
     } finally {
       // Ensure loading is off in case of any weird edge cases, but it should be off by now
       if (isLoading) setIsLoading(false);

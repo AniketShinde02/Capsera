@@ -314,6 +314,7 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
+      /*
       {
         source: '/docs',
         destination: 'http://localhost:3002/docs',
@@ -322,8 +323,10 @@ const nextConfig: NextConfig = {
         source: '/docs/:path*',
         destination: 'http://localhost:3002/docs/:path*',
       },
+      */
     ];
   },
 };
 
+// Nextra configuration reverted due to conflicts
 export default nextConfig;

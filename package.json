@@ -95,6 +95,8 @@
     "next": "15.5.9",
     "next-auth": "^4.24.7",
     "next-themes": "^0.3.0",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.11",
     "patch-package": "^8.0.0",

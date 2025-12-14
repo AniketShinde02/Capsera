@@ -28,10 +28,10 @@ export default function ServerHeader() {
   const userImage = session?.user?.image || '';
 
   // Hide header on admin, setup, and login pages
-  const isAdminPage = pathname.startsWith('/admin');
-  const isSetupPage = pathname.startsWith('/setup');
-  const isLoginPage = pathname.startsWith('/login');
-  const isProfilePage = pathname.startsWith('/profile');
+  const isAdminPage = pathname?.startsWith('/admin');
+  const isSetupPage = pathname?.startsWith('/setup');
+  const isLoginPage = pathname?.startsWith('/login');
+  const isProfilePage = pathname?.startsWith('/profile');
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -85,7 +85,7 @@ export default function ServerHeader() {
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
                 <img
-                  src="/favicon-32x32.png"
+                  src="/web-app-manifest-192x192.png"
                   alt="Capsera Logo"
                   className="w-full h-full object-contain"
                 />

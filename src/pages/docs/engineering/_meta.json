@@ -1,0 +1,13 @@
+{
+    "index": "Overview",
+    "ai-pipeline": "AI Pipeline",
+    "rate-limiting": "Rate Limiting",
+    "authentication": "Authentication",
+    "systems": "System Architecture",
+    "setup": "Setup Guides",
+    "admin": "Admin Documentation",
+    "api": "API Reference",
+    "features": "Feature Specs",
+    "general": "General Docs",
+    "guides": "Engineering Guides"
+}

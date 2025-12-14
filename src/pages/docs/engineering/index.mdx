@@ -1,0 +1,43 @@
+# Capsera Engineering Documentation
+
+Welcome to the technical documentation for Capsera.
+
+## Core Architecture
+
+-   **[AI Pipeline](/engineering/ai-pipeline)**: How we generate captions using OpenRouter and Vision models.
+-   **[Rate Limiting](/engineering/rate-limiting)**: Our multi-layered quota and security system.
+-   **[Authentication](/getting-started/authentication)**: NextAuth.js implementation with Dual Mode support.
+
+## System Components
+
+-   **Backend**: Next.js 15 App Router API routes.
+-   **Database**: MongoDB with Mongoose ODM.
+-   **Storage**: Cloudinary for image optimization and storage.
+-   **Email**: Brevo SMTP for notifications.
+
+## Key Workflows
+
+### 1. Caption Generation
+1.  User uploads image (or pastes URL).
+2.  Frontend compresses image (max 4MB).
+3.  Backend validates quota (`ConsolidatedRateLimiter`) and spend limits (`daily_spend`).
+4.  Image sent to OpenRouter (`gpt-4o-mini`).
+5.  Response parsed and returned to user.
+
+### 2. Admin System
+-   **Unified Login**: Admins log in via standard portal or dedicated admin route.
+-   **Dual Mode**: Admins can generate captions as regular users (tracking usage separately) or as admins (unlimited).
+-   **Maintenance Mode**: Database-driven switch to lock frontend access.
+
+## Development
+
+### Commands
+-   `npm run dev`: Start development server.
+-   `npm run setup-admin`: Initialize admin user.
+-   `npm run maintenance:check`: Verify docs status.
+
+### Directory Structure
+-   `src/app`: Next.js App Router pages and API.
+-   `src/lib`: Core logic (Auth, Rate Limit, DB).
+-   `src/models`: Mongoose schemas.
+-   `src/components`: React components (ui, admin, general).

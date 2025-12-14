@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, Flag, CheckCircle, XCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+
+import { notify } from '@/lib/notify';
 
 interface ContentReportModalProps {
   contentType: 'image' | 'caption' | 'comment' | 'profile';
@@ -16,18 +17,19 @@ interface ContentReportModalProps {
   onReportSubmitted?: () => void;
 }
 
-export function ContentReportModal({ 
-  contentType, 
-  contentId, 
+export function ContentReportModal({
+  contentType,
+  contentId,
   trigger,
-  onReportSubmitted 
+  onReportSubmitted
 }: ContentReportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState<string>('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const { toast } = useToast();
+
+  // const { toast } = useToast(); // Removed legacy toast
 
   const reasons = [
     { value: 'inappropriate', label: 'Inappropriate Content' },
@@ -40,11 +42,10 @@ export function ContentReportModal({
 
   const handleSubmit = async () => {
     if (!reason || !description.trim()) {
-      toast({
-        title: "Missing Information",
-        description: "Please select a reason and provide a description.",
-        variant: "destructive"
-      });
+      if (!reason || !description.trim()) {
+        notify('warning', 'Missing Information', { description: 'Please select a reason and provide a description.' });
+        return;
+      }
       return;
     }
 
@@ -68,11 +69,9 @@ export function ContentReportModal({
 
       if (response.ok && data.success) {
         setIsSubmitted(true);
-        toast({
-          title: "Report Submitted",
-          description: "Thank you for helping keep our community safe. Our moderation team will review this content.",
-        });
-        
+        setIsSubmitted(true);
+        notify('success', 'Report Submitted', { description: 'Thank you for helping keep our community safe.' });
+
         // Close modal after a delay
         setTimeout(() => {
           setIsOpen(false);
@@ -86,11 +85,7 @@ export function ContentReportModal({
       }
     } catch (error: any) {
       console.error('Error submitting report:', error);
-      toast({
-        title: "Report Failed",
-        description: error.message || "Failed to submit report. Please try again.",
-        variant: "destructive"
-      });
+      notify('error', 'Report Failed', { description: error.message || "Failed to submit report. Please try again." });
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +110,7 @@ export function ContentReportModal({
           </Button>
         )}
       </DialogTrigger>
-      
+
       <DialogContent className="sm:max-w-md">
         {!isSubmitted ? (
           <>

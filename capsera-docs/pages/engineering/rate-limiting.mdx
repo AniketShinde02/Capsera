@@ -23,14 +23,14 @@ graph TD
     H -->|No| J[Block: 429 Too Many Requests]
 ```
 
-## 1. Zero-Tolerance Layer: Cost Control
+## Zero-Tolerance Layer: Cost Control
 **Goal**: Prevent infinite billing loops or credit burn.
 
 -   **Daily Spend Cap**: Hard limit of **$0.50 per user per day**.
 -   **Mechanism**: Tracks actual cost of every AI call in MongoDB `daily_spend` collection.
 -   **Behavior**: If a user hits this limit, they are blocked immediately, regardless of their remaining "Free/Pro" request quota.
 
-## 2. Primary Strategy: Freemium Limits
+## Primary Strategy: Freemium Limits
 **File**: `src/lib/freemium-rate-limiter.ts`
 
 Handles business rules for user quotas (generations per day).
@@ -40,7 +40,7 @@ Handles business rules for user quotas (generations per day).
 -   **Admin**: Unlimited (`isAdmin: true` bypass).
 -   **Storage**: `freemium_usage` collection in MongoDB.
 
-## 3. Secondary Strategy: Smart Security
+## Secondary Strategy: Smart Security
 **File**: `src/lib/smart-rate-limiter.ts`
 
 Handles abuse prevention independent of user quotas.

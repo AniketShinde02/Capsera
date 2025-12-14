@@ -14,7 +14,6 @@ const nextConfig: NextConfig = {
   },
 
   // Performance optimizations
-  // Note: removed experimental.optimizePackageImports which caused runtime chunk issues in dev
   experimental: {
     // optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
@@ -33,9 +32,7 @@ const nextConfig: NextConfig = {
 
   // Add error handling and bypass configurations
   onDemandEntries: {
-    // Period (in ms) where the server will keep pages in the buffer
     maxInactiveAge: 25 * 1000,
-    // Number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
   },
 
@@ -49,9 +46,7 @@ const nextConfig: NextConfig = {
 
   // Add error handling for development
   ...(process.env.NODE_ENV === 'development' && {
-    // Bypass certain errors in development
     webpack: (config, { dev, isServer, webpack, nextRuntime }) => {
-      // Add better module resolution
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -59,19 +54,16 @@ const nextConfig: NextConfig = {
         tls: false,
       };
 
-      // Improve module cache handling with absolute path
       config.cache = {
         type: 'filesystem',
         buildDependencies: {
           config: [__filename],
         },
         cacheDirectory: path.resolve(process.cwd(), '.next/cache'),
-        compression: false, // Disable compression to avoid rename issues
-        maxAge: 172800000, // 2 days
-        // Add better error handling for cache issues
+        compression: false,
+        maxAge: 172800000,
         allowCollectingMemory: true,
         memoryCacheUnaffected: true,
-        // Use stable cache names to avoid rename conflicts
         name: isServer
           ? `webpack-cache-server-${nextRuntime || 'nodejs'}`
           : 'webpack-cache-client',
@@ -79,7 +71,6 @@ const nextConfig: NextConfig = {
       };
 
       if (dev) {
-        // Suppress optional dependency warnings in development
         config.ignoreWarnings = [
           /Module not found: Can't resolve '@opentelemetry\/exporter-jaeger'/,
           /require\.extensions is not supported by webpack/,
@@ -87,14 +78,10 @@ const nextConfig: NextConfig = {
           /Module not found: Can't resolve '@genkit-ai\/firebase'/,
         ];
 
-        // MIME type handling is now done via headers configuration
-
-        // Improve HMR stability
         config.plugins.push(
           new webpack.HotModuleReplacementPlugin()
         );
 
-        // Add error handling plugin for development
         config.plugins.push(
           new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
@@ -102,13 +89,11 @@ const nextConfig: NextConfig = {
         );
       }
 
-      // Fix webpack cache strategy issues
       config.infrastructureLogging = {
         level: 'warn',
         debug: false,
       };
 
-      // Optimize bundle splitting with better cache handling
       if (!isServer) {
         config.optimization.splitChunks = {
           chunks: 'all',
@@ -127,7 +112,6 @@ const nextConfig: NextConfig = {
               priority: 5,
               reuseExistingChunk: true,
             },
-            // Add specific handling for problematic packages
             genkit: {
               test: /[\\/]node_modules[\\/](@genkit-ai|genkit)[\\/]/,
               name: 'genkit',
@@ -138,7 +122,6 @@ const nextConfig: NextConfig = {
           },
         };
 
-        // Improve runtime chunk handling
         config.optimization.runtimeChunk = {
           name: 'runtime',
         };
@@ -180,141 +163,82 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Headers for performance and MIME type fixes
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],
       },
       {
         source: '/api/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-store, max-age=0',
-          },
-        ],
+        headers: [{ key: 'Cache-Control', value: 'no-store, max-age=0' }],
       },
-      // Fix CSS MIME type issues
       {
         source: '/_next/static/css/(.*)',
         headers: [
-          {
-            key: 'Content-Type',
-            value: 'text/css; charset=utf-8',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Content-Type', value: 'text/css; charset=utf-8' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Fix JavaScript MIME type issues
       {
         source: '/_next/static/chunks/(.*)',
         headers: [
-          {
-            key: 'Content-Type',
-            value: 'application/javascript; charset=utf-8',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // WOFF
       {
-        source: '/_next/static/media/(.*)\\.(woff)',
+        source: '/_next/static/media/(.*)\.(woff)',
         headers: [
           { key: 'Content-Type', value: 'font/woff' },
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // WOFF2
       {
-        source: '/_next/static/media/(.*)\\.(woff2)',
+        source: '/_next/static/media/(.*)\.(woff2)',
         headers: [
           { key: 'Content-Type', value: 'font/woff2' },
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // TTF/OTF fonts
       {
-        source: '/_next/static/media/(.*)\\.(ttf|otf)',
+        source: '/_next/static/media/(.*)\.(ttf|otf)',
         headers: [
-          {
-            key: 'Content-Type',
-            value: 'font/ttf',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Content-Type', value: 'font/ttf' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // EOT fonts (legacy IE support)
       {
-        source: '/_next/static/media/(.*)\\.eot',
+        source: '/_next/static/media/(.*)\.eot',
         headers: [
-          {
-            key: 'Content-Type',
-            value: 'application/vnd.ms-fontobject',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Content-Type', value: 'application/vnd.ms-fontobject' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Fix favicon and static assets
       {
         source: '/favicon.ico',
         headers: [
-          {
-            key: 'Content-Type',
-            value: 'image/x-icon',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Content-Type', value: 'image/x-icon' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
       {
         source: '/:path*.(png|jpg|jpeg|gif|ico|svg)',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-
     ];
   },
 
+  // Proxy /docs to separate docs server on port 3002
   async rewrites() {
     return [
-      /*
       {
         source: '/docs',
         destination: 'http://localhost:3002/docs',
@@ -323,10 +247,8 @@ const nextConfig: NextConfig = {
         source: '/docs/:path*',
         destination: 'http://localhost:3002/docs/:path*',
       },
-      */
     ];
   },
 };
 
-// Nextra configuration reverted due to conflicts
 export default nextConfig;

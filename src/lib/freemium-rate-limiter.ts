@@ -219,7 +219,7 @@ export async function checkFreemiumLimits(
     }
 
     // Reset weekly usage if needed
-    if (now > usageRecord.weeklyResetDate) {
+    if (usageRecord && now > usageRecord.weeklyResetDate) {
       usageRecord.weeklyUsage = 0;
       usageRecord.weeklyResetDate = weeklyReset;
       await usageCollection.updateOne(
@@ -232,6 +232,11 @@ export async function checkFreemiumLimits(
           }
         }
       );
+    }
+
+    // Safety check - should never happen but TypeScript requires it
+    if (!usageRecord) {
+      throw new Error('Usage record not found after initialization');
     }
 
     const dailyLimit = typeof config?.DAILY_IMAGES === 'number' ? config.DAILY_IMAGES : (FREEMIUM_LIMITS.FREE_TIER.DAILY_IMAGES as number);

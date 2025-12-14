@@ -2,7 +2,7 @@
 
 Capsera uses **OpenRouter** to access state-of-the-art vision models for caption generation. The architecture is strictly optimized for speed, cost, and "human-like" quality.
 
-## 1. Request Handling & Optimization
+## Request Handling & Optimization
 
 The `/api/generate-captions` endpoint utilizes a strict **Sequential Flow**:
 
@@ -20,7 +20,7 @@ The `/api/generate-captions` endpoint utilizes a strict **Sequential Flow**:
     -   **Daily Spend Cap**: Hard stop at $0.50/user/day (tracked in `daily_spend`).
     -   **Rate Limits**: Checks `ConsolidatedRateLimiter` (Free/Pro tiers).
 
-## 2. Model Architecture
+## Model Architecture
 
 We use a single, reliable production model. No complex fallbacks or "zombie" code.
 
@@ -35,7 +35,7 @@ We use a single, reliable production model. No complex fallbacks or "zombie" cod
 -   ❌ **Sightengine**: Removed external moderation to reduce latency/failure points.
 -   ❌ **Gemini/Llama Fallbacks**: Removed inactive fallback chains ("zombie code").
 
-## 3. Prompt Engineering (Viral/Human)
+## Prompt Engineering (Viral/Human)
 
 The system prompt interacts with the AI as a "Viral Social Media Ghostwriter" with strict constraints to effectively ban robotic behaviors:
 
@@ -45,7 +45,7 @@ The system prompt interacts with the AI as a "Viral Social Media Ghostwriter" wi
 -   **Ban List**: Explicitly forbids words like: *unleash, elevate, symphony, tapestry, embark, game-changer, testament, realm, delve*.
 -   **Output**: Strict JSON array of 3 strings.
 
-## 4. Cost Tracking
+## Cost Tracking
 
 -   **Estimation**: Pre-calculates cost based on image size (512px) and token usage.
 -   **Actuals**: Records exact usage from OpenRouter response when available.

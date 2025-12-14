@@ -19,9 +19,9 @@ export default function MaintenanceCheck() {
 
   useEffect(() => {
     // Skip maintenance check for certain pages to avoid infinite loops
-    if (pathname === '/maintenance' || 
-        pathname.startsWith('/api/') || 
-        pathname.startsWith('/admin/')) {
+    if (pathname === '/maintenance' ||
+      pathname?.startsWith('/api/') ||
+      pathname?.startsWith('/admin/')) {
       setIsLoading(false);
       return;
     }
@@ -32,11 +32,11 @@ export default function MaintenanceCheck() {
   const checkMaintenanceStatus = async () => {
     try {
       const response = await fetch('/api/maintenance');
-      
+
       if (response.ok) {
         const data = await response.json();
         setMaintenanceStatus(data.status);
-        
+
         // If maintenance mode is enabled, redirect to maintenance page
         if (data.status.enabled) {
           router.push('/maintenance');

@@ -25,7 +25,7 @@ export class UnsplashTestImageProvider {
       }
 
       const data = await response.json();
-      
+
       return {
         url: data.urls.regular,
         publicId: `test_${data.id}`,
@@ -63,7 +63,7 @@ export class UnsplashTestImageProvider {
       }
 
       const data = await response.json();
-      
+
       if (data.results && data.results.length > 0) {
         const photo = data.results[0];
         return {
@@ -86,20 +86,20 @@ export class UnsplashTestImageProvider {
    * Get multiple test images for batch testing
    */
   async getMultipleTestImages(count: number = 3): Promise<Array<{ url: string; publicId: string; attribution: string }>> {
-    const images = [];
+    const images: Array<{ url: string; publicId: string; attribution: string }> = [];
     const keywords = ['nature', 'city', 'food', 'technology', 'art', 'travel'];
-    
+
     for (let i = 0; i < count; i++) {
       const keyword = keywords[i % keywords.length];
       const image = await this.getTestImageByKeyword(keyword);
       images.push(image);
-      
+
       // Add small delay to respect rate limits
       if (i < count - 1) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
-    
+
     return images;
   }
 
@@ -108,13 +108,13 @@ export class UnsplashTestImageProvider {
    */
   async createTestImageFile(keyword: string = 'nature'): Promise<File> {
     const imageData = await this.getTestImageByKeyword(keyword);
-    
+
     // Fetch the image data
     const response = await fetch(imageData.url, {
       signal: AbortSignal.timeout(10000) // 10 second timeout
     });
     const blob = await response.blob();
-    
+
     // Create a File object
     return new File([blob], `test_image_${keyword}.jpg`, { type: 'image/jpeg' });
   }
@@ -130,7 +130,7 @@ export class UnsplashTestImageProvider {
     attribution: string;
   }> {
     const imageData = await this.getRandomTestImage();
-    
+
     // Generate test data
     const moods = ['happy', 'professional', 'creative', 'inspiring', 'calm'];
     const descriptions = [
@@ -140,10 +140,10 @@ export class UnsplashTestImageProvider {
       'A creative composition for artistic expression',
       'A peaceful scene for relaxation content'
     ];
-    
+
     const randomMood = moods[Math.floor(Math.random() * moods.length)];
     const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
-    
+
     return {
       imageUrl: imageData.url,
       publicId: imageData.publicId,

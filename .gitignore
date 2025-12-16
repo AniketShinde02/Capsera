@@ -178,3 +178,7 @@ src/lib/feedback/google-apps-script.js
 src/lib/feedback/DEBUG_EMAIL_ISSUE.md
 src/components/feedback/FeedbackForm.tsx
 src/app/api/feedback/submit/route.ts
+
+# API Activity Logs (contains sensitive usage data and token consumption)
+openrouter_activity_*.csv
+*_activity_*.csv

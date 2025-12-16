@@ -32,9 +32,8 @@ export function PerformanceOptimizer() {
 
     // Preload critical resources
     const preloadCriticalResources = () => {
-      // Preload next page resources
+      // Preload next page resources (only public endpoints)
       const links = [
-        { href: '/api/health-check', as: 'fetch', crossorigin: 'anonymous' },
         { href: '/api/rate-limit-info', as: 'fetch', crossorigin: 'anonymous' }
       ];
 

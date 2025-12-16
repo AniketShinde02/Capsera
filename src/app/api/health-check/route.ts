@@ -1,78 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 /**
- * OpenRouter Health Check Endpoint
- * Tests if OpenRouter API is accessible and returns account status
+ * Health Check Endpoint - Environment Configuration Only
+ * DOES NOT make actual API calls to avoid wasting tokens
+ * Protected endpoint - requires authentication
  */
 export async function GET(req: NextRequest) {
   try {
+    // Require authentication to prevent public token waste
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      return NextResponse.json({
+        status: 'error',
+        message: 'Unauthorized - Authentication required'
+      }, { status: 401 });
+    }
+
+    // Only check if admin user
+    if (!session.user.isAdmin) {
+      return NextResponse.json({
+        status: 'error',
+        message: 'Forbidden - Admin access required'
+      }, { status: 403 });
+    }
+
+    // Check environment variables without making API calls
     const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
 
-    if (!openRouterKey) {
-      return NextResponse.json({
-        status: 'error',
-        message: 'OPENROUTER_API_KEY not configured in environment',
-        keyPresent: false
-      }, { status: 500 });
-    }
+    const envStatus = {
+      openrouter: !!openRouterKey,
+      gemini: !!geminiKey,
+      groq: !!groqKey
+    };
 
-    // Test with a cheap, reliable model (GPT-3.5-turbo is widely available)
-    const testResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://capsera.com',
-        'X-Title': 'Capsera Health Check',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-3.5-turbo', // Most universally available model
-        messages: [
-          { role: 'user', content: 'ping' }
-        ],
-        max_tokens: 5
-      })
-    });
+    const allConfigured = envStatus.openrouter && envStatus.gemini && envStatus.groq;
 
-    const responseData = await testResponse.json();
-
-    if (!testResponse.ok) {
-      return NextResponse.json({
-        status: 'error',
-        message: 'OpenRouter API rejected request',
-        httpStatus: testResponse.status,
-        error: responseData,
-        keyPresent: true,
-        keyPrefix: openRouterKey.substring(0, 12) + '...',
-        diagnosis: testResponse.status === 401
-          ? 'INVALID API KEY'
-          : testResponse.status === 402
-            ? 'INSUFFICIENT CREDITS'
-            : testResponse.status === 403
-              ? 'ACCESS FORBIDDEN - Check account status'
-              : 'UNKNOWN ERROR'
-      }, { status: testResponse.status });
-    }
-
-    // Success - API is reachable
     return NextResponse.json({
-      status: 'healthy',
-      message: 'OpenRouter API is accessible',
-      keyPresent: true,
-      keyPrefix: openRouterKey.substring(0, 12) + '...',
-      testModel: 'openai/gpt-3.5-turbo',
-      response: {
-        model: responseData.model,
-        usage: responseData.usage
-      }
+      status: allConfigured ? 'healthy' : 'partial',
+      message: allConfigured
+        ? 'All AI provider keys configured'
+        : 'Some AI provider keys missing',
+      providers: envStatus,
+      note: 'This endpoint only checks environment variables. No API calls are made to preserve tokens.'
     }, { status: 200 });
 
   } catch (error: any) {
     return NextResponse.json({
       status: 'error',
-      message: 'Failed to reach OpenRouter API',
-      error: error.message,
-      diagnosis: 'NETWORK/CONNECTION ISSUE'
+      message: 'Health check failed',
+      error: error.message
     }, { status: 500 });
   }
 }

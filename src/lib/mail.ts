@@ -283,6 +283,92 @@ export async function sendContactConfirmationEmail(data: ContactConfirmationData
   }
 }
 
+// Send admin notification for contact form submissions
+export async function sendContactAdminNotification(data: ContactConfirmationData) {
+  const adminEmail = process.env.ADMIN_EMAIL_RECEIVER;
+
+  if (!adminEmail) {
+    console.warn('⚠️ ADMIN_EMAIL_RECEIVER not set in .env, skipping admin notification email.');
+    return { queued: false, logged: true };
+  }
+
+  if (!transporter) {
+    console.log('📧 SMTP not configured - admin notification would be sent to:', adminEmail);
+    return { queued: false, logged: true };
+  }
+
+  // Get base URL - require proper configuration
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.capsera.online';
+  if (!baseUrl) {
+    console.error('❌ Missing NEXTAUTH_URL or NEXT_PUBLIC_APP_URL environment variable');
+    return { queued: false, error: 'Missing app URL configuration' };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `Capsera Notifications <${from}>`,
+      to: adminEmail,
+      replyTo: data.email,
+      subject: `📬 New Contact Form Submission: ${data.subject}`,
+      text: `New Contact Form Submission\n\nFrom: ${data.name} (${data.email})\nSubject: ${data.subject}\nSubmission ID: ${data.submissionId}\n\nMessage:\n${data.message}\n\n---\nYou can reply directly to this email to respond to ${data.name}.`,
+      html: getHtmlTemplate({
+        title: 'New Contact Form Submission',
+        previewText: `New message from ${data.name}: ${data.subject}`,
+        heading: 'New Contact Form Submission 📬',
+        baseUrl,
+        content: `
+          <p style="margin-bottom: 24px;">You have received a new contact form submission from <strong>${data.name}</strong>.</p>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #06b6d4; font-size: 16px; font-weight: 600;">📋 Submission Details</h3>
+            <div style="display: grid; gap: 12px;">
+              <div>
+                <span style="color: #9ca3af; font-size: 14px; font-weight: 500;">From:</span>
+                <span style="color: #e5e7eb; font-size: 14px; margin-left: 8px;">${data.name}</span>
+              </div>
+              <div>
+                <span style="color: #9ca3af; font-size: 14px; font-weight: 500;">Email:</span>
+                <a href="mailto:${data.email}" style="color: #06b6d4; font-size: 14px; margin-left: 8px; text-decoration: none;">${data.email}</a>
+              </div>
+              <div>
+                <span style="color: #9ca3af; font-size: 14px; font-weight: 500;">Subject:</span>
+                <span style="color: #e5e7eb; font-size: 14px; margin-left: 8px;">${data.subject}</span>
+              </div>
+              <div>
+                <span style="color: #9ca3af; font-size: 14px; font-weight: 500;">Submission ID:</span>
+                <span style="color: #06b6d4; font-size: 14px; margin-left: 8px; font-family: monospace;">${data.submissionId}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style="background-color: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <h3 style="margin: 0 0 16px 0; color: #f59e0b; font-size: 16px; font-weight: 600;">💬 Message</h3>
+            <p style="color: #e5e7eb; line-height: 1.6; white-space: pre-wrap; margin: 0;">${data.message}</p>
+          </div>
+          
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-radius: 8px; padding: 16px; margin: 24px 0;">
+            <p style="margin: 0; color: #9ca3af; font-size: 14px;">
+              💡 <strong>Tip:</strong> You can reply directly to this email to respond to ${data.name}.
+            </p>
+          </div>
+        `,
+        cta: {
+          text: 'View All Submissions',
+          url: `${baseUrl}/admin/contacts`
+        },
+        footerText: `This is an automated notification from Capsera.`
+      })
+    });
+
+    console.log('📧 Admin notification email sent to:', adminEmail, 'Message ID:', info.messageId);
+    return { queued: true, messageId: info.messageId };
+
+  } catch (err) {
+    console.error('❌ Failed to send admin notification email:', err);
+    return { queued: false, error: String(err) };
+  }
+}
+
 // New function: Send welcome email to new users
 export async function sendWelcomeEmail(data: WelcomeEmailData) {
   // Always log in dev for testing

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         try {
             const emailService = new BrevoEmailService(true); // Use secondary SMTP credentials (SMTP_PASS_1)
             const userEmail = session.user.email || 'unknown@example.com';
-            const userName = session.user.name || (session.user as any).username || 'Anonymous User';
+            const userName = session.user.name || (session.user as any).username || session.user.email || 'User';
 
             // Fire and forget - don't block response
             emailService.sendSuggestionEmail({

@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, MessageSquare, Send, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, MessageSquare, Send, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface Suggestion {
     _id: string;
@@ -26,6 +26,7 @@ interface Suggestion {
     createdAt: string;
     adminReply?: string;
     repliedAt?: string;
+    reactions?: string[];
 }
 
 export default function AdminSuggestionsPage() {
@@ -84,6 +85,25 @@ export default function AdminSuggestionsPage() {
         }
     };
 
+    const handleReaction = async (suggestionId: string, reaction: string) => {
+        try {
+            const res = await fetch(`/api/admin/suggestions/${suggestionId}/react`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reaction }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setSuggestions(prev => prev.map(s =>
+                    s._id === suggestionId ? { ...s, reactions: data.data.reactions } : s
+                ));
+            }
+        } catch (error) {
+            console.error('Failed to react:', error);
+        }
+    };
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'pending': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
@@ -113,15 +133,15 @@ export default function AdminSuggestionsPage() {
     }
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 p-6 max-w-7xl mx-auto">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Suggestions</h1>
                 <p className="text-muted-foreground">Manage and reply to user suggestions.</p>
             </div>
 
-            <div className="grid gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {suggestions.length === 0 ? (
-                    <Card className="bg-muted/50 border-dashed">
+                    <Card className="col-span-full bg-muted/50 border-dashed">
                         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                             <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold">No suggestions yet</h3>
@@ -136,72 +156,86 @@ export default function AdminSuggestionsPage() {
                             animate={{ opacity: 1, y: 0 }}
                             className="group"
                         >
-                            <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card/80 transition-colors">
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className={`${getStatusColor(suggestion.status)} capitalize`}>
-                                                    {suggestion.status}
-                                                </Badge>
-                                                <Badge variant="secondary" className="bg-secondary/50">
-                                                    {getCategoryIcon(suggestion.category)} {suggestion.category}
-                                                </Badge>
-                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <Clock className="w-3 h-3" />
-                                                    {format(new Date(suggestion.createdAt), 'MMM d, yyyy')}
-                                                </span>
-                                            </div>
-                                            <CardTitle className="text-xl font-semibold mt-2">{suggestion.title}</CardTitle>
-                                            <CardDescription>
-                                                Submitted by <span className="font-medium text-foreground">{suggestion.userId?.name || suggestion.userId?.username || 'Anonymous'}</span> ({suggestion.userId?.email})
-                                            </CardDescription>
-                                        </div>
+                            <Card className="h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card/80 hover:shadow-lg transition-all">
+                                <CardHeader className="pb-3 space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Badge variant="outline" className={`${getStatusColor(suggestion.status)} capitalize text-xs`}>
+                                            {suggestion.status}
+                                        </Badge>
+                                        <Badge variant="secondary" className="bg-secondary/50 text-xs">
+                                            {getCategoryIcon(suggestion.category)} {suggestion.category}
+                                        </Badge>
                                     </div>
+                                    <CardTitle className="text-base font-semibold line-clamp-2">{suggestion.title}</CardTitle>
+                                    <CardDescription className="text-xs">
+                                        By <span className="font-medium text-foreground">{suggestion.userId?.name || suggestion.userId?.username || suggestion.userId?.email || 'User'}</span>
+                                        <br />
+                                        <span className="flex items-center gap-1 mt-1">
+                                            <Clock className="w-3 h-3" />
+                                            {format(new Date(suggestion.createdAt), 'MMM d, yyyy')}
+                                        </span>
+                                    </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="bg-muted/30 p-4 rounded-lg text-sm leading-relaxed">
+                                <CardContent className="space-y-3">
+                                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
                                         {suggestion.description}
+                                    </p>
+
+                                    {/* Reactions */}
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                        {['👍', '❤️', '🔥', '🎉', '👀'].map((emoji) => {
+                                            const isActive = suggestion.reactions?.includes(emoji);
+                                            return (
+                                                <Button
+                                                    key={emoji}
+                                                    variant={isActive ? "default" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => handleReaction(suggestion._id, emoji)}
+                                                    className={`h-7 w-7 p-0 transition-all ${isActive ? 'scale-110' : 'hover:scale-105'}`}
+                                                >
+                                                    <span className="text-sm">{emoji}</span>
+                                                </Button>
+                                            );
+                                        })}
                                     </div>
 
                                     {suggestion.adminReply ? (
-                                        <div className="bg-primary/5 border border-primary/10 p-4 rounded-lg space-y-2">
-                                            <div className="flex items-center gap-2 text-primary font-medium text-sm">
-                                                <CheckCircle2 className="w-4 h-4" />
+                                        <div className="bg-primary/5 border border-primary/10 p-3 rounded-lg space-y-1">
+                                            <div className="flex items-center gap-1 text-primary font-medium text-xs">
+                                                <CheckCircle2 className="w-3 h-3" />
                                                 Admin Reply
-                                                <span className="text-xs text-muted-foreground font-normal">
-                                                    • {format(new Date(suggestion.repliedAt!), 'MMM d, yyyy')}
-                                                </span>
                                             </div>
-                                            <p className="text-sm text-foreground/90">{suggestion.adminReply}</p>
+                                            <p className="text-xs text-foreground/90">{suggestion.adminReply}</p>
                                         </div>
                                     ) : (
-                                        <div className="pt-2">
+                                        <div className="pt-1">
                                             {replyingTo === suggestion._id ? (
-                                                <div className="space-y-3">
+                                                <div className="space-y-2">
                                                     <Textarea
-                                                        placeholder="Write a reply to the user..."
+                                                        placeholder="Write a reply..."
                                                         value={replyText}
                                                         onChange={(e) => setReplyText(e.target.value)}
-                                                        className="min-h-[100px]"
+                                                        className="min-h-[80px] text-sm"
                                                     />
                                                     <div className="flex items-center gap-2">
                                                         <Button
                                                             onClick={() => handleReply(suggestion._id)}
                                                             disabled={replyStatus === 'sending' || !replyText.trim()}
-                                                            className="gap-2"
+                                                            size="sm"
+                                                            className="gap-1"
                                                         >
                                                             {replyStatus === 'sending' ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                                <Loader2 className="w-3 h-3 animate-spin" />
                                                             ) : replyStatus === 'success' ? (
-                                                                <CheckCircle2 className="w-4 h-4" />
+                                                                <CheckCircle2 className="w-3 h-3" />
                                                             ) : (
-                                                                <Send className="w-4 h-4" />
+                                                                <Send className="w-3 h-3" />
                                                             )}
-                                                            {replyStatus === 'sending' ? 'Sending...' : replyStatus === 'success' ? 'Sent!' : 'Send Reply'}
+                                                            {replyStatus === 'sending' ? 'Sending...' : replyStatus === 'success' ? 'Sent!' : 'Send'}
                                                         </Button>
                                                         <Button
                                                             variant="ghost"
+                                                            size="sm"
                                                             onClick={() => {
                                                                 setReplyingTo(null);
                                                                 setReplyText('');
@@ -215,10 +249,11 @@ export default function AdminSuggestionsPage() {
                                             ) : (
                                                 <Button
                                                     variant="outline"
+                                                    size="sm"
                                                     onClick={() => setReplyingTo(suggestion._id)}
-                                                    className="gap-2"
+                                                    className="gap-1 w-full"
                                                 >
-                                                    <MessageSquare className="w-4 h-4" />
+                                                    <MessageSquare className="w-3 h-3" />
                                                     Reply
                                                 </Button>
                                             )}

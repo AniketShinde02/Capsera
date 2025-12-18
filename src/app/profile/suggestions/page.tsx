@@ -20,6 +20,9 @@ interface Suggestion {
     category: string;
     status: string;
     createdAt: string;
+    adminReply?: string;
+    repliedAt?: string;
+    reactions?: string[];
 }
 
 export default function SuggestionsPage() {
@@ -261,10 +264,30 @@ export default function SuggestionsPage() {
                                         </Badge>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="space-y-3">
                                     <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
                                         {suggestion.description}
                                     </p>
+
+                                    {/* Admin Reactions */}
+                                    {suggestion.reactions && suggestion.reactions.length > 0 && (
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            {suggestion.reactions.map((emoji, idx) => (
+                                                <span key={idx} className="text-lg">{emoji}</span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Admin Reply */}
+                                    {suggestion.adminReply && (
+                                        <div className="bg-primary/5 border border-primary/10 p-3 rounded-lg space-y-1">
+                                            <div className="flex items-center gap-1 text-primary font-medium text-xs">
+                                                <CheckCircle2 className="w-3 h-3" />
+                                                Admin Reply
+                                            </div>
+                                            <p className="text-xs text-foreground/80">{suggestion.adminReply}</p>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </motion.div>

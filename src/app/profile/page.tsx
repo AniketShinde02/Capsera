@@ -317,17 +317,17 @@ export default function ProfileDashboard() {
                                 )}
                             </div>
 
+
                             <div className="relative my-6 group/avatar">
-                                <div className="absolute -inset-4 bg-gradient-to-b from-indigo-500/20 to-purple-500/20 rounded-full blur-xl opacity-50" />
                                 <Avatar
                                     className={cn(
-                                        "w-40 h-40 border-4 border-card shadow-2xl ring-4 ring-border/30 transition-all duration-300",
+                                        "w-40 h-40 border-4 border-border shadow-xl ring-2 ring-primary/20 transition-all duration-300",
                                         isEditing && "cursor-pointer hover:ring-primary/50 hover:opacity-90"
                                     )}
                                     onClick={handleAvatarClick}
                                 >
                                     <AvatarImage src={formData.image || undefined} className="object-cover" />
-                                    <AvatarFallback className="text-4xl font-bold bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                                    <AvatarFallback className="text-4xl font-bold bg-gradient-to-br from-primary/20 to-purple-500/20">
                                         {user.email?.[0]?.toUpperCase() || 'U'}
                                     </AvatarFallback>
                                 </Avatar>

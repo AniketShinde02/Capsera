@@ -36,6 +36,10 @@ const SuggestionSchema = new mongoose.Schema({
     repliedAt: {
         type: Date,
     },
+    reactions: {
+        type: [String], // Array of emoji reactions like ['👍', '❤️', '🔥']
+        default: [],
+    },
     createdAt: {
         type: Date,
         default: Date.now,
@@ -50,6 +54,7 @@ export interface ISuggestion extends mongoose.Document {
     status: 'pending' | 'reviewed' | 'planned' | 'completed' | 'declined';
     adminReply?: string;
     repliedAt?: Date;
+    reactions?: string[];
     createdAt: Date;
 }
 

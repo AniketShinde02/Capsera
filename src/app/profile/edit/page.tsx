@@ -17,8 +17,9 @@ export default function EditProfilePage() {
     const { data: session, status, update } = useSession();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [uploading, setUploading] = useState(false);
     const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
 
     const [formData, setFormData] = useState({
         username: '',
@@ -54,7 +55,7 @@ export default function EditProfilePage() {
 
     if (!session) return null;
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -68,37 +69,13 @@ export default function EditProfilePage() {
             return;
         }
 
-        setUploading(true);
-        setStatusMsg({ type: 'loading', message: 'Uploading image...' });
-
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) throw new Error('Upload failed');
-
-            const data = await response.json();
-
-            const updateResponse = await fetch('/api/user', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: data.url }),
-            });
-
-            if (updateResponse.ok) {
-                await update();
-                setStatusMsg({ type: 'success', message: 'Profile picture updated successfully' });
-            }
-        } catch (error) {
-            setStatusMsg({ type: 'error', message: 'Failed to upload image' });
-        } finally {
-            setUploading(false);
-        }
+        // Preview the image
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+        setImageFile(file);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -107,17 +84,40 @@ export default function EditProfilePage() {
         setStatusMsg({ type: 'loading', message: 'Updating profile...' });
 
         try {
+            let imageUrl = session?.user?.image;
+
+            // Upload image first if selected
+            if (imageFile) {
+                const uploadFormData = new FormData();
+                uploadFormData.append('file', imageFile);
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: uploadFormData,
+                });
+
+                if (!uploadResponse.ok) throw new Error('Image upload failed');
+                const uploadData = await uploadResponse.json();
+                imageUrl = uploadData.url;
+            }
+
+            // Update profile with all data including image
             const response = await fetch('/api/user', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    ...(imageUrl && { image: imageUrl })
+                }),
             });
 
             if (!response.ok) throw new Error('Update failed');
 
             await update();
+            setImagePreview(null);
+            setImageFile(null);
 
-            setStatusMsg({ type: 'success', message: 'Profile updated successfully' });
+            setStatusMsg({ type: 'success', message: 'Profile updated successfully!' });
         } catch (error) {
             setStatusMsg({ type: 'error', message: 'Failed to update profile' });
         } finally {
@@ -176,10 +176,12 @@ export default function EditProfilePage() {
                         </CardHeader>
                         <CardContent className="flex flex-col items-center pb-8">
                             <div className="relative group">
-                                <div className="absolute -inset-1 bg-gradient-to-br from-primary to-purple-600 rounded-full opacity-75 blur group-hover:opacity-100 transition-opacity" />
-                                <Avatar className="h-40 w-40 border-4 border-background relative">
-                                    <AvatarImage src={session?.user?.image || ''} className="object-cover" />
-                                    <AvatarFallback className="bg-muted text-4xl">
+                                <Avatar className="h-40 w-40 border-4 border-border shadow-xl relative ring-2 ring-primary/20">
+                                    <AvatarImage
+                                        src={imagePreview || session?.user?.image || ''}
+                                        className="object-cover"
+                                    />
+                                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-purple-500/20 text-4xl">
                                         {session?.user?.email?.[0]?.toUpperCase() || 'U'}
                                     </AvatarFallback>
                                 </Avatar>
@@ -187,22 +189,22 @@ export default function EditProfilePage() {
                                     htmlFor="avatar-upload"
                                     className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-lg hover:bg-primary/90 transition-all hover:scale-110"
                                 >
-                                    {uploading ? (
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : (
-                                        <Camera className="h-5 w-5" />
-                                    )}
+                                    <Camera className="h-5 w-5" />
                                 </label>
                                 <input
                                     id="avatar-upload"
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={handleImageUpload}
-                                    disabled={uploading}
+                                    onChange={handleImageSelect}
                                 />
                             </div>
-                            <p className="text-xs text-muted-foreground mt-6 text-center max-w-[200px]">
+                            {imagePreview && (
+                                <p className="text-xs text-primary mt-4 font-medium">
+                                    ✓ New image selected. Click Save to apply.
+                                </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2 text-center max-w-[200px]">
                                 Recommended: Square JPG or PNG, at least 800x800px.
                             </p>
                         </CardContent>

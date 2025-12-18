@@ -22,7 +22,8 @@ import {
   Sliders,
   Wrench,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Lightbulb
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -70,6 +71,11 @@ const adminNavCategories = [
         title: 'Images',
         href: '/admin/images',
         icon: ImageIcon,
+      },
+      {
+        title: 'Suggestions',
+        href: '/admin/suggestions',
+        icon: Lightbulb,
       }
     ]
   },

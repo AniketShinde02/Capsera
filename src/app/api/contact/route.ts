@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Contact from '@/models/Contact';
-import { sendContactConfirmationEmail, sendContactAdminNotification } from '@/lib/mail';
+import { sendContactConfirmationEmail } from '@/lib/mail';
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,37 +69,21 @@ export async function POST(request: NextRequest) {
       timestamp: savedContact.createdAt
     });
 
-    // Send both emails in parallel (fire and forget for faster response)
-    const emailPromises = Promise.allSettled([
-      sendContactConfirmationEmail({
+    // Send confirmation email to user
+    try {
+      await sendContactConfirmationEmail({
         name: savedContact.name,
         email: savedContact.email,
-        subject: savedContact.category,
+        subject: savedContact.category, // Use category as subject
         message: savedContact.message,
         submissionId: savedContact._id.toString()
-      }),
-      sendContactAdminNotification({
-        name: savedContact.name,
-        email: savedContact.email,
-        subject: savedContact.category,
-        message: savedContact.message,
-        submissionId: savedContact._id.toString()
-      })
-    ]);
-
-    // Log results asynchronously (don't block response)
-    emailPromises.then(results => {
-      results.forEach((result, index) => {
-        const emailType = index === 0 ? 'User confirmation' : 'Admin notification';
-        if (result.status === 'fulfilled') {
-          console.log(`✅ ${emailType} email sent`);
-        } else {
-          console.error(`❌ ${emailType} email failed:`, result.reason);
-        }
       });
-    }).catch(err => {
-      console.error('❌ Unexpected email error:', err);
-    });
+
+      console.log('📧 Confirmation email sent to:', savedContact.email);
+    } catch (emailError) {
+      console.error('📧 Failed to send confirmation email:', emailError);
+      // Don't fail the request if email fails - contact is still saved
+    }
 
     return NextResponse.json(
       {

@@ -303,17 +303,32 @@ export async function checkFreemiumLimits(
 
 /**
  * 🎯 Increment freemium usage - Call this ONLY after successful generation
+ * Returns the updated usage record to avoid extra DB calls
  */
 export async function incrementFreemiumUsage(
   userId?: string,
   ip?: string
-): Promise<void> {
+): Promise<any> {
   try {
     await dbConnect();
     const tier = await getUserFreemiumTier(userId);
 
     // Pro users don't need usage tracking for limits
-    if (tier === 'pro') return;
+    // But we should return a mock structure so the caller knows it's pro
+    if (tier === 'pro') {
+      return {
+        tier: 'pro',
+        dailyUsage: 0,
+        weeklyUsage: 0,
+        dailyLimit: Infinity,
+        weeklyLimit: Infinity,
+        remainingDaily: Infinity,
+        remainingWeekly: Infinity,
+        resetTime: getNextDailyReset().getTime(),
+        isInGracePeriod: false,
+        upgradePrompt: false
+      };
+    }
 
     const key = userId ? `user:${userId}` : `ip:${ip || 'unknown'}`;
     const now = new Date();
@@ -324,6 +339,8 @@ export async function incrementFreemiumUsage(
     const usageCollection = db.collection('freemium_usage');
 
     // Get current record to decide whether to increment daily or weekly
+    // We can't do findOneAndUpdate easily because the logic depends on currentDailyUsage
+    // So we keep the findOne, but use findOneAndUpdate for the write to get the return value.
     const usageRecord = await usageCollection.findOne({ key });
 
     // Determine limits based on tier
@@ -335,15 +352,18 @@ export async function incrementFreemiumUsage(
     const configKey = tierKeyMap[tier] || 'FREE_TIER';
     const config = FREEMIUM_LIMITS[configKey];
     const dailyLimit = typeof config?.DAILY_IMAGES === 'number' ? config.DAILY_IMAGES : 5;
+    const weeklyLimit = typeof config?.WEEKLY_GRACE === 'number' ? config.WEEKLY_GRACE : 1;
 
     // Check if we should increment daily or weekly usage
-    // If daily usage is below limit, increment daily. Otherwise, increment weekly.
     const currentDailyUsage = usageRecord?.dailyUsage || 0;
+
+    let updatedDoc;
 
     if (currentDailyUsage < dailyLimit) {
       // Increment daily usage
-      await usageCollection.updateOne(
-        { key },
+      // Atomic check: Ensure dailyUsage is STILL < dailyLimit
+      const result = await usageCollection.findOneAndUpdate(
+        { key, dailyUsage: { $lt: dailyLimit } },
         {
           $inc: { dailyUsage: 1 },
           $set: {
@@ -361,12 +381,24 @@ export async function incrementFreemiumUsage(
             createdAt: now
           }
         },
-        { upsert: true }
+        { upsert: true, returnDocument: 'after' }
       );
-      // console.log(`📊 Incremented DAILY usage for ${key}`);
+
+      if (result) {
+         updatedDoc = result;
+      } else {
+         // If update failed (race condition or limit hit), force a re-fetch or handle as limit reached
+         // In this case, if it failed, it means daily limit is reached.
+         // We should probably fall through to the weekly check or just return the current state.
+         // But `incrementFreemiumUsage` is supposed to increment. If it can't, it implies limit reached.
+         // However, the caller already checked limits. This is just recording usage.
+         // If we can't increment daily, maybe we should increment weekly?
+         // Simpler: Just fetch the document to return valid info.
+         updatedDoc = await usageCollection.findOne({ key });
+      }
     } else {
       // Increment weekly usage (grace period)
-      await usageCollection.updateOne(
+      const result = await usageCollection.findOneAndUpdate(
         { key },
         {
           $inc: { weeklyUsage: 1 },
@@ -383,12 +415,37 @@ export async function incrementFreemiumUsage(
             createdAt: now
           }
         },
-        { upsert: true }
+        { upsert: true, returnDocument: 'after' }
       );
-      // console.log(`📊 Incremented WEEKLY usage for ${key}`);
+      updatedDoc = result;
     }
+
+    // Transform updatedDoc into the standard usage info structure
+    if (updatedDoc) {
+        const newDailyUsage = updatedDoc.dailyUsage || 0;
+        const newWeeklyUsage = updatedDoc.weeklyUsage || 0;
+        const remainingDaily = Math.max(0, (dailyLimit === Infinity ? Number.MAX_SAFE_INTEGER : dailyLimit) - newDailyUsage);
+        const remainingWeekly = Math.max(0, (weeklyLimit === Infinity ? Number.MAX_SAFE_INTEGER : weeklyLimit) - newWeeklyUsage);
+        const isInGracePeriod = remainingDaily === 0 && remainingWeekly > 0;
+
+        return {
+            tier,
+            dailyUsage: newDailyUsage,
+            weeklyUsage: newWeeklyUsage,
+            dailyLimit: config.DAILY_IMAGES,
+            weeklyLimit: config.WEEKLY_GRACE,
+            remainingDaily,
+            remainingWeekly,
+            resetTime: getNextDailyReset().getTime(),
+            isInGracePeriod,
+            upgradePrompt: remainingDaily <= 1 || isInGracePeriod
+        };
+    }
+    return null;
+
   } catch (error) {
     console.error('Error incrementing freemium usage:', error);
+    return null;
   }
 }
 

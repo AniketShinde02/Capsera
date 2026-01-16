@@ -392,6 +392,7 @@ export async function POST(req: NextRequest) {
 
       // 💰 TRACK SPEND AFTER SUCCESS
       if (session?.user?.id && !useFreeModel && finalCost > 0) {
+        // Critical: Await this to ensure billing data is recorded before serverless function termination
         await trackUserSpend(session.user.id, finalCost);
       }
 
@@ -416,17 +417,34 @@ export async function POST(req: NextRequest) {
     }
 
     const processingTime = Date.now() - startTime;
-    await consolidatedRateLimiter.incrementUsage(session?.user?.id, clientIP);
-    const rateLimitInfo = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
+
+    // ⚡ OPTIMIZATION: Update usage and get info in parallel/single call
+    // We try to get the updated info directly from the increment call
+    const updatedUsageInfo = await consolidatedRateLimiter.incrementUsage(session?.user?.id, clientIP);
+
+    // If we got the info from increment, use it. Otherwise fetch it.
+    // Note: incrementUsage now returns the structure we need or null
+    let rateLimitInfo;
+    if (updatedUsageInfo) {
+      rateLimitInfo = {
+        userTier: updatedUsageInfo.tier,
+        remaining: updatedUsageInfo.remainingDaily > 0 ? updatedUsageInfo.remainingDaily : updatedUsageInfo.remainingWeekly, // Simplified logic for UI
+        // We could expand this to match exact structure if needed, but UI mostly needs remaining
+      };
+    } else {
+       // Fallback if increment didn't return info (e.g. error or old version)
+       const info = await consolidatedRateLimiter.getRateLimitInfo(session?.user?.id, clientIP);
+       rateLimitInfo = {
+         userTier: info.userTier,
+         remaining: info.remaining
+       };
+    }
 
     return NextResponse.json({
       success: true,
       captions: result.captions,
       processingTime,
-      rateLimit: {
-        userTier: rateLimitInfo.userTier,
-        remaining: rateLimitInfo.remaining,
-      }
+      rateLimit: rateLimitInfo
     });
 
   } catch (error: any) {

@@ -96,9 +96,13 @@ export class ConsolidatedRateLimiter {
     securityLimited?: boolean;
     upgradePrompt?: boolean;
   }> {
-    // Step 1: Check primary rate limit (quotas)
-    const primaryResult = await this.checkPrimaryRateLimit(userId, ip);
+    // Step 1: Parallel Check - Run both primary (quotas) and secondary (security) checks simultaneously
+    const [primaryResult, secondaryResult] = await Promise.all([
+      this.checkPrimaryRateLimit(userId, ip),
+      this.checkSecondaryRateLimit(ip || 'unknown', userId)
+    ]);
 
+    // Check primary result first (quotas)
     if (!primaryResult.allowed) {
       return {
         ...primaryResult,
@@ -106,9 +110,7 @@ export class ConsolidatedRateLimiter {
       };
     }
 
-    // Step 2: Check secondary rate limit (security)
-    const secondaryResult = await this.checkSecondaryRateLimit(ip || 'unknown', userId);
-
+    // Check secondary result (security)
     if (secondaryResult.limited) {
       return {
         allowed: false,
@@ -132,12 +134,14 @@ export class ConsolidatedRateLimiter {
 
   /**
    * Increment usage count - Call ONLY after successful operation
+   * Returns the updated usage info to save an extra DB call
    */
-  async incrementUsage(userId?: string, ip?: string): Promise<void> {
+  async incrementUsage(userId?: string, ip?: string) {
     try {
-      await incrementFreemiumUsage(userId, ip);
+      return await incrementFreemiumUsage(userId, ip);
     } catch (error) {
       console.error('Failed to increment usage:', error);
+      return null;
     }
   }
 
